@@ -2,7 +2,7 @@
   "compilerOptions": {
     "target": "ES2022",
     "module": "commonjs",
-    "moduleResolution": "node",
+    "moduleResolution": "node10",
     "lib": [
       "ES2022"
     ],
@@ -16,19 +16,18 @@
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
-    "baseUrl": "./",
     "paths": {
       "@config/*": [
-        "src/config/*"
+        "./src/config/*"
       ],
       "@infrastructure/*": [
-        "src/infrastructure/*"
+        "./src/infrastructure/*"
       ],
       "@shared/*": [
-        "src/shared/*"
+        "./src/shared/*"
       ],
       "@modules/*": [
-        "src/modules/*"
+        "./src/modules/*"
       ]
     }
   },
