@@ -26,11 +26,14 @@ class _EventsListViewState extends ConsumerState<EventsListView> with SingleTick
   }
 
   void _onScopeTabChanged() {
+    if (_scopeTabController.indexIsChanging) return;
     String? scope;
     if (_scopeTabController.index == 1) scope = 'COLLEGE';
     if (_scopeTabController.index == 2) scope = 'DEPARTMENT';
     if (_scopeTabController.index == 3) scope = 'CLUB';
-    ref.read(selectedEventsScopeProvider.notifier).state = scope;
+    if (mounted) {
+      ref.read(selectedEventsScopeProvider.notifier).state = scope;
+    }
   }
 
   @override
