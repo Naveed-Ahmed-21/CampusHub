@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1100" viewBox="0 0 1800 1100">
+<style>
+.title{font:700 28px Arial}.head{font:700 16px Arial;fill:#fff}.body{font:13px Arial}.box{fill:#fff;stroke:#2563EB;stroke-width:2}.header{fill:#2563EB}.line{stroke:#666;stroke-width:2}
+</style>
+<text x="30" y="40" class="title">CampusHub Database Schema (Version 1.0)</text>
+<g transform="translate(40,90)"><rect class="box" width="250" height="180"/><rect class="header" width="250" height="32"/><text x="10" y="22" class="head">users</text><text x="10" y="52" class="body">PK id : uuid</text><text x="10" y="72" class="body">FK department_id</text><text x="10" y="92" class="body">role</text><text x="10" y="112" class="body">email</text><text x="10" y="132" class="body">password</text></g>
+<g transform="translate(360,90)"><rect class="box" width="250" height="170"/><rect class="header" width="250" height="32"/><text x="10" y="22" class="head">profiles</text><text x="10" y="52" class="body">PK id</text><text x="10" y="72" class="body">FK user_id</text><text x="10" y="92" class="body">full_name</text></g>
+<g transform="translate(700,90)"><rect class="box" width="250" height="170"/><rect class="header" width="250" height="32"/><text x="10" y="22" class="head">departments</text><text x="10" y="52" class="body">PK id</text><text x="10" y="72" class="body">campus_id</text></g>
+<g transform="translate(1040,90)"><rect class="box" width="250" height="180"/><rect class="header" width="250" height="32"/><text x="10" y="22" class="head">posts</text><text x="10" y="52" class="body">PK id</text><text x="10" y="72" class="body">author_id</text><text x="10" y="92" class="body">department_id</text><text x="10" y="112" class="body">club_id</text></g>
+<g transform="translate(40,380)"><rect class="box" width="250" height="150"/><rect class="header" width="250" height="32"/><text x="10" y="22" class="head">clubs</text><text x="10" y="52" class="body">PK id</text><text x="10" y="72" class="body">owner_id</text></g>
+<g transform="translate(360,380)"><rect class="box" width="250" height="150"/><rect class="header" width="250" height="32"/><text x="10" y="22" class="head">club_members</text><text x="10" y="52" class="body">club_id</text><text x="10" y="72" class="body">user_id</text></g>
+<g transform="translate(700,380)"><rect class="box" width="250" height="170"/><rect class="header" width="250" height="32"/><text x="10" y="22" class="head">chat_rooms / messages</text><text x="10" y="52" class="body">room_id</text><text x="10" y="72" class="body">sender_id</text></g>
+<g transform="translate(1040,380)"><rect class="box" width="250" height="170"/><rect class="header" width="250" height="32"/><text x="10" y="22" class="head">roadmaps</text><text x="10" y="52" class="body">topics</text><text x="10" y="72" class="body">resources</text></g>
+<g transform="translate(40,700)"><rect class="box" width="250" height="150"/><rect class="header" width="250" height="32"/><text x="10" y="22" class="head">events</text></g>
+<g transform="translate(360,700)"><rect class="box" width="250" height="150"/><rect class="header" width="250" height="32"/><text x="10" y="22" class="head">placement_drives</text></g>
+<g transform="translate(700,700)"><rect class="box" width="250" height="150"/><rect class="header" width="250" height="32"/><text x="10" y="22" class="head">portfolios</text></g>
+<g transform="translate(1040,700)"><rect class="box" width="250" height="150"/><rect class="header" width="250" height="32"/><text x="10" y="22" class="head">notifications</text></g>
+<line class="line" x1="290" y1="175" x2="360" y2="175"/><line class="line" x1="610" y1="175" x2="700" y2="175"/><line class="line" x1="950" y1="175" x2="1040" y2="175"/><line class="line" x1="165" y1="270" x2="165" y2="380"/><line class="line" x1="290" y1="455" x2="360" y2="455"/>
+<text x="30" y="1060" font-family="Arial" font-size="12">CampusHub V1 MVP schema overview.</text>
+</svg>

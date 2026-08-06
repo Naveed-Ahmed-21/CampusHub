@@ -1,0 +1,49 @@
+name: Flutter CI
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'apps/campus_hub_app/**'
+      - '.github/workflows/ci-flutter.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'apps/campus_hub_app/**'
+      - '.github/workflows/ci-flutter.yml'
+
+jobs:
+  analyze-and-test:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: apps/campus_hub_app
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java Environment
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Install Flutter Dependencies
+        run: flutter pub get
+
+      - name: Verify Code Formatting
+        run: dart format --output=none --set-exit-if-changed .
+
+      - name: Run Static Code Analysis
+        run: flutter analyze
+
+      - name: Run Flutter Tests
+        run: flutter test

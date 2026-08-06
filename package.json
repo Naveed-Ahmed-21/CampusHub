@@ -1,0 +1,41 @@
+{
+  "name": "campushub-monorepo",
+  "version": "1.0.0",
+  "description": "Production-ready open-source digital campus ecosystem monorepo",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "apps/*"
+  ],
+  "scripts": {
+    "backend:dev": "npm run dev --workspace=backend",
+    "backend:build": "npm run build --workspace=backend",
+    "backend:start": "npm run start --workspace=backend",
+    "backend:lint": "npm run lint --workspace=backend",
+    "backend:test": "npm run test --workspace=backend",
+    "prisma:generate": "npm run prisma:generate --workspace=backend",
+    "prisma:migrate": "npm run prisma:migrate --workspace=backend",
+    "prisma:studio": "npm run prisma:studio --workspace=backend",
+    "prisma:seed": "npm run prisma:seed --workspace=backend",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f",
+    "docker:build": "docker compose build",
+    "flutter:get": "cd apps/campus_hub_app && flutter pub get",
+    "flutter:analyze": "cd apps/campus_hub_app && flutter analyze",
+    "flutter:test": "cd apps/campus_hub_app && flutter test"
+  },
+  "keywords": [
+    "campushub",
+    "flutter",
+    "nodejs",
+    "express",
+    "prisma",
+    "postgresql",
+    "riverpod",
+    "clean-architecture",
+    "monorepo"
+  ],
+  "author": "CampusHub Community",
+  "license": "MIT"
+}

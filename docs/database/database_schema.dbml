@@ -1,0 +1,401 @@
+Project CampusHub {
+  database_type: "PostgreSQL"
+  Note: '''
+  CampusHub Database Schema
+  Version: 1.0
+  '''
+}
+
+//////////////////////////////////////////////////////
+// ENUMS
+//////////////////////////////////////////////////////
+
+Enum UserRole {
+  STUDENT
+  FACULTY
+  PLACEMENT_OFFICER
+  ADMIN
+}
+
+Enum FeedVisibility {
+  DEPARTMENT
+  RELATED
+  CROSS
+  CLUB
+}
+
+Enum ClubRole {
+  OWNER
+  MANAGER
+  MEMBER
+}
+
+Enum ClubCategory {
+  TECHNICAL
+  CULTURAL
+  SPORTS
+  COMMUNITY
+}
+
+Enum ChatType {
+  PERSONAL
+  CLUB
+  DEPARTMENT
+}
+
+Enum ResourceType {
+  VIDEO
+  ARTICLE
+  DOCUMENTATION
+  GITHUB
+  BOOK
+  PRACTICE
+}
+
+Enum NotificationType {
+  MESSAGE
+  CLUB
+  EVENT
+  PLACEMENT
+  CAREER
+  ANNOUNCEMENT
+}
+
+//////////////////////////////////////////////////////
+// CORE
+//////////////////////////////////////////////////////
+
+Table campuses {
+  id uuid [pk]
+  name varchar
+  code varchar
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table departments {
+  id uuid [pk]
+  campus_id uuid
+  name varchar
+  short_name varchar
+  description text
+  created_at timestamp
+}
+
+Table department_relations {
+  id uuid [pk]
+  department_id uuid
+  related_department_id uuid
+}
+
+Table users {
+  id uuid [pk]
+  department_id uuid
+  role UserRole
+  email varchar [unique]
+  password varchar
+  status boolean
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table profiles {
+  id uuid [pk]
+  user_id uuid [unique]
+  full_name varchar
+  register_number varchar
+  year int
+  section varchar
+  profile_photo text
+  bio text
+  github text
+  linkedin text
+  portfolio text
+  resume text
+}
+
+//////////////////////////////////////////////////////
+// FEED
+//////////////////////////////////////////////////////
+
+Table posts {
+  id uuid [pk]
+  author_id uuid
+  department_id uuid
+  club_id uuid
+  visibility FeedVisibility
+  title varchar
+  content text
+  created_at timestamp
+}
+
+Table post_media {
+  id uuid [pk]
+  post_id uuid
+  media_url text
+  media_type varchar
+}
+
+Table comments {
+  id uuid [pk]
+  post_id uuid
+  user_id uuid
+  content text
+  created_at timestamp
+}
+
+Table likes {
+  id uuid [pk]
+  post_id uuid
+  user_id uuid
+}
+
+Table saved_posts {
+  user_id uuid
+  post_id uuid
+
+  indexes {
+    (user_id, post_id) [unique]
+  }
+}
+
+//////////////////////////////////////////////////////
+// CLUBS
+//////////////////////////////////////////////////////
+
+Table clubs {
+  id uuid [pk]
+  owner_id uuid
+  name varchar
+  description text
+  category ClubCategory
+  logo text
+  verified boolean
+}
+
+Table club_members {
+  club_id uuid
+  user_id uuid
+  role ClubRole
+
+  indexes {
+    (club_id, user_id) [unique]
+  }
+}
+
+Table club_join_requests {
+  id uuid [pk]
+  club_id uuid
+  user_id uuid
+  status varchar
+}
+
+//////////////////////////////////////////////////////
+// CHAT
+//////////////////////////////////////////////////////
+
+Table chat_rooms {
+  id uuid [pk]
+  type ChatType
+  created_at timestamp
+}
+
+Table chat_participants {
+  room_id uuid
+  user_id uuid
+
+  indexes {
+    (room_id, user_id) [unique]
+  }
+}
+
+Table messages {
+  id uuid [pk]
+  room_id uuid
+  sender_id uuid
+  message text
+  attachment text
+  created_at timestamp
+}
+
+//////////////////////////////////////////////////////
+// CAREER
+//////////////////////////////////////////////////////
+
+Table roadmaps {
+  id uuid [pk]
+  title varchar
+  category varchar
+  description text
+}
+
+Table roadmap_topics {
+  id uuid [pk]
+  roadmap_id uuid
+  title varchar
+  sequence int
+}
+
+Table resources {
+  id uuid [pk]
+  topic_id uuid
+  title varchar
+  type ResourceType
+  url text
+}
+
+Table roadmap_progress {
+  user_id uuid
+  topic_id uuid
+  completed boolean
+  completed_at timestamp
+
+  indexes {
+    (user_id, topic_id) [unique]
+  }
+}
+
+//////////////////////////////////////////////////////
+// EVENTS
+//////////////////////////////////////////////////////
+
+Table events {
+  id uuid [pk]
+  department_id uuid
+  club_id uuid
+  title varchar
+  description text
+  location varchar
+  event_date timestamp
+}
+
+Table event_registrations {
+  event_id uuid
+  user_id uuid
+
+  indexes {
+    (event_id, user_id) [unique]
+  }
+}
+
+//////////////////////////////////////////////////////
+// PLACEMENT
+//////////////////////////////////////////////////////
+
+Table placement_drives {
+  id uuid [pk]
+  company varchar
+  package decimal
+  eligibility text
+  deadline timestamp
+}
+
+Table placement_applications {
+  drive_id uuid
+  student_id uuid
+  status varchar
+
+  indexes {
+    (drive_id, student_id) [unique]
+  }
+}
+
+//////////////////////////////////////////////////////
+// PORTFOLIO
+//////////////////////////////////////////////////////
+
+Table portfolios {
+  id uuid [pk]
+  user_id uuid [unique]
+  headline varchar
+  about text
+}
+
+Table certificates {
+  id uuid [pk]
+  portfolio_id uuid
+  title varchar
+  issuer varchar
+  issue_date date
+}
+
+Table achievements {
+  id uuid [pk]
+  portfolio_id uuid
+  title varchar
+  description text
+}
+
+//////////////////////////////////////////////////////
+// NOTIFICATIONS
+//////////////////////////////////////////////////////
+
+Table notifications {
+  id uuid [pk]
+  receiver_id uuid
+  type NotificationType
+  title varchar
+  body text
+  is_read boolean
+  created_at timestamp
+}
+
+//////////////////////////////////////////////////////
+// RELATIONSHIPS
+//////////////////////////////////////////////////////
+
+Ref: campuses.id < departments.campus_id
+
+Ref: departments.id < users.department_id
+Ref: departments.id < posts.department_id
+Ref: departments.id < events.department_id
+
+Ref: departments.id < department_relations.department_id
+Ref: departments.id < department_relations.related_department_id
+
+Ref: users.id - profiles.user_id
+
+Ref: users.id < posts.author_id
+Ref: users.id < comments.user_id
+Ref: users.id < likes.user_id
+Ref: users.id < saved_posts.user_id
+
+Ref: posts.id < comments.post_id
+Ref: posts.id < likes.post_id
+Ref: posts.id < post_media.post_id
+Ref: posts.id < saved_posts.post_id
+
+Ref: users.id < clubs.owner_id
+Ref: clubs.id < posts.club_id
+
+Ref: clubs.id < club_members.club_id
+Ref: users.id < club_members.user_id
+
+Ref: clubs.id < club_join_requests.club_id
+Ref: users.id < club_join_requests.user_id
+
+Ref: chat_rooms.id < chat_participants.room_id
+Ref: users.id < chat_participants.user_id
+
+Ref: chat_rooms.id < messages.room_id
+Ref: users.id < messages.sender_id
+
+Ref: roadmaps.id < roadmap_topics.roadmap_id
+Ref: roadmap_topics.id < resources.topic_id
+
+Ref: users.id < roadmap_progress.user_id
+Ref: roadmap_topics.id < roadmap_progress.topic_id
+
+Ref: clubs.id < events.club_id
+
+Ref: events.id < event_registrations.event_id
+Ref: users.id < event_registrations.user_id
+
+Ref: placement_drives.id < placement_applications.drive_id
+Ref: users.id < placement_applications.student_id
+
+Ref: users.id - portfolios.user_id
+Ref: portfolios.id < certificates.portfolio_id
+Ref: portfolios.id < achievements.portfolio_id
+
+Ref: users.id < notifications.receiver_id

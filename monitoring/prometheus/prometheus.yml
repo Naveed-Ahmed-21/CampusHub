@@ -1,0 +1,15 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'campushub-backend'
+    metrics_path: '/health'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['backend:5000']
+
+  - job_name: 'campushub-nginx'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['nginx:80']

@@ -1,0 +1,898 @@
+// Production-Grade Prisma Schema for CampusHub Multi-Tenant Digital Campus Ecosystem
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==========================================
+// ENUMS
+// ==========================================
+
+enum Role {
+  STUDENT
+  FACULTY
+  DEPT_ADMIN
+  COLLEGE_ADMIN
+  PLACEMENT_OFFICER
+  CLUB_COORDINATOR
+  SUPER_ADMIN
+}
+
+enum UserStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  DEACTIVATED
+}
+
+enum PostType {
+  ANNOUNCEMENT
+  GENERAL
+  ACADEMIC
+  EVENT_PROMO
+  PLACEMENT
+}
+
+enum ClubRole {
+  MEMBER
+  LEAD
+  FACULTY_ADVISOR
+}
+
+enum ClubStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum DriveStatus {
+  UPCOMING
+  ONGOING
+  COMPLETED
+  CANCELLED
+}
+
+enum ApplicationStatus {
+  APPLIED
+  SHORTLISTED
+  INTERVIEW_SCHEDULED
+  REJECTED
+  OFFERED
+}
+
+enum ChatRoomType {
+  DIRECT
+  GROUP
+  ANNOUNCEMENT
+}
+
+enum NotificationType {
+  SYSTEM
+  ANNOUNCEMENT
+  EVENT_REMINDER
+  CHAT_MESSAGE
+  PLACEMENT_UPDATE
+  LIKE
+  COMMENT
+}
+
+enum RegistrationStatus {
+  REGISTERED
+  ATTENDED
+  CANCELLED
+}
+
+// ==========================================
+// 1. TENANT & CORE USER MANAGEMENT
+// ==========================================
+
+model College {
+  id          String       @id @default(uuid()) @db.Uuid
+  name        String       @db.VarChar(255)
+  code        String       @unique @db.VarChar(50)
+  domain      String       @unique @db.VarChar(255)
+  logo_url    String?      @db.Text
+  address     String?      @db.Text
+  is_active   Boolean      @default(true)
+  created_at  DateTime     @default(now())
+  updated_at  DateTime     @updatedAt
+  deleted_at  DateTime?
+
+  users           User[]
+  departments     Department[]
+  clubs           Club[]
+  posts           Post[]
+  events          Event[]
+  drives          PlacementDrive[]
+  companies       Company[]
+  chat_rooms      ChatRoom[]
+
+  @@map("colleges")
+}
+
+model Department {
+  id          String    @id @default(uuid()) @db.Uuid
+  college_id  String    @db.Uuid
+  name        String    @db.VarChar(150)
+  code        String    @db.VarChar(50)
+  description String?   @db.Text
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+
+  college     College   @relation(fields: [college_id], references: [id], onDelete: Cascade)
+  users       User[]
+  posts       Post[]
+  chat_room   ChatRoom?
+  events      Event[]
+
+  @@unique([college_id, code])
+  @@index([college_id])
+  @@map("departments")
+}
+
+model User {
+  id             String        @id @default(uuid()) @db.Uuid
+  college_id     String        @db.Uuid
+  department_id  String?       @db.Uuid
+  email          String        @unique @db.VarChar(255)
+  password_hash  String        @db.Text
+  first_name     String        @db.VarChar(100)
+  last_name      String        @db.VarChar(100)
+  roll_number    String?       @db.VarChar(50)
+  role           Role          @default(STUDENT)
+  status         UserStatus    @default(ACTIVE)
+  avatar_url     String?       @db.Text
+  phone          String?       @db.VarChar(20)
+  is_online      Boolean       @default(false)
+  last_seen      DateTime?
+  created_at     DateTime      @default(now())
+  updated_at     DateTime      @updatedAt
+  deleted_at     DateTime?
+
+  college               College                @relation(fields: [college_id], references: [id], onDelete: Cascade)
+  department            Department?            @relation(fields: [department_id], references: [id], onDelete: SetNull)
+  refresh_tokens        RefreshToken[]
+  password_reset_tokens PasswordResetToken[]
+  posts                 Post[]
+  post_comments         PostComment[]
+  post_likes            PostLike[]
+  saved_posts           SavedPost[]
+  following             UserFollow[]           @relation("Following")
+  followers             UserFollow[]           @relation("Followers")
+  club_members          ClubMember[]
+  created_clubs         Club[]                 @relation("ClubCreator")
+  verified_clubs        Club[]                 @relation("ClubVerifier")
+  club_resources        ClubResource[]
+  events                Event[]
+  event_registrations   EventRegistration[]
+  sent_messages         ChatMessage[]          @relation("SentMessages")
+  chat_participants     ChatParticipant[]
+  chat_read_receipts    ChatReadReceipt[]
+  applications          PlacementApplication[]
+  portfolio             Portfolio?
+  notifications         Notification[]
+  notification_tokens   NotificationToken[]
+  roadmap_progress      UserRoadmapProgress[]
+  node_progress         UserNodeProgress[]
+  weekly_goals          WeeklyGoal[]
+  project_submissions   UserMiniProjectSubmission[]
+
+  @@index([college_id])
+  @@index([department_id])
+  @@index([email])
+  @@index([roll_number])
+  @@index([created_at])
+  @@map("users")
+}
+
+model RefreshToken {
+  id          String   @id @default(uuid()) @db.Uuid
+  user_id     String   @db.Uuid
+  token_hash  String   @db.Text
+  expires_at  DateTime
+  is_revoked  Boolean  @default(false)
+  created_at  DateTime @default(now())
+
+  user        User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@index([token_hash])
+  @@map("refresh_tokens")
+}
+
+model PasswordResetToken {
+  id          String   @id @default(uuid()) @db.Uuid
+  user_id     String   @db.Uuid
+  token_hash  String   @db.Text
+  expires_at  DateTime
+  created_at  DateTime @default(now())
+
+  user        User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@index([token_hash])
+  @@map("password_reset_tokens")
+}
+
+model UserFollow {
+  id           String   @id @default(uuid()) @db.Uuid
+  follower_id  String   @db.Uuid
+  following_id String   @db.Uuid
+  created_at   DateTime @default(now())
+
+  follower     User     @relation("Following", fields: [follower_id], references: [id], onDelete: Cascade)
+  following    User     @relation("Followers", fields: [following_id], references: [id], onDelete: Cascade)
+
+  @@unique([follower_id, following_id])
+  @@index([follower_id])
+  @@index([following_id])
+  @@map("user_follows")
+}
+
+// ==========================================
+// 2. FEED & SOCIAL INTERACTION MODULE
+// ==========================================
+
+model Post {
+  id            String           @id @default(uuid()) @db.Uuid
+  college_id    String           @db.Uuid
+  department_id String?          @db.Uuid
+  club_id       String?          @db.Uuid
+  author_id     String           @db.Uuid
+  title         String           @db.VarChar(255)
+  content       String           @db.Text
+  type          PostType         @default(GENERAL)
+  is_pinned     Boolean          @default(false)
+  created_at    DateTime         @default(now())
+  updated_at    DateTime         @updatedAt
+
+  college       College          @relation(fields: [college_id], references: [id], onDelete: Cascade)
+  department    Department?      @relation(fields: [department_id], references: [id], onDelete: SetNull)
+  club          Club?            @relation(fields: [club_id], references: [id], onDelete: Cascade)
+  author        User             @relation(fields: [author_id], references: [id], onDelete: Cascade)
+  attachments   PostAttachment[]
+  comments      PostComment[]
+  likes         PostLike[]
+  saves         SavedPost[]
+
+  @@index([college_id])
+  @@index([department_id])
+  @@index([club_id])
+  @@index([author_id])
+  @@index([created_at(sort: Desc)])
+  @@map("posts")
+}
+
+model PostAttachment {
+  id         String   @id @default(uuid()) @db.Uuid
+  post_id    String   @db.Uuid
+  file_name  String   @db.VarChar(255)
+  file_url   String   @db.Text
+  file_type  String   @db.VarChar(100)
+  created_at DateTime @default(now())
+
+  post       Post     @relation(fields: [post_id], references: [id], onDelete: Cascade)
+
+  @@index([post_id])
+  @@map("post_attachments")
+}
+
+model PostComment {
+  id         String   @id @default(uuid()) @db.Uuid
+  post_id    String   @db.Uuid
+  author_id  String   @db.Uuid
+  content    String   @db.Text
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  post       Post     @relation(fields: [post_id], references: [id], onDelete: Cascade)
+  author     User     @relation(fields: [author_id], references: [id], onDelete: Cascade)
+
+  @@index([post_id])
+  @@index([author_id])
+  @@map("post_comments")
+}
+
+model PostLike {
+  id         String   @id @default(uuid()) @db.Uuid
+  post_id    String   @db.Uuid
+  user_id    String   @db.Uuid
+  created_at DateTime @default(now())
+
+  post       Post     @relation(fields: [post_id], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([post_id, user_id])
+  @@map("post_likes")
+}
+
+model SavedPost {
+  id         String   @id @default(uuid()) @db.Uuid
+  post_id    String   @db.Uuid
+  user_id    String   @db.Uuid
+  created_at DateTime @default(now())
+
+  post       Post     @relation(fields: [post_id], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([post_id, user_id])
+  @@index([user_id])
+  @@map("saved_posts")
+}
+
+// ==========================================
+// 3. CLUBS & ORGANIZATIONS MODULE
+// ==========================================
+
+model Club {
+  id                  String       @id @default(uuid()) @db.Uuid
+  college_id          String       @db.Uuid
+  created_by_id       String?      @db.Uuid
+  verified_by_id      String?      @db.Uuid
+  name                String       @db.VarChar(150)
+  category            String       @db.VarChar(100)
+  description         String?      @db.Text
+  logo_url            String?      @db.Text
+  status              ClubStatus   @default(PENDING)
+  is_cross_department Boolean      @default(true)
+  is_active           Boolean      @default(true)
+  verified_at         DateTime?
+  rejection_reason    String?      @db.Text
+  created_at          DateTime     @default(now())
+  updated_at          DateTime     @updatedAt
+
+  college   College        @relation(fields: [college_id], references: [id], onDelete: Cascade)
+  creator   User?          @relation("ClubCreator", fields: [created_by_id], references: [id], onDelete: SetNull)
+  verifier  User?          @relation("ClubVerifier", fields: [verified_by_id], references: [id], onDelete: SetNull)
+  members   ClubMember[]
+  events    Event[]
+  posts     Post[]
+  resources ClubResource[]
+  chat_room ChatRoom?
+
+  @@index([college_id])
+  @@index([created_by_id])
+  @@index([status])
+  @@map("clubs")
+}
+
+model ClubResource {
+  id             String   @id @default(uuid()) @db.Uuid
+  club_id        String   @db.Uuid
+  uploaded_by_id String   @db.Uuid
+  title          String   @db.VarChar(255)
+  description    String?  @db.Text
+  file_url       String   @db.Text
+  file_name      String   @db.VarChar(255)
+  file_type      String   @db.VarChar(100)
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+
+  club        Club @relation(fields: [club_id], references: [id], onDelete: Cascade)
+  uploaded_by User @relation(fields: [uploaded_by_id], references: [id], onDelete: Cascade)
+
+  @@index([club_id])
+  @@index([uploaded_by_id])
+  @@map("club_resources")
+}
+
+model ClubMember {
+  id         String   @id @default(uuid()) @db.Uuid
+  club_id    String   @db.Uuid
+  user_id    String   @db.Uuid
+  role       ClubRole @default(MEMBER)
+  joined_at  DateTime @default(now())
+
+  club       Club     @relation(fields: [club_id], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([club_id, user_id])
+  @@index([user_id])
+  @@map("club_members")
+}
+
+// ==========================================
+// 4. EVENTS MODULE
+// ==========================================
+
+model Event {
+  id                    String              @id @default(uuid()) @db.Uuid
+  college_id            String              @db.Uuid
+  department_id         String?             @db.Uuid
+  club_id               String?             @db.Uuid
+  organizer_id          String              @db.Uuid
+  scope                 String              @default("COLLEGE") @db.VarChar(50) // COLLEGE, DEPARTMENT, CLUB
+  category              String?             @db.VarChar(100)
+  title                 String              @db.VarChar(255)
+  description           String?             @db.Text
+  venue                 String?             @db.VarChar(255)
+  start_time            DateTime
+  end_time              DateTime
+  banner_url            String?             @db.Text
+  max_capacity          Int?
+  registration_deadline DateTime?
+  created_at            DateTime            @default(now())
+  updated_at            DateTime            @updatedAt
+
+  college       College             @relation(fields: [college_id], references: [id], onDelete: Cascade)
+  department    Department?         @relation(fields: [department_id], references: [id], onDelete: SetNull)
+  club          Club?               @relation(fields: [club_id], references: [id], onDelete: SetNull)
+  organizer     User                @relation(fields: [organizer_id], references: [id], onDelete: Cascade)
+  registrations EventRegistration[]
+
+  @@index([college_id])
+  @@index([department_id])
+  @@index([club_id])
+  @@index([scope])
+  @@index([start_time])
+  @@map("events")
+}
+
+model EventRegistration {
+  id                String             @id @default(uuid()) @db.Uuid
+  event_id          String             @db.Uuid
+  user_id           String             @db.Uuid
+  status            RegistrationStatus @default(REGISTERED)
+  ticket_code       String             @default(uuid()) @db.VarChar(100)
+  qr_code_token     String?            @db.Text
+  attendance_status String             @default("REGISTERED") @db.VarChar(50) // REGISTERED, ATTENDED, CANCELLED
+  attended_at       DateTime?
+  registered_at     DateTime           @default(now())
+
+  event Event @relation(fields: [event_id], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([event_id, user_id])
+  @@index([user_id])
+  @@index([ticket_code])
+  @@map("event_registrations")
+}
+
+// ==========================================
+// 5. REAL-TIME CHAT MODULE
+// ==========================================
+
+model ChatRoom {
+  id              String            @id @default(uuid()) @db.Uuid
+  college_id      String            @db.Uuid
+  club_id         String?           @unique @db.Uuid
+  department_id   String?           @unique @db.Uuid
+  name            String?           @db.VarChar(150)
+  type            ChatRoomType      @default(DIRECT)
+  last_message_at DateTime?
+  created_at      DateTime          @default(now())
+  updated_at      DateTime          @updatedAt
+
+  college      College           @relation(fields: [college_id], references: [id], onDelete: Cascade)
+  club         Club?             @relation(fields: [club_id], references: [id], onDelete: Cascade)
+  department   Department?       @relation(fields: [department_id], references: [id], onDelete: Cascade)
+  participants ChatParticipant[]
+  messages     ChatMessage[]
+
+  @@index([college_id])
+  @@map("chat_rooms")
+}
+
+model ChatParticipant {
+  id           String    @id @default(uuid()) @db.Uuid
+  room_id      String    @db.Uuid
+  user_id      String    @db.Uuid
+  last_read_at DateTime?
+  joined_at    DateTime  @default(now())
+
+  room ChatRoom @relation(fields: [room_id], references: [id], onDelete: Cascade)
+  user User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([room_id, user_id])
+  @@index([user_id])
+  @@map("chat_participants")
+}
+
+model ChatMessage {
+  id         String   @id @default(uuid()) @db.Uuid
+  sender_id  String   @db.Uuid
+  room_id    String   @db.Uuid
+  message    String   @db.Text
+  media_url  String?  @db.Text
+  media_type String?  @db.VarChar(50) // IMAGE, DOCUMENT, AUDIO
+  file_name  String?  @db.VarChar(255)
+  file_size  Int?
+  created_at DateTime @default(now())
+
+  sender        User              @relation("SentMessages", fields: [sender_id], references: [id], onDelete: Cascade)
+  room          ChatRoom          @relation(fields: [room_id], references: [id], onDelete: Cascade)
+  read_receipts ChatReadReceipt[]
+
+  @@index([room_id])
+  @@index([sender_id])
+  @@index([created_at])
+  @@map("chat_messages")
+}
+
+model ChatReadReceipt {
+  id         String   @id @default(uuid()) @db.Uuid
+  message_id String   @db.Uuid
+  user_id    String   @db.Uuid
+  read_at    DateTime @default(now())
+
+  message ChatMessage @relation(fields: [message_id], references: [id], onDelete: Cascade)
+  user    User        @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([message_id, user_id])
+  @@index([user_id])
+  @@map("chat_read_receipts")
+}
+
+// ==========================================
+// 6. CAREER HUB & PLACEMENT MODULE
+// ==========================================
+
+model Company {
+  id          String           @id @default(uuid()) @db.Uuid
+  college_id  String           @db.Uuid
+  name        String           @db.VarChar(255)
+  website     String?          @db.VarChar(255)
+  logo_url    String?          @db.Text
+  created_at  DateTime         @default(now())
+  updated_at  DateTime         @updatedAt
+
+  college     College          @relation(fields: [college_id], references: [id], onDelete: Cascade)
+  drives      PlacementDrive[]
+
+  @@map("companies")
+}
+
+model PlacementDrive {
+  id                  String                 @id @default(uuid()) @db.Uuid
+  college_id          String                 @db.Uuid
+  company_id          String?                @db.Uuid
+  company_name        String                 @db.VarChar(255)
+  role_title          String                 @db.VarChar(255)
+  package_ctc         String?                @db.VarChar(100)
+  location            String?                @db.VarChar(255)
+  eligibility         String?                @db.Text
+  min_cgpa            Float?                 @default(0.0)
+  allowed_departments Json?
+  max_backlogs        Int?                   @default(0)
+  job_description     String?                @db.Text
+  deadline            DateTime
+  status              DriveStatus            @default(UPCOMING)
+  created_at          DateTime               @default(now())
+  updated_at          DateTime               @updatedAt
+
+  college      College                @relation(fields: [college_id], references: [id], onDelete: Cascade)
+  company      Company?               @relation(fields: [company_id], references: [id], onDelete: SetNull)
+  applications PlacementApplication[]
+
+  @@index([college_id])
+  @@index([status])
+  @@map("placement_drives")
+}
+
+model PlacementApplication {
+  id           String             @id @default(uuid()) @db.Uuid
+  drive_id     String             @db.Uuid
+  student_id   String             @db.Uuid
+  status       ApplicationStatus  @default(APPLIED)
+  resume_url   String?            @db.Text
+  offer_ctc    String?            @db.VarChar(100)
+  offer_status String?            @db.VarChar(50) // PENDING, ACCEPTED, DECLINED
+  applied_at   DateTime           @default(now())
+
+  drive      PlacementDrive       @relation(fields: [drive_id], references: [id], onDelete: Cascade)
+  student    User                 @relation(fields: [student_id], references: [id], onDelete: Cascade)
+  interviews PlacementInterview[]
+
+  @@unique([drive_id, student_id])
+  @@index([student_id])
+  @@map("placement_applications")
+}
+
+model PlacementInterview {
+  id               String   @id @default(uuid()) @db.Uuid
+  application_id   String   @db.Uuid
+  round_name       String   @db.VarChar(150)
+  scheduled_at     DateTime
+  location_or_link String?  @db.Text
+  status           String   @default("SCHEDULED") @db.VarChar(50) // SCHEDULED, PASSED, FAILED
+  notes            String?  @db.Text
+  created_at       DateTime @default(now())
+
+  application PlacementApplication @relation(fields: [application_id], references: [id], onDelete: Cascade)
+
+  @@index([application_id])
+  @@map("placement_interviews")
+}
+
+// ==========================================
+// 7. STUDENT PORTFOLIO MODULE
+// ==========================================
+
+model Portfolio {
+  id              String                 @id @default(uuid()) @db.Uuid
+  user_id         String                 @unique @db.Uuid
+  custom_username String?                @unique @db.VarChar(100)
+  is_public       Boolean                @default(true)
+  bio             String?                @db.Text
+  github_url      String?                @db.VarChar(255)
+  linkedin_url    String?                @db.VarChar(255)
+  website_url     String?                @db.VarChar(255)
+  resume_url      String?                @db.Text
+  cgpa            Float?                 @default(0.0)
+  created_at      DateTime               @default(now())
+  updated_at      DateTime               @updatedAt
+
+  user         User                   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  projects     PortfolioProject[]
+  skills       PortfolioSkill[]
+  certificates PortfolioCertificate[]
+  achievements PortfolioAchievement[]
+
+  @@map("portfolios")
+}
+
+model PortfolioProject {
+  id           String    @id @default(uuid()) @db.Uuid
+  portfolio_id String    @db.Uuid
+  title        String    @db.VarChar(255)
+  description  String?   @db.Text
+  tech_stack   Json?
+  project_url  String?   @db.Text
+  repo_url     String?   @db.Text
+  image_url    String?   @db.Text
+  created_at   DateTime  @default(now())
+
+  portfolio Portfolio @relation(fields: [portfolio_id], references: [id], onDelete: Cascade)
+
+  @@index([portfolio_id])
+  @@map("portfolio_projects")
+}
+
+model PortfolioSkill {
+  id           String    @id @default(uuid()) @db.Uuid
+  portfolio_id String    @db.Uuid
+  skill_name   String    @db.VarChar(100)
+  category     String?   @default("General") @db.VarChar(100)
+  proficiency  String?   @db.VarChar(50)
+
+  portfolio Portfolio @relation(fields: [portfolio_id], references: [id], onDelete: Cascade)
+
+  @@index([portfolio_id])
+  @@map("portfolio_skills")
+}
+
+model PortfolioCertificate {
+  id             String    @id @default(uuid()) @db.Uuid
+  portfolio_id   String    @db.Uuid
+  title          String    @db.VarChar(255)
+  issuer         String    @db.VarChar(255)
+  issue_date     DateTime?
+  credential_url String?   @db.Text
+  credential_id  String?   @db.VarChar(255)
+  created_at     DateTime  @default(now())
+
+  portfolio Portfolio @relation(fields: [portfolio_id], references: [id], onDelete: Cascade)
+
+  @@index([portfolio_id])
+  @@map("portfolio_certificates")
+}
+
+model PortfolioAchievement {
+  id            String    @id @default(uuid()) @db.Uuid
+  portfolio_id  String    @db.Uuid
+  title         String    @db.VarChar(255)
+  category      String?   @db.VarChar(100)
+  description   String?   @db.Text
+  date_achieved DateTime?
+  proof_url     String?   @db.Text
+  created_at    DateTime  @default(now())
+
+  portfolio Portfolio @relation(fields: [portfolio_id], references: [id], onDelete: Cascade)
+
+  @@index([portfolio_id])
+  @@map("portfolio_achievements")
+}
+
+// ==========================================
+// 8. NOTIFICATIONS MODULE
+// ==========================================
+
+model Notification {
+  id          String           @id @default(uuid()) @db.Uuid
+  user_id     String           @db.Uuid
+  title       String           @db.VarChar(255)
+  body        String           @db.Text
+  type        NotificationType @default(SYSTEM)
+  category    String?          @db.VarChar(100)
+  deep_link   String?          @db.Text
+  is_read     Boolean          @default(false)
+  metadata    Json?
+  created_at  DateTime         @default(now())
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@index([is_read])
+  @@index([created_at(sort: Desc)])
+  @@map("notifications")
+}
+
+model NotificationToken {
+  id          String   @id @default(uuid()) @db.Uuid
+  user_id     String   @db.Uuid
+  fcm_token   String   @unique @db.Text
+  device_type String?  @db.VarChar(50)
+  created_at  DateTime @default(now())
+
+  user        User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@map("notification_tokens")
+}
+
+// ==========================================
+// 9. CAREER HUB MODULE
+// ==========================================
+
+model CareerRoadmap {
+  id               String   @id @default(uuid()) @db.Uuid
+  title            String   @db.VarChar(255)
+  slug             String   @unique @db.VarChar(100)
+  category         String   @db.VarChar(100)
+  description      String   @db.Text
+  level            String   @default("Beginner") @db.VarChar(50)
+  estimated_months Int      @default(3)
+  icon_name        String?  @db.VarChar(100)
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
+
+  nodes         RoadmapNode[]
+  user_progress UserRoadmapProgress[]
+  resources     LearningResource[]
+
+  @@map("career_roadmaps")
+}
+
+model RoadmapNode {
+  id              String   @id @default(uuid()) @db.Uuid
+  roadmap_id      String   @db.Uuid
+  title           String   @db.VarChar(255)
+  description     String?  @db.Text
+  order_index     Int
+  estimated_hours Int?
+  created_at      DateTime @default(now())
+
+  roadmap       CareerRoadmap      @relation(fields: [roadmap_id], references: [id], onDelete: Cascade)
+  resources     LearningResource[]
+  user_progress UserNodeProgress[]
+
+  @@index([roadmap_id])
+  @@map("roadmap_nodes")
+}
+
+model LearningResource {
+  id            String   @id @default(uuid()) @db.Uuid
+  roadmap_id    String?  @db.Uuid
+  node_id       String?  @db.Uuid
+  title         String   @db.VarChar(255)
+  type          String   @db.VarChar(50) // ARTICLE, VIDEO, DOCS, PRACTICE
+  url           String   @db.Text
+  duration_mins Int?
+  is_free       Boolean  @default(true)
+  created_at    DateTime @default(now())
+
+  roadmap CareerRoadmap? @relation(fields: [roadmap_id], references: [id], onDelete: Cascade)
+  node    RoadmapNode?   @relation(fields: [node_id], references: [id], onDelete: Cascade)
+
+  @@index([roadmap_id])
+  @@index([node_id])
+  @@map("learning_resources")
+}
+
+model UserRoadmapProgress {
+  id                   String    @id @default(uuid()) @db.Uuid
+  user_id              String    @db.Uuid
+  roadmap_id           String    @db.Uuid
+  is_active            Boolean   @default(true)
+  completed_node_count Int       @default(0)
+  progress_percent     Float     @default(0.0)
+  started_at           DateTime  @default(now())
+  updated_at           DateTime  @updatedAt
+
+  user    User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  roadmap CareerRoadmap @relation(fields: [roadmap_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, roadmap_id])
+  @@index([user_id])
+  @@map("user_roadmap_progress")
+}
+
+model UserNodeProgress {
+  id           String   @id @default(uuid()) @db.Uuid
+  user_id      String   @db.Uuid
+  node_id      String   @db.Uuid
+  is_completed Boolean  @default(true)
+  completed_at DateTime @default(now())
+
+  user User        @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  node RoadmapNode @relation(fields: [node_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, node_id])
+  @@index([user_id])
+  @@map("user_node_progress")
+}
+
+model WeeklyGoal {
+  id           String    @id @default(uuid()) @db.Uuid
+  user_id      String    @db.Uuid
+  title        String    @db.VarChar(255)
+  target_date  DateTime
+  is_completed Boolean   @default(false)
+  completed_at DateTime?
+  created_at   DateTime  @default(now())
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@map("weekly_goals")
+}
+
+model ResumeTip {
+  id            String   @id @default(uuid()) @db.Uuid
+  category      String   @db.VarChar(100) // ATS, Action Verbs, Formatting, Templates
+  title         String   @db.VarChar(255)
+  content       String   @db.Text
+  bullet_points Json?
+  sample_url    String?  @db.Text
+  created_at    DateTime @default(now())
+
+  @@map("resume_tips")
+}
+
+model PlacementPrepModule {
+  id           String   @id @default(uuid()) @db.Uuid
+  title        String   @db.VarChar(255)
+  category     String   @db.VarChar(100) // DSA, SYSTEM_DESIGN, CS_FUNDAMENTALS, APTITUDE, HR_INTERVIEW
+  description  String?  @db.Text
+  content_json Json
+  created_at   DateTime @default(now())
+
+  @@map("placement_prep_modules")
+}
+
+model MiniProjectIdea {
+  id                  String   @id @default(uuid()) @db.Uuid
+  title               String   @db.VarChar(255)
+  difficulty          String   @db.VarChar(50) // Beginner, Intermediate, Advanced
+  tech_stack          Json
+  problem_statement   String   @db.Text
+  key_features        Json
+  github_template_url String?  @db.Text
+  created_at          DateTime @default(now())
+
+  user_submissions UserMiniProjectSubmission[]
+
+  @@map("mini_project_ideas")
+}
+
+model UserMiniProjectSubmission {
+  id            String   @id @default(uuid()) @db.Uuid
+  user_id       String   @db.Uuid
+  project_id    String   @db.Uuid
+  repo_url      String   @db.Text
+  live_demo_url String?  @db.Text
+  status        String   @default("IN_PROGRESS") @db.VarChar(50)
+  submitted_at  DateTime @default(now())
+
+  user    User            @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  project MiniProjectIdea @relation(fields: [project_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, project_id])
+  @@index([user_id])
+  @@map("user_mini_project_submissions")
+}

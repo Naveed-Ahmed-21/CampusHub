@@ -1,0 +1,129 @@
+name: CampusHub Production CD & Release Pipeline
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  # 1. Build and Publish Docker Images to GitHub Container Registry (GHCR)
+  publish-docker-images:
+    name: Build & Push Production Docker Containers
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU for Multi-Arch Builds
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker Metadata for Backend
+        id: meta-backend
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/campushub-backend
+          tags: |
+            type=semver,pattern={{version}}
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and Push Backend Container
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./backend/Dockerfile
+          push: true
+          tags: ${{ steps.meta-backend.outputs.tags }}
+          labels: ${{ steps.meta-backend.outputs.labels }}
+
+      - name: Extract Docker Metadata for Frontend Web
+        id: meta-frontend
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/campushub-frontend
+          tags: |
+            type=semver,pattern={{version}}
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and Push Frontend Container
+        uses: docker/build-push-action@v6
+        with:
+          context: ./apps/campus_hub_app
+          file: ./apps/campus_hub_app/Dockerfile
+          push: true
+          tags: ${{ steps.meta-frontend.outputs.tags }}
+          labels: ${{ steps.meta-frontend.outputs.labels }}
+
+  # 2. Build Mobile Android APK & Release Artifacts
+  build-release-artifacts:
+    name: Build Mobile App Release Bundles
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Java Environment
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Install Dependencies
+        run: |
+          cd apps/campus_hub_app
+          flutter pub get
+
+      - name: Build Release APK
+        run: |
+          cd apps/campus_hub_app
+          flutter build apk --release --split-per-abi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            apps/campus_hub_app/build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
+            apps/campus_hub_app/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
+            apps/campus_hub_app/build/app/outputs/flutter-apk/app-x86_64-release.apk
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+
+  # 3. Trigger Production Server CD Deployment
+  deploy-to-production:
+    name: Deploy Stack to Production Server
+    needs: [publish-docker-images]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - name: SSH Remote Server Deployment
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PROD_SERVER_HOST }}
+          username: ${{ secrets.PROD_SERVER_USER }}
+          key: ${{ secrets.PROD_SERVER_SSH_KEY }}
+          script: |
+            cd /opt/campushub
+            docker compose pull
+            docker compose up -d --remove-orphans
+            docker image prune -af
