@@ -58,8 +58,10 @@ class PublicPortfolioView extends ConsumerWidget {
                 ],
 
                 // Social Links
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 8,
+                  runSpacing: 8,
                   children: [
                     if (portfolio.githubUrl != null)
                       ElevatedButton.icon(
@@ -67,7 +69,6 @@ class PublicPortfolioView extends ConsumerWidget {
                         icon: const Icon(Icons.code),
                         label: const Text('GitHub'),
                       ),
-                    const SizedBox(width: 8),
                     if (portfolio.linkedinUrl != null)
                       ElevatedButton.icon(
                         onPressed: () {},

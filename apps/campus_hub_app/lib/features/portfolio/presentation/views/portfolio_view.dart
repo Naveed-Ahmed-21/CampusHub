@@ -251,15 +251,16 @@ class _PortfolioViewState extends ConsumerState<PortfolioView> {
                           Text(portfolio.bio!, textAlign: TextAlign.center, style: TextStyle(color: Colors.grey.shade800)),
                         ],
                         const SizedBox(height: 16),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                        Wrap(
+                          alignment: WrapAlignment.center,
+                          spacing: 8,
+                          runSpacing: 8,
                           children: [
                             ElevatedButton.icon(
                               onPressed: () => _showEditSocialsDialog(portfolio),
                               icon: const Icon(Icons.edit),
                               label: const Text('Edit Profile & Links'),
                             ),
-                            const SizedBox(width: 8),
                             OutlinedButton.icon(
                               onPressed: () {
                                 Navigator.of(context).push(
