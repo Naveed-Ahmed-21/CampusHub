@@ -34,6 +34,20 @@ export class AdminController {
     }
   };
 
+  createUser = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const collegeId = req.user?.collegeId || 'clg_default';
+      const { email, firstName, lastName, role, departmentId, rollNumber } = req.body;
+      if (!email || !firstName || !lastName || !role) {
+        throw new BadRequestError('Email, firstName, lastName, and role are required');
+      }
+      const user = await this.adminService.createUser(collegeId, { email, firstName, lastName, role, departmentId, rollNumber });
+      res.status(201).json({ success: true, message: 'User account created by admin successfully', data: user });
+    } catch (err) {
+      next(err);
+    }
+  };
+
   updateUserRole = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const targetUserId = req.params.id || req.body.userId;

@@ -16,6 +16,7 @@ adminRouter.use(requireRole('ADMIN'));
 
 adminRouter.get('/metrics', adminController.getMetrics);
 adminRouter.get('/users', adminController.getUsers);
+adminRouter.post('/users', adminController.createUser);
 adminRouter.patch('/users/role', adminController.updateUserRole);
 adminRouter.patch('/users/:id/role', adminController.updateUserRole);
 adminRouter.patch('/users/status', adminController.updateUserStatus);

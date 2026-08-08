@@ -15,7 +15,7 @@ class LoginView extends ConsumerStatefulWidget {
 
 class _LoginViewState extends ConsumerState<LoginView> {
   final _emailController = TextEditingController(text: 'student@campushub.edu');
-  final _passwordController = TextEditingController(text: 'password123');
+  final _passwordController = TextEditingController(text: 'Password@123');
   final _formKey = GlobalKey<FormState>();
 
   @override
@@ -37,6 +37,19 @@ class _LoginViewState extends ConsumerState<LoginView> {
         );
       }
     }
+  }
+
+  void _selectSampleAccount(String email, String roleName) {
+    setState(() {
+      _emailController.text = email;
+      _passwordController.text = 'Password@123';
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Selected $roleName sample account ($email)'),
+        duration: const Duration(seconds: 2),
+      ),
+    );
   }
 
   @override
@@ -77,7 +90,45 @@ class _LoginViewState extends ConsumerState<LoginView> {
             textAlign: TextAlign.center,
             style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.outline),
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: 24),
+
+          // Sample Accounts Quick Role Selection Bar
+          Text(
+            'Sample Accounts (Select Role):',
+            style: theme.textTheme.labelMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: theme.colorScheme.primary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              ActionChip(
+                avatar: const Icon(Icons.person, size: 16, color: Colors.blue),
+                label: const Text('Student'),
+                onPressed: () => _selectSampleAccount('student@campushub.edu', 'Student'),
+              ),
+              ActionChip(
+                avatar: const Icon(Icons.school, size: 16, color: Colors.purple),
+                label: const Text('Faculty'),
+                onPressed: () => _selectSampleAccount('faculty@campushub.edu', 'Faculty'),
+              ),
+              ActionChip(
+                avatar: const Icon(Icons.work, size: 16, color: Colors.orange),
+                label: const Text('Placement Officer'),
+                onPressed: () => _selectSampleAccount('placement@campushub.edu', 'Placement Officer'),
+              ),
+              ActionChip(
+                avatar: const Icon(Icons.admin_panel_settings, size: 16, color: Colors.red),
+                label: const Text('Admin'),
+                onPressed: () => _selectSampleAccount('admin@campushub.edu', 'Admin'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+
           CustomTextField(
             controller: _emailController,
             label: 'Campus Email',
@@ -106,16 +157,30 @@ class _LoginViewState extends ConsumerState<LoginView> {
             isLoading: isLoading,
             onPressed: _onLogin,
           ),
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Text("Don't have an account?"),
-              TextButton(
-                onPressed: () => context.push('/register'),
-                child: const Text('Create Account'),
-              ),
-            ],
+          const SizedBox(height: 24),
+
+          // Admin Provisioning Notice
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: theme.colorScheme.outlineVariant),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.security, size: 20, color: theme.colorScheme.primary),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Accounts are provisioned by Campus Administration. Contact your administrator if you need access.',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -175,7 +240,7 @@ class _LoginViewState extends ConsumerState<LoginView> {
         Expanded(
           child: Center(
             child: Container(
-              constraints: const BoxConstraints(maxWidth: 440),
+              constraints: const BoxConstraints(maxWidth: 480),
               padding: const EdgeInsets.all(32.0),
               child: _buildForm(context, isLoading),
             ),

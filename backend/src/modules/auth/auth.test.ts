@@ -57,28 +57,17 @@ describe('AuthService', () => {
   });
 
   describe('register', () => {
-    it('should register a new student user and return JWT session', async () => {
-      authRepository.findUserByEmail.mockResolvedValue(null);
-      authRepository.createUser.mockResolvedValue({
-        id: 'usr_202',
-        email: 'newstudent@campushub.edu',
-        first_name: 'Jane',
-        last_name: 'Doe',
-        role: Role.STUDENT,
-        college_id: 'clg_88291',
-      } as any);
-
-      const session = await authService.register({
-        email: 'newstudent@campushub.edu',
-        password: 'Password123!',
-        firstName: 'Jane',
-        lastName: 'Doe',
-        role: Role.STUDENT,
-        collegeId: 'clg_88291',
-      });
-
-      expect(session.tokens.accessToken).toBeDefined();
-      expect(session.user.email).toBe('newstudent@campushub.edu');
+    it('should throw ForbiddenError because public account registration is disabled', async () => {
+      await expect(
+        authService.register({
+          email: 'newstudent@campushub.edu',
+          password: 'Password123!',
+          firstName: 'Jane',
+          lastName: 'Doe',
+          role: Role.STUDENT,
+          collegeId: 'clg_88291',
+        })
+      ).rejects.toThrow('Public account creation is disabled');
     });
   });
 });

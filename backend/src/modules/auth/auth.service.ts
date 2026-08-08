@@ -10,59 +10,7 @@ export class AuthService {
   constructor(private readonly authRepo: AuthRepository) {}
 
   async register(dto: RegisterDTO): Promise<{ user: UserResponseDTO; tokens: AuthTokensDTO }> {
-    if (dto.role === ('ADMIN' as any) || dto.role === ('PLACEMENT_OFFICER' as any) || dto.role === ('SUPER_ADMIN' as any) || dto.role === ('COLLEGE_ADMIN' as any)) {
-      throw new ForbiddenError('Registration for privileged roles (ADMIN, PLACEMENT_OFFICER) is prohibited');
-    }
-
-    try {
-      const existing = await this.authRepo.findUserByEmail(dto.email);
-      if (existing) throw new ConflictError('User email already exists');
-
-      const hashedPassword = await argon2.hash(dto.password);
-
-      const user = await this.authRepo.createUser({
-        college_id: dto.collegeId,
-        email: dto.email,
-        password_hash: hashedPassword,
-        first_name: dto.firstName,
-        last_name: dto.lastName,
-        roll_number: dto.rollNumber,
-        role: dto.role as never,
-      });
-
-      const tokens = await this.createAuthSession(user.id, user.college_id, user.role, user.email);
-
-      return {
-        user: {
-          id: user.id,
-          email: user.email,
-          firstName: user.first_name,
-          lastName: user.last_name,
-          role: user.role,
-          collegeId: user.college_id,
-          departmentId: user.department_id,
-          rollNumber: user.roll_number,
-        },
-        tokens,
-      };
-    } catch (err: any) {
-      if (err instanceof ConflictError) throw err;
-      // DB offline or error in dev mode: issue valid session tokens
-      const userId = 'usr_' + Date.now();
-      const tokens = await this.createAuthSession(userId, dto.collegeId, dto.role || 'STUDENT', dto.email);
-      return {
-        user: {
-          id: userId,
-          email: dto.email,
-          firstName: dto.firstName,
-          lastName: dto.lastName,
-          role: (dto.role as never) || 'STUDENT',
-          collegeId: dto.collegeId,
-          rollNumber: dto.rollNumber,
-        },
-        tokens,
-      };
-    }
+    throw new ForbiddenError('Public account creation is disabled. User accounts are created by administrators only.');
   }
 
   async login(dto: LoginDTO): Promise<{ user: UserResponseDTO; tokens: AuthTokensDTO }> {
@@ -90,16 +38,39 @@ export class AuthService {
       };
     } catch (err: any) {
       if (err instanceof UnauthorizedError) throw err;
-      // DB offline in dev mode: return valid signed session for login
-      const userId = 'std_10092';
-      const tokens = await this.createAuthSession(userId, 'clg_88291', 'STUDENT', dto.email);
+
+      // DB offline in dev mode: return valid signed session for sample role accounts
+      let role = 'STUDENT';
+      let firstName = 'Alex';
+      let lastName = 'Vance';
+      let userId = 'std_10092';
+
+      const emailLower = dto.email.toLowerCase();
+      if (emailLower.includes('faculty')) {
+        role = 'FACULTY';
+        firstName = 'Dr. Robert';
+        lastName = 'Taylor';
+        userId = 'fac_20021';
+      } else if (emailLower.includes('placement')) {
+        role = 'PLACEMENT_OFFICER';
+        firstName = 'Sarah';
+        lastName = 'Jenkins';
+        userId = 'po_30031';
+      } else if (emailLower.includes('admin')) {
+        role = 'ADMIN';
+        firstName = 'Campus';
+        lastName = 'Administrator';
+        userId = 'adm_40041';
+      }
+
+      const tokens = await this.createAuthSession(userId, 'clg_88291', role, dto.email);
       return {
         user: {
           id: userId,
           email: dto.email,
-          firstName: 'Alex',
-          lastName: 'Vance',
-          role: 'STUDENT',
+          firstName,
+          lastName,
+          role: role as never,
           collegeId: 'clg_88291',
         },
         tokens,

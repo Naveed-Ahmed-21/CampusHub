@@ -19,10 +19,10 @@ class RouterNotifier extends _$RouterNotifier implements Listenable {
   String? redirect(BuildContext context, String currentPath) {
     final authState = ref.read(authControllerProvider);
     final user = authState.asData?.value;
+    if (currentPath == '/register') return '/login';
+
     final isAuthenticated = user != null;
-    final isAuthScreen = currentPath == '/login' ||
-        currentPath == '/register' ||
-        currentPath == '/forgot-password';
+    final isAuthScreen = currentPath == '/login' || currentPath == '/forgot-password';
 
     if (!isAuthenticated && !isAuthScreen) return '/login';
 

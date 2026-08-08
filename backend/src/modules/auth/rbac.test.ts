@@ -184,6 +184,22 @@ describe('RBAC Security & Authorization Test Suite', () => {
   });
 
   describe('5. Public Registration Security', () => {
+    it('rejects all public registration attempts with 403 or 400', async () => {
+      const res = await request(app)
+        .post('/api/v1/auth/register')
+        .send({
+          collegeId: 'clg_88291',
+          email: 'public_user@campushub.edu',
+          password: 'securePassword123',
+          firstName: 'Public',
+          lastName: 'User',
+          role: 'STUDENT',
+        });
+
+      expect([400, 403]).toContain(res.status);
+      expect(res.body.success).toBe(false);
+    });
+
     it('rejects public registration attempts with ADMIN role', async () => {
       const res = await request(app)
         .post('/api/v1/auth/register')
@@ -194,22 +210,6 @@ describe('RBAC Security & Authorization Test Suite', () => {
           firstName: 'Hacker',
           lastName: 'Admin',
           role: 'ADMIN',
-        });
-
-      expect([400, 403]).toContain(res.status);
-      expect(res.body.success).toBe(false);
-    });
-
-    it('rejects public registration attempts with PLACEMENT_OFFICER role', async () => {
-      const res = await request(app)
-        .post('/api/v1/auth/register')
-        .send({
-          collegeId: 'clg_88291',
-          email: 'hacker_po@campushub.edu',
-          password: 'securePassword123',
-          firstName: 'Hacker',
-          lastName: 'PO',
-          role: 'PLACEMENT_OFFICER',
         });
 
       expect([400, 403]).toContain(res.status);

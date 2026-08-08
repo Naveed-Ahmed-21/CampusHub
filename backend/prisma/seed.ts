@@ -46,36 +46,36 @@ async function main() {
 
   console.log(`✅ Departments Seeded: ${deptCse.name}, ${deptIt.name}`);
 
-  // Create Sample Users
+  // Create Sample Users for All 4 Roles
   const hashedPassword = await argon2.hash('Password@123');
 
-  const admin = await prisma.user.upsert({
-    where: { email: 'admin@campushub.edu' },
+  const student = await prisma.user.upsert({
+    where: { email: 'student@campushub.edu' },
     update: {},
     create: {
       college_id: college.id,
       department_id: deptCse.id,
-      email: 'admin@campushub.edu',
+      email: 'student@campushub.edu',
       password_hash: hashedPassword,
-      first_name: 'Campus',
-      last_name: 'Admin',
-      role: Role.COLLEGE_ADMIN,
+      first_name: 'Alex',
+      last_name: 'Vance',
+      roll_number: '21CS101',
+      role: Role.STUDENT,
       status: UserStatus.ACTIVE,
     },
   });
 
-  const student = await prisma.user.upsert({
-    where: { email: 'alex.student@campushub.edu' },
+  const faculty = await prisma.user.upsert({
+    where: { email: 'faculty@campushub.edu' },
     update: {},
     create: {
       college_id: college.id,
       department_id: deptCse.id,
-      email: 'alex.student@campushub.edu',
+      email: 'faculty@campushub.edu',
       password_hash: hashedPassword,
-      first_name: 'Alex',
-      last_name: 'Morgan',
-      roll_number: '21CS101',
-      role: Role.STUDENT,
+      first_name: 'Dr. Robert',
+      last_name: 'Taylor',
+      role: Role.FACULTY,
       status: UserStatus.ACTIVE,
     },
   });
@@ -89,13 +89,32 @@ async function main() {
       email: 'placement@campushub.edu',
       password_hash: hashedPassword,
       first_name: 'Sarah',
-      last_name: 'Conner',
+      last_name: 'Jenkins',
       role: Role.PLACEMENT_OFFICER,
       status: UserStatus.ACTIVE,
     },
   });
 
-  console.log(`✅ Users Seeded: Admin (${admin.email}), Student (${student.email}), Placement Officer (${placementOfficer.email})`);
+  const admin = await prisma.user.upsert({
+    where: { email: 'admin@campushub.edu' },
+    update: {},
+    create: {
+      college_id: college.id,
+      department_id: deptCse.id,
+      email: 'admin@campushub.edu',
+      password_hash: hashedPassword,
+      first_name: 'Campus',
+      last_name: 'Admin',
+      role: Role.ADMIN,
+      status: UserStatus.ACTIVE,
+    },
+  });
+
+  console.log(`✅ Users Seeded across all roles:`);
+  console.log(`   - Student: ${student.email}`);
+  console.log(`   - Faculty: ${faculty.email}`);
+  console.log(`   - Placement Officer: ${placementOfficer.email}`);
+  console.log(`   - Admin: ${admin.email}`);
 
   // Create Sample Club
   const codingClub = await prisma.club.create({

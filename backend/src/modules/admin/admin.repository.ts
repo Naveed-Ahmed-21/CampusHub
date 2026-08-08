@@ -110,6 +110,30 @@ export class AdminRepository {
     });
   }
 
+  async createUser(data: {
+    college_id: string;
+    email: string;
+    password_hash: string;
+    first_name: string;
+    last_name: string;
+    role: Role;
+    department_id?: string;
+    roll_number?: string;
+  }) {
+    return prisma.user.create({
+      data: {
+        college_id: data.college_id,
+        email: data.email,
+        password_hash: data.password_hash,
+        first_name: data.first_name,
+        last_name: data.last_name,
+        role: data.role,
+        department_id: data.department_id,
+        roll_number: data.roll_number,
+      },
+    });
+  }
+
   async getAuditLogs(collegeId: string) {
     return [
       {
