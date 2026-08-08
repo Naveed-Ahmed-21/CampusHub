@@ -251,26 +251,36 @@ class _PortfolioViewState extends ConsumerState<PortfolioView> {
                           Text(portfolio.bio!, textAlign: TextAlign.center, style: TextStyle(color: Colors.grey.shade800)),
                         ],
                         const SizedBox(height: 16),
-                        Wrap(
-                          alignment: WrapAlignment.center,
-                          spacing: 8,
-                          runSpacing: 8,
+                        Row(
                           children: [
-                            ElevatedButton.icon(
-                              onPressed: () => _showEditSocialsDialog(portfolio),
-                              icon: const Icon(Icons.edit),
-                              label: const Text('Edit Profile & Links'),
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                                  textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                                ),
+                                onPressed: () => _showEditSocialsDialog(portfolio),
+                                icon: const Icon(Icons.edit, size: 16),
+                                label: const Text('Edit Profile', maxLines: 1, overflow: TextOverflow.ellipsis),
+                              ),
                             ),
-                            OutlinedButton.icon(
-                              onPressed: () {
-                                Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (ctx) => PublicPortfolioView(identifier: portfolio.userId),
-                                  ),
-                                );
-                              },
-                              icon: const Icon(Icons.share),
-                              label: const Text('Public View'),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                                  textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                                ),
+                                onPressed: () {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (ctx) => PublicPortfolioView(identifier: portfolio.userId),
+                                    ),
+                                  );
+                                },
+                                icon: const Icon(Icons.share, size: 16),
+                                label: const Text('Public View', maxLines: 1, overflow: TextOverflow.ellipsis),
+                              ),
                             ),
                           ],
                         ),

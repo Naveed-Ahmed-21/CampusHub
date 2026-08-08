@@ -58,22 +58,33 @@ class PublicPortfolioView extends ConsumerWidget {
                 ],
 
                 // Social Links
-                Wrap(
-                  alignment: WrapAlignment.center,
-                  spacing: 8,
-                  runSpacing: 8,
+                Row(
                   children: [
                     if (portfolio.githubUrl != null)
-                      ElevatedButton.icon(
-                        onPressed: () {},
-                        icon: const Icon(Icons.code),
-                        label: const Text('GitHub'),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                            textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                          ),
+                          onPressed: () {},
+                          icon: const Icon(Icons.code, size: 16),
+                          label: const Text('GitHub', maxLines: 1, overflow: TextOverflow.ellipsis),
+                        ),
                       ),
+                    if (portfolio.githubUrl != null && portfolio.linkedinUrl != null)
+                      const SizedBox(width: 8),
                     if (portfolio.linkedinUrl != null)
-                      ElevatedButton.icon(
-                        onPressed: () {},
-                        icon: const Icon(Icons.work),
-                        label: const Text('LinkedIn'),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                            textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                          ),
+                          onPressed: () {},
+                          icon: const Icon(Icons.work, size: 16),
+                          label: const Text('LinkedIn', maxLines: 1, overflow: TextOverflow.ellipsis),
+                        ),
                       ),
                   ],
                 ),
