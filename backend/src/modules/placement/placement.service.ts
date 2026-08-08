@@ -32,12 +32,12 @@ export class PlacementService {
       return await this.placementRepository.getOfficerDashboardStats(collegeId);
     } catch (_) {
       return {
-        totalDrives: 12,
-        activeDrives: 4,
-        totalApplications: 240,
-        placedStudentsCount: 68,
-        averagePackageLpa: 14.5,
-        highestPackageLpa: 42.0,
+        totalDrives: 0,
+        activeDrives: 0,
+        totalApplications: 0,
+        placedStudentsCount: 0,
+        averagePackageLpa: 0,
+        highestPackageLpa: 0,
       };
     }
   }
@@ -47,21 +47,11 @@ export class PlacementService {
       return await this.placementRepository.getStudentDashboardStats(userId);
     } catch (_) {
       return {
-        appliedCount: 5,
-        shortlistedCount: 2,
-        interviewCount: 1,
-        offeredCount: 1,
-        applications: [
-          {
-            id: 'app_101',
-            drive_id: 'drv_101',
-            company_name: 'TechCorp Systems',
-            role_title: 'Software Development Engineer (SDE-1)',
-            package_lpa: 18.0,
-            status: 'OFFERED',
-            applied_at: new Date(Date.now() - 86400000 * 5),
-          },
-        ],
+        appliedCount: 0,
+        shortlistedCount: 0,
+        interviewCount: 0,
+        offeredCount: 0,
+        applications: [],
       };
     }
   }
@@ -95,34 +85,7 @@ export class PlacementService {
     try {
       return await this.placementRepository.findDrives(collegeId, query);
     } catch (_) {
-      return [
-        {
-          id: 'drv_101',
-          company_name: 'TechCorp Systems',
-          company_logo_url: null,
-          role_title: 'Software Development Engineer (SDE-1)',
-          package_lpa: 18.0,
-          location: 'Bangalore / Remote',
-          eligibility_criteria: 'B.Tech CS/IT with CGPA >= 7.5',
-          min_cgpa: 7.5,
-          deadline: new Date(Date.now() + 86400000 * 4),
-          created_at: new Date(),
-          _count: { applications: 78 },
-        },
-        {
-          id: 'drv_102',
-          company_name: 'CloudScale AI',
-          company_logo_url: null,
-          role_title: 'Backend Engineer & DevOps Intern',
-          package_lpa: 12.5,
-          location: 'Hyderabad',
-          eligibility_criteria: 'Open to All Branches with No Active Backlogs',
-          min_cgpa: 6.0,
-          deadline: new Date(Date.now() + 86400000 * 8),
-          created_at: new Date(),
-          _count: { applications: 112 },
-        },
-      ];
+      return [];
     }
   }
 

@@ -45,42 +45,8 @@ export class ClubsService {
       return await this.clubsRepository.findClubs(collegeId, query);
     } catch (_) {
       return {
-        data: [
-          {
-            id: 'clb_101',
-            name: 'Robotics & AI Innovation Club',
-            description: 'Designing autonomous drones, AI models, and competitive robotics projects.',
-            category: 'Technical',
-            status: 'APPROVED',
-            logo_url: null,
-            cover_url: null,
-            created_at: new Date(),
-            _count: { members: 128 },
-          },
-          {
-            id: 'clb_102',
-            name: 'Google Developer Student Club (GDSC)',
-            description: 'Building open-source projects, hosting Android and Cloud workshops.',
-            category: 'Technical',
-            status: 'APPROVED',
-            logo_url: null,
-            cover_url: null,
-            created_at: new Date(),
-            _count: { members: 210 },
-          },
-          {
-            id: 'clb_103',
-            name: 'Literary & Debating Society',
-            description: 'Model UN, Parliamentary Debates, Creative Writing, and Oratory.',
-            category: 'Cultural',
-            status: 'APPROVED',
-            logo_url: null,
-            cover_url: null,
-            created_at: new Date(),
-            _count: { members: 85 },
-          },
-        ],
-        meta: { total: 3, page: query.page || 1, limit: query.limit || 10, totalPages: 1 },
+        data: [],
+        meta: { total: 0, page: query.page || 1, limit: query.limit || 10, totalPages: 0 },
       };
     }
   }

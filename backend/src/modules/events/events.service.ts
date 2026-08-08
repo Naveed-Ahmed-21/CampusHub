@@ -16,38 +16,7 @@ export class EventsService {
     try {
       return await this.eventsRepository.findEvents(collegeId, query);
     } catch (_) {
-      return [
-        {
-          id: 'evt_101',
-          title: 'Annual Tech Summit 2026',
-          description: 'Keynote speeches, AI panels, and competitive coding contests.',
-          location: 'Main Auditorium',
-          start_time: new Date(Date.now() + 86400000 * 3),
-          end_time: new Date(Date.now() + 86400000 * 3 + 14400000),
-          category: 'TECHNICAL',
-          event_scope: 'COLLEGE',
-          banner_url: null,
-          max_capacity: 500,
-          registration_deadline: new Date(Date.now() + 86400000 * 2),
-          created_at: new Date(),
-          _count: { registrations: 142 },
-        },
-        {
-          id: 'evt_102',
-          title: 'Design Workshop & UI Sprint',
-          description: 'Hands-on Figma layout design and web micro-interactions.',
-          location: 'Lab 3, CS Department',
-          start_time: new Date(Date.now() + 86400000 * 7),
-          end_time: new Date(Date.now() + 86400000 * 7 + 10800000),
-          category: 'WORKSHOP',
-          event_scope: 'DEPARTMENT',
-          banner_url: null,
-          max_capacity: 60,
-          registration_deadline: new Date(Date.now() + 86400000 * 5),
-          created_at: new Date(),
-          _count: { registrations: 48 },
-        },
-      ];
+      return [];
     }
   }
 
@@ -81,14 +50,7 @@ export class EventsService {
       const year = query.year || new Date().getFullYear();
       return await this.eventsRepository.getCalendarEvents(collegeId, month, year);
     } catch (_) {
-      return [
-        {
-          id: 'evt_101',
-          title: 'Annual Tech Summit 2026',
-          start_time: new Date(Date.now() + 86400000 * 3),
-          category: 'TECHNICAL',
-        },
-      ];
+      return [];
     }
   }
 
@@ -135,20 +97,7 @@ export class EventsService {
     try {
       return await this.eventsRepository.getUserRegistrations(userId);
     } catch (_) {
-      return [
-        {
-          id: 'reg_101',
-          ticket_code: 'TKT-99A82B',
-          attendance_status: 'REGISTERED',
-          registered_at: new Date(),
-          event: {
-            id: 'evt_101',
-            title: 'Annual Tech Summit 2026',
-            location: 'Main Auditorium',
-            start_time: new Date(Date.now() + 86400000 * 3),
-          },
-        },
-      ];
+      return [];
     }
   }
 

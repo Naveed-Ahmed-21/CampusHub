@@ -56,66 +56,8 @@ export class PostsService {
         isSaved: p.saves.length > 0,
       }));
     } catch (_) {
-      // DB offline fallback mock data
-      return [
-        {
-          id: 'post_101',
-          title: 'Welcome to CampusHub Department Feed! 🚀',
-          content: 'Stay connected with your department announcements, project updates, and upcoming tech workshops.',
-          type: 'ANNOUNCEMENT',
-          isPinned: true,
-          createdAt: new Date(),
-          author: {
-            id: 'usr_admin',
-            name: 'Dr. Sarah Connor',
-            role: 'DEPT_ADMIN',
-            avatarUrl: null,
-          },
-          attachments: [],
-          likesCount: 14,
-          commentsCount: 3,
-          isLiked: true,
-          isSaved: false,
-        },
-        {
-          id: 'post_102',
-          title: 'Hackathon 2026 Registration Open 💻',
-          content: 'Register your teams for the annual 24-hour inter-college hackathon. Grand prize includes $2500 and internship offers!',
-          type: 'EVENT',
-          isPinned: false,
-          createdAt: new Date(Date.now() - 3600000 * 4),
-          author: {
-            id: 'usr_lead',
-            name: 'Tech Club Team',
-            role: 'CLUB_COORDINATOR',
-            avatarUrl: null,
-          },
-          attachments: [],
-          likesCount: 28,
-          commentsCount: 8,
-          isLiked: false,
-          isSaved: true,
-        },
-        {
-          id: 'post_103',
-          title: 'Upcoming Placement Drive: TechCorp System Design',
-          content: 'TechCorp will be conducting on-campus recruitment for Final Year CS/IT students next Monday.',
-          type: 'PLACEMENT',
-          isPinned: false,
-          createdAt: new Date(Date.now() - 3600000 * 12),
-          author: {
-            id: 'usr_officer',
-            name: 'Placement Cell',
-            role: 'PLACEMENT_OFFICER',
-            avatarUrl: null,
-          },
-          attachments: [],
-          likesCount: 45,
-          commentsCount: 12,
-          isLiked: true,
-          isSaved: true,
-        },
-      ];
+      // Return clean empty feed when DB is offline or empty
+      return [];
     }
   }
 
@@ -253,14 +195,7 @@ export class PostsService {
         },
       }));
     } catch (_) {
-      return [
-        {
-          id: 'cmt_1',
-          content: 'Great update! Looking forward to the event.',
-          createdAt: new Date(Date.now() - 1800000),
-          author: { id: 'usr_2', name: 'Jordan Lee', avatarUrl: null },
-        },
-      ];
+      return [];
     }
   }
 

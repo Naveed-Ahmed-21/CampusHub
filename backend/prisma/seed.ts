@@ -4,9 +4,41 @@ import argon2 from 'argon2';
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('🌱 Starting CampusHub Database Seeding...');
+  console.log('🌱 Starting Clean CampusHub Database Seeding...');
 
-  // Create Sample College
+  // 1. Clean existing transactional content (posts, events, clubs, drives, portfolio, career)
+  console.log('🧹 Cleaning existing content...');
+  await prisma.postComment.deleteMany();
+  await prisma.postLike.deleteMany();
+  await prisma.savedPost.deleteMany();
+  await prisma.postAttachment.deleteMany();
+  await prisma.post.deleteMany();
+
+  await prisma.eventRegistration.deleteMany();
+  await prisma.event.deleteMany();
+
+  await prisma.clubResource.deleteMany();
+  await prisma.clubMember.deleteMany();
+  await prisma.club.deleteMany();
+
+  await prisma.placementInterview.deleteMany();
+  await prisma.placementApplication.deleteMany();
+  await prisma.placementDrive.deleteMany();
+
+  await prisma.portfolioProject.deleteMany();
+  await prisma.portfolioSkill.deleteMany();
+  await prisma.portfolioCertificate.deleteMany();
+  await prisma.portfolioAchievement.deleteMany();
+  await prisma.portfolio.deleteMany();
+
+  await prisma.weeklyGoal.deleteMany();
+  await prisma.userNodeProgress.deleteMany();
+  await prisma.userRoadmapProgress.deleteMany();
+  await prisma.userMiniProjectSubmission.deleteMany();
+
+  console.log('✅ All existing feed posts, events, clubs, drives, and portfolio items cleared!');
+
+  // 2. Create Sample College
   const college = await prisma.college.upsert({
     where: { code: 'CH-TECH' },
     update: {},
@@ -19,9 +51,9 @@ async function main() {
     },
   });
 
-  console.log(`✅ College Seeded: ${college.name} (${college.id})`);
+  console.log(`✅ College Configured: ${college.name} (${college.id})`);
 
-  // Create Departments
+  // 3. Create Departments
   const deptCse = await prisma.department.upsert({
     where: { college_id_code: { college_id: college.id, code: 'CSE' } },
     update: {},
@@ -44,9 +76,9 @@ async function main() {
     },
   });
 
-  console.log(`✅ Departments Seeded: ${deptCse.name}, ${deptIt.name}`);
+  console.log(`✅ Departments Configured: ${deptCse.name}, ${deptIt.name}`);
 
-  // Create Sample Users for All 4 Roles
+  // 4. Create Role Accounts (Clean slate for testing each role)
   const hashedPassword = await argon2.hash('Password@123');
 
   const student = await prisma.user.upsert({
@@ -110,45 +142,13 @@ async function main() {
     },
   });
 
-  console.log(`✅ Users Seeded across all roles:`);
+  console.log(`✅ Accounts Ready for User Content Creation:`);
   console.log(`   - Student: ${student.email}`);
   console.log(`   - Faculty: ${faculty.email}`);
   console.log(`   - Placement Officer: ${placementOfficer.email}`);
   console.log(`   - Admin: ${admin.email}`);
 
-  // Create Sample Club
-  const codingClub = await prisma.club.create({
-    data: {
-      college_id: college.id,
-      name: 'DevSync Coding Club',
-      category: 'Technical',
-      description: 'The official competitive coding & open source club.',
-      members: {
-        create: [
-          { user_id: student.id, role: 'LEAD' },
-        ],
-      },
-    },
-  });
-
-  console.log(`✅ Club Seeded: ${codingClub.name}`);
-
-  // Create Sample Placement Drive
-  const drive = await prisma.placementDrive.create({
-    data: {
-      college_id: college.id,
-      company_name: 'Google',
-      role_title: 'Software Development Engineer I',
-      package_ctc: '28 LPA',
-      location: 'Bengaluru, India',
-      eligibility: 'CGPA >= 8.0, No active backlogs',
-      deadline: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
-    },
-  });
-
-  console.log(`✅ Placement Drive Seeded: ${drive.company_name} - ${drive.role_title}`);
-
-  console.log('🎉 Seeding completed successfully!');
+  console.log('🎉 Database is clean & ready for users to create new Feed posts, Events, Clubs, Placement Drives, and Portfolios!');
 }
 
 main()

@@ -19,60 +19,7 @@ class FeedRemoteDataSource {
       requestOptions: RequestOptions(path: '/api/v1/posts'),
       data: {
         'success': true,
-        'data': [
-          {
-            'id': 'post_101',
-            'title': 'Welcome to CampusHub 2026 Academic Season!',
-            'content': 'We are thrilled to launch the unified campus platform. Explore clubs, events, placements, and real-time community feeds.',
-            'type': 'ANNOUNCEMENT',
-            'isPinned': true,
-            'createdAt': DateTime.now().toIso8601String(),
-            'author': {
-              'id': 'usr_admin',
-              'name': 'Dr. Sarah Connor',
-              'avatarUrl': 'https://images.unsplash.com/photo-1544005313-94ddf0286df2',
-              'role': 'COLLEGE_ADMIN',
-            },
-            'attachments': [
-              {
-                'id': 'att_1',
-                'fileName': 'campus_welcome.jpg',
-                'fileUrl': 'https://images.unsplash.com/photo-1523050854058-8df90110c9f1',
-                'fileType': 'image/jpeg',
-              }
-            ],
-            'likesCount': 42,
-            'commentsCount': 5,
-            'isLiked': false,
-            'isSaved': true,
-          },
-          {
-            'id': 'post_102',
-            'title': 'ACM Student Chapter Hackathon Announced',
-            'content': 'Join us this weekend for the annual 24-hour innovation hackathon. Cash prizes, mentor guidance, and networking opportunities await!',
-            'type': 'EVENT_PROMO',
-            'isPinned': false,
-            'createdAt': DateTime.now().subtract(const Duration(hours: 3)).toIso8601String(),
-            'author': {
-              'id': 'usr_lead',
-              'name': 'Alex Vance',
-              'avatarUrl': 'https://images.unsplash.com/photo-1534528741775-53994a69daeb',
-              'role': 'STUDENT',
-            },
-            'attachments': [
-              {
-                'id': 'att_2',
-                'fileName': 'hackathon_poster.jpg',
-                'fileUrl': 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4',
-                'fileType': 'image/jpeg',
-              }
-            ],
-            'likesCount': 18,
-            'commentsCount': 2,
-            'isLiked': true,
-            'isSaved': false,
-          }
-        ]
+        'data': []
       },
     ));
 

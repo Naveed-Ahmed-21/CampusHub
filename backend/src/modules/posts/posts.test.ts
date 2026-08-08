@@ -31,6 +31,7 @@ describe('PostsService', () => {
           is_pinned: false,
           created_at: new Date(),
           author: { id: 'usr_1', first_name: 'Alex', last_name: 'Vance', avatar_url: null, role: 'STUDENT' },
+          attachments: [],
           likes: [],
           saves: [],
           _count: { likes: 12, comments: 4 },
@@ -51,7 +52,7 @@ describe('PostsService', () => {
       expect(result.length).toBeGreaterThan(0);
     });
 
-    it('should return fallback posts if repository throws DB error', async () => {
+    it('should return clean empty array if repository throws DB error', async () => {
       postsRepository.getPosts.mockRejectedValue(new Error('DB connection refused'));
 
       const result = await postsService.getFeed({
@@ -62,8 +63,7 @@ describe('PostsService', () => {
         limit: 10,
       });
 
-      expect(result.length).toBeGreaterThan(0);
-      expect(result[0].content).toContain('announcements');
+      expect(result).toEqual([]);
     });
   });
 
