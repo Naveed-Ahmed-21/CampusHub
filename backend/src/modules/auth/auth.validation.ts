@@ -8,7 +8,7 @@ export const registerSchema = z.object({
     firstName: z.string().min(2, 'First name is required'),
     lastName: z.string().min(2, 'Last name is required'),
     rollNumber: z.string().optional(),
-    role: z.enum(['STUDENT', 'FACULTY', 'DEPT_ADMIN', 'COLLEGE_ADMIN', 'PLACEMENT_OFFICER', 'CLUB_COORDINATOR']).default('STUDENT'),
+    role: z.enum(['STUDENT', 'FACULTY']).default('STUDENT'),
   }),
 });
 

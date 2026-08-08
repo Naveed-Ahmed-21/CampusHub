@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { PostsService } from './posts.service';
 import { asyncHandler } from '../../shared/utils/async-handler.util';
 import { FeedType } from './posts.types';
+import { ForbiddenError } from '../../shared/errors/AppError';
 
 export class PostsController {
   constructor(private readonly postsService: PostsService) {}
@@ -51,5 +52,18 @@ export class PostsController {
     const postId = req.params.postId;
     const comments = await this.postsService.getComments(postId);
     res.status(200).json({ success: true, data: comments });
+  });
+
+  deletePost = asyncHandler(async (req: Request, res: Response) => {
+    const postId = req.params.postId;
+    const user = req.user!;
+
+    const isAuthorOrAdmin = await this.postsService.checkOwnershipOrAdmin(postId, user.userId, user.role);
+    if (!isAuthorOrAdmin) {
+      throw new ForbiddenError('You do not have permission to perform this action');
+    }
+
+    await this.postsService.deletePost(postId);
+    res.status(200).json({ success: true, message: 'Post deleted successfully' });
   });
 }

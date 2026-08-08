@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { AdminService } from './admin.service';
 import { Role } from '@prisma/client';
+import { BadRequestError, ForbiddenError } from '../../shared/errors/AppError';
 
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
@@ -35,8 +36,24 @@ export class AdminController {
 
   updateUserRole = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { userId, newRole } = req.body;
-      const result = await this.adminService.updateUserRole({ userId, newRole });
+      const targetUserId = req.params.id || req.body.userId;
+      const newRole = req.body.newRole || req.body.role;
+      const actorUserId = req.user?.userId;
+
+      if (!targetUserId) {
+        throw new BadRequestError('User ID is required');
+      }
+
+      if (actorUserId && actorUserId === targetUserId) {
+        throw new ForbiddenError('Users cannot modify their own role');
+      }
+
+      const validRoles = ['STUDENT', 'FACULTY', 'PLACEMENT_OFFICER', 'ADMIN', 'DEPT_ADMIN', 'COLLEGE_ADMIN', 'SUPER_ADMIN'];
+      if (!newRole || !validRoles.includes(newRole)) {
+        throw new BadRequestError(`Invalid role. Allowed roles: ${validRoles.join(', ')}`);
+      }
+
+      const result = await this.adminService.updateUserRole({ userId: targetUserId, newRole: newRole as Role });
       res.status(200).json({ success: true, message: 'User role updated successfully', data: result });
     } catch (err) {
       next(err);

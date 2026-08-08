@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { PortfolioRepository } from '../portfolio.repository';
 import { PortfolioService } from '../portfolio.service';
 import { PortfolioController } from '../portfolio.controller';
-import { authenticate } from '../../../shared/middlewares/auth.middleware';
+import { requireAuth } from '../../../shared/middlewares/auth.middleware';
 import { validateRequest } from '../../../shared/middlewares/validate.middleware';
 import {
   updatePortfolioSchema,
@@ -22,7 +22,7 @@ export const portfolioRouter = Router();
 portfolioRouter.get('/public/:identifier', portfolioController.getPublicPortfolio);
 
 // Authenticated Routes
-portfolioRouter.use(authenticate);
+portfolioRouter.use(requireAuth());
 
 portfolioRouter.get('/me', portfolioController.getUserPortfolio);
 portfolioRouter.patch('/me', validateRequest(updatePortfolioSchema), portfolioController.updatePortfolio);

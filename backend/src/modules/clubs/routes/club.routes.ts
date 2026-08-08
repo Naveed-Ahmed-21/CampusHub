@@ -2,9 +2,8 @@ import { Router } from 'express';
 import { ClubsRepository } from '../clubs.repository';
 import { ClubsService } from '../clubs.service';
 import { ClubsController } from '../clubs.controller';
-import { authenticate, authorize } from '../../../shared/middlewares/auth.middleware';
+import { requireAuth, requireRole } from '../../../shared/middlewares/auth.middleware';
 import { validateRequest } from '../../../shared/middlewares/validate.middleware';
-import { Role } from '@prisma/client';
 import {
   createClubSchema,
   verifyClubSchema,
@@ -22,7 +21,7 @@ const clubsController = new ClubsController(clubsService);
 
 export const clubsRouter = Router();
 
-clubsRouter.use(authenticate);
+clubsRouter.use(requireAuth());
 
 // Public / Approved Clubs Listing
 clubsRouter.get('/', validateRequest(queryClubsSchema), clubsController.getClubs);
@@ -30,12 +29,12 @@ clubsRouter.get('/', validateRequest(queryClubsSchema), clubsController.getClubs
 // Admin: List pending club requests for verification
 clubsRouter.get(
   '/pending',
-  authorize(Role.COLLEGE_ADMIN, Role.SUPER_ADMIN, Role.DEPT_ADMIN),
+  requireRole('ADMIN'),
   clubsController.getPendingClubs
 );
 
-// Create a new club (Students can create, admins can auto-approve)
-clubsRouter.post('/', validateRequest(createClubSchema), clubsController.createClub);
+// Create a new club (Students & Faculty can create, admins can auto-approve)
+clubsRouter.post('/', requireRole('STUDENT', 'FACULTY', 'ADMIN'), validateRequest(createClubSchema), clubsController.createClub);
 
 // Club Details
 clubsRouter.get('/:clubId', clubsController.getClubDetails);
@@ -43,7 +42,7 @@ clubsRouter.get('/:clubId', clubsController.getClubDetails);
 // Admin: Verify (Approve / Reject) Club
 clubsRouter.patch(
   '/:clubId/verify',
-  authorize(Role.COLLEGE_ADMIN, Role.SUPER_ADMIN, Role.DEPT_ADMIN),
+  requireRole('ADMIN'),
   validateRequest(verifyClubSchema),
   clubsController.verifyClub
 );

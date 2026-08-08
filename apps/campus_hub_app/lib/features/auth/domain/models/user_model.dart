@@ -1,3 +1,5 @@
+import 'user_role.dart';
+
 class UserModel {
   final String id;
   final String email;
@@ -38,4 +40,10 @@ class UserModel {
   }
 
   String get fullName => '$firstName $lastName';
+
+  UserRole get userRole => UserRole.fromString(role);
+  bool get isStudent => userRole == UserRole.student;
+  bool get isFaculty => userRole == UserRole.faculty;
+  bool get isPlacementOfficer => userRole == UserRole.placementOfficer;
+  bool get isAdmin => userRole == UserRole.admin;
 }

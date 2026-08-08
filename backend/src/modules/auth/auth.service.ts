@@ -2,7 +2,7 @@ import argon2 from 'argon2';
 import crypto from 'crypto';
 import { AuthRepository } from './auth.repository';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../../shared/utils/jwt.util';
-import { ConflictError, UnauthorizedError, NotFoundError, BadRequestError } from '../../shared/errors/AppError';
+import { ConflictError, UnauthorizedError, NotFoundError, BadRequestError, ForbiddenError } from '../../shared/errors/AppError';
 import { RegisterDTO, LoginDTO, AuthTokensDTO, ForgotPasswordDTO, ResetPasswordDTO, UserResponseDTO } from './auth.types';
 import { logger } from '../../infrastructure/logger/logger';
 
@@ -10,6 +10,10 @@ export class AuthService {
   constructor(private readonly authRepo: AuthRepository) {}
 
   async register(dto: RegisterDTO): Promise<{ user: UserResponseDTO; tokens: AuthTokensDTO }> {
+    if (dto.role === ('ADMIN' as any) || dto.role === ('PLACEMENT_OFFICER' as any) || dto.role === ('SUPER_ADMIN' as any) || dto.role === ('COLLEGE_ADMIN' as any)) {
+      throw new ForbiddenError('Registration for privileged roles (ADMIN, PLACEMENT_OFFICER) is prohibited');
+    }
+
     try {
       const existing = await this.authRepo.findUserByEmail(dto.email);
       if (existing) throw new ConflictError('User email already exists');

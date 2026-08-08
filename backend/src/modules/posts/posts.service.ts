@@ -263,4 +263,25 @@ export class PostsService {
       ];
     }
   }
+
+  async checkOwnershipOrAdmin(postId: string, userId: string, userRole: string): Promise<boolean> {
+    try {
+      const post = await this.postsRepo.findPostById(postId);
+      if (!post) {
+        return ['ADMIN', 'COLLEGE_ADMIN', 'SUPER_ADMIN'].includes(userRole);
+      }
+      if (post.author_id === userId) return true;
+      return ['ADMIN', 'COLLEGE_ADMIN', 'SUPER_ADMIN'].includes(userRole);
+    } catch (_) {
+      return ['ADMIN', 'COLLEGE_ADMIN', 'SUPER_ADMIN'].includes(userRole);
+    }
+  }
+
+  async deletePost(postId: string): Promise<void> {
+    try {
+      await this.postsRepo.deletePost(postId);
+    } catch (_) {
+      // Fallback
+    }
+  }
 }

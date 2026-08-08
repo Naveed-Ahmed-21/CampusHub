@@ -161,4 +161,16 @@ export class PostsRepository {
       },
     });
   }
+
+  async findPostById(postId: string) {
+    return prisma.post.findUnique({
+      where: { id: postId },
+    });
+  }
+
+  async deletePost(postId: string) {
+    return prisma.post.delete({
+      where: { id: postId },
+    });
+  }
 }
