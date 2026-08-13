@@ -112,6 +112,7 @@ model College {
   drives          PlacementDrive[]
   companies       Company[]
   chat_rooms      ChatRoom[]
+  media_assets    MediaAsset[]
 
   @@map("colleges")
 }
@@ -182,6 +183,7 @@ model User {
   node_progress         UserNodeProgress[]
   weekly_goals          WeeklyGoal[]
   project_submissions   UserMiniProjectSubmission[]
+  media_assets          MediaAsset[]
 
   @@index([college_id])
   @@index([department_id])
@@ -896,4 +898,57 @@ model UserMiniProjectSubmission {
   @@unique([user_id, project_id])
   @@index([user_id])
   @@map("user_mini_project_submissions")
+}
+
+// ==========================================
+// 11. MEDIA & DOCUMENT STORAGE MODULE
+// ==========================================
+
+enum MediaType {
+  IMAGE
+  DOCUMENT
+}
+
+enum MediaCategory {
+  PROFILE_IMAGE
+  POST_IMAGE
+  CLUB_LOGO
+  CLUB_RESOURCE
+  CHAT_IMAGE
+  CHAT_DOCUMENT
+  EVENT_MEDIA
+  EVENT_DOCUMENT
+  CAREER_RESOURCE
+  RESUME
+  CERTIFICATE
+  PORTFOLIO_IMAGE
+  PORTFOLIO_DOCUMENT
+}
+
+model MediaAsset {
+  id               String        @id @default(uuid()) @db.Uuid
+  college_id       String        @db.Uuid
+  user_id          String        @db.Uuid
+  category         MediaCategory
+  file_type        MediaType     @default(IMAGE)
+  mime_type        String        @db.VarChar(100)
+  original_name    String        @db.VarChar(255)
+  file_name        String        @db.VarChar(255)
+  file_size        Int
+  url              String        @db.Text
+  thumbnail_url    String?       @db.Text
+  imagekit_file_id String        @db.VarChar(255)
+  folder_path      String        @db.VarChar(255)
+  width            Int?
+  height           Int?
+  created_at       DateTime      @default(now())
+  updated_at       DateTime      @updatedAt
+
+  college College @relation(fields: [college_id], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([college_id])
+  @@index([user_id])
+  @@index([category])
+  @@map("media_assets")
 }

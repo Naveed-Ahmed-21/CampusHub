@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/placement_provider.dart';
 import '../../data/placement_repository.dart';
 import '../../domain/placement_models.dart';
+import '../../../auth/presentation/controllers/auth_controller.dart';
 
 class PlacementHubView extends ConsumerStatefulWidget {
   const PlacementHubView({super.key});
@@ -11,20 +12,7 @@ class PlacementHubView extends ConsumerStatefulWidget {
   ConsumerState<PlacementHubView> createState() => _PlacementHubViewState();
 }
 
-class _PlacementHubViewState extends ConsumerState<PlacementHubView> with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 3, vsync: this);
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
+class _PlacementHubViewState extends ConsumerState<PlacementHubView> {
 
   void _showCreateDriveDialog() {
     final companyCtrl = TextEditingController();
@@ -141,28 +129,39 @@ class _PlacementHubViewState extends ConsumerState<PlacementHubView> with Single
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final user = ref.watch(authControllerProvider).asData?.value;
+    final isOfficerOrAdmin = user?.role == 'ADMIN' ||
+        user?.role == 'COLLEGE_ADMIN' ||
+        user?.role == 'SUPER_ADMIN' ||
+        user?.role == 'FACULTY' ||
+        user?.role == 'PLACEMENT_OFFICER';
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Placement & Career Drives'),
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: theme.colorScheme.primary,
-          unselectedLabelColor: Colors.grey,
-          tabs: const [
-            Tab(icon: Icon(Icons.business), text: 'Company Drives'),
-            Tab(icon: Icon(Icons.person), text: 'My Applications'),
-            Tab(icon: Icon(Icons.dashboard), text: 'Officer Hub'),
+    final tabCount = isOfficerOrAdmin ? 3 : 2;
+
+    return DefaultTabController(
+      length: tabCount,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Placement & Career Drives'),
+          bottom: TabBar(
+            labelColor: theme.colorScheme.primary,
+            unselectedLabelColor: Colors.grey,
+            tabs: [
+              const Tab(icon: Icon(Icons.business), text: 'Company Drives'),
+              const Tab(icon: Icon(Icons.person), text: 'My Applications'),
+              if (isOfficerOrAdmin)
+                const Tab(icon: Icon(Icons.dashboard), text: 'Officer Hub'),
+            ],
+          ),
+        ),
+        body: TabBarView(
+          children: [
+            _buildCompanyDrivesTab(),
+            _buildStudentDashboardTab(),
+            if (isOfficerOrAdmin)
+              _buildOfficerDashboardTab(),
           ],
         ),
-      ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildCompanyDrivesTab(),
-          _buildStudentDashboardTab(),
-          _buildOfficerDashboardTab(),
-        ],
       ),
     );
   }
@@ -428,7 +427,6 @@ class _PlacementHubViewState extends ConsumerState<PlacementHubView> with Single
         onPressed: _showCreateDriveDialog,
         icon: const Icon(Icons.add),
         label: const Text('Post Drive'),
-        backgroundColor: Colors.indigo,
       ),
       body: officerStatsAsync.when(
         data: (stats) {

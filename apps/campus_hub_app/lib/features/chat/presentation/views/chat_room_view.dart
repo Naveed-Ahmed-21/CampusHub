@@ -1,9 +1,15 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../data/socket_chat_service.dart';
 import '../providers/chat_provider.dart';
 import '../../domain/chat_models.dart';
+import '../../../auth/presentation/controllers/auth_controller.dart';
+import '../widgets/message_status_icon.dart';
+import '../widgets/date_separator_widget.dart';
+import '../widgets/floating_reaction_picker.dart';
+import '../../../../core/services/imagekit_media_service.dart';
 
 class ChatRoomView extends ConsumerStatefulWidget {
   final String roomId;
@@ -204,16 +210,31 @@ class _ChatRoomViewState extends ConsumerState<ChatRoomView> {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: () {
-              if (urlCtrl.text.trim().isEmpty) return;
+            onPressed: () async {
+              final url = urlCtrl.text.trim();
+              if (url.isEmpty) return;
               Navigator.of(ctx).pop();
+
+              final fileName = nameCtrl.text.trim().isEmpty
+                  ? (mediaType == 'IMAGE' ? 'image.png' : 'document.pdf')
+                  : nameCtrl.text.trim();
+
+              try {
+                final mediaService = ref.read(imageKitMediaServiceProvider);
+                await mediaService.saveUrlMetadata(
+                  url: url,
+                  category: mediaType == 'IMAGE' ? MediaCategory.chatImage : MediaCategory.chatDocument,
+                  fileName: fileName,
+                );
+              } catch (_) {
+                // Non-blocking metadata save fallback
+              }
+
               _sendMessage(
-                mediaUrl: urlCtrl.text.trim(),
+                mediaUrl: url,
                 mediaType: mediaType,
-                fileName: nameCtrl.text.trim().isEmpty
-                    ? (mediaType == 'IMAGE' ? 'image.png' : 'document.pdf')
-                    : nameCtrl.text.trim(),
-                fileSize: 1024 * 500, // sample size
+                fileName: fileName,
+                fileSize: 1024 * 500,
               );
             },
             child: const Text('Send'),
@@ -230,33 +251,42 @@ class _ChatRoomViewState extends ConsumerState<ChatRoomView> {
 
     return Scaffold(
       appBar: AppBar(
-        titleSpacing: 0,
-        title: Row(
-          children: [
-            const CircleAvatar(
-              radius: 18,
-              backgroundColor: Colors.teal,
-              child: Icon(Icons.chat, color: Colors.white, size: 20),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Chat Room', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                  Text(
-                    typingUser != null ? '$typingUser is typing...' : 'Online',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: typingUser != null ? Colors.green.shade700 : Colors.green,
-                      fontStyle: typingUser != null ? FontStyle.italic : FontStyle.normal,
-                    ),
-                  ),
-                ],
+        title: InkWell(
+          onTap: () => context.push('/chat/group-info/${widget.roomId}'),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 18,
+                backgroundColor: Colors.teal.shade100,
+                child: const Icon(Icons.groups, color: Colors.teal, size: 20),
               ),
-            ),
-          ],
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Conversation Info', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    Text(
+                      typingUser != null ? '$typingUser is typing...' : 'Tap for Info & Members',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: typingUser != null ? Colors.green.shade700 : Colors.grey,
+                        fontStyle: typingUser != null ? FontStyle.italic : FontStyle.normal,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.info_outline),
+            tooltip: 'Chat Info',
+            onPressed: () => context.push('/chat/group-info/${widget.roomId}'),
+          ),
+        ],
       ),
       body: Container(
         decoration: BoxDecoration(
@@ -281,16 +311,34 @@ class _ChatRoomViewState extends ConsumerState<ChatRoomView> {
                     );
                   }
 
+                  final currentUser = ref.watch(authControllerProvider).asData?.value;
+
                   return ListView.builder(
                     controller: _scrollController,
                     padding: const EdgeInsets.all(16),
                     itemCount: messages.length,
                     itemBuilder: (ctx, idx) {
                       final msg = messages[idx];
-                      // Sample test check for sender vs self
-                      final isMe = idx % 2 == 1; // Visual demonstration of incoming/outgoing layout
+                      final isMe = (currentUser != null && msg.senderId == currentUser.id) ||
+                          (currentUser != null && msg.senderName.contains(currentUser.firstName));
 
-                      return _buildWhatsAppMessageBubble(msg, isMe);
+                      final bool showDateSeparator = idx == 0 ||
+                          msg.createdAt.day != messages[idx - 1].createdAt.day ||
+                          msg.createdAt.month != messages[idx - 1].createdAt.month ||
+                          msg.createdAt.year != messages[idx - 1].createdAt.year;
+
+                      final dateStr = '${msg.createdAt.year}-${msg.createdAt.month.toString().padLeft(2, '0')}-${msg.createdAt.day.toString().padLeft(2, '0')}';
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          if (showDateSeparator) DateSeparatorWidget(text: dateStr),
+                          Align(
+                            alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+                            child: _buildWhatsAppMessageBubble(msg, isMe),
+                          ),
+                        ],
+                      );
                     },
                   );
                 },
@@ -365,6 +413,29 @@ class _ChatRoomViewState extends ConsumerState<ChatRoomView> {
     );
   }
 
+  void _showReactionPicker(ChatMessageModel msg) {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        child: Center(
+          child: FloatingReactionPicker(
+            onSelected: (emoji) {
+              Navigator.of(ctx).pop();
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Reacted $emoji to message'),
+                  duration: const Duration(seconds: 1),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildWhatsAppMessageBubble(ChatMessageModel msg, bool isMe) {
     final bubbleColor = isMe ? const Color(0xFFDCF8C6) : Colors.white;
     final align = isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start;
@@ -374,7 +445,9 @@ class _ChatRoomViewState extends ConsumerState<ChatRoomView> {
       child: Column(
         crossAxisAlignment: align,
         children: [
-          Container(
+          GestureDetector(
+            onLongPress: () => _showReactionPicker(msg),
+            child: Container(
             constraints: BoxConstraints(
               maxWidth: MediaQuery.of(context).size.width * 0.75,
             ),
@@ -493,17 +566,17 @@ class _ChatRoomViewState extends ConsumerState<ChatRoomView> {
                     ),
                     if (isMe) ...[
                       const SizedBox(width: 4),
-                      // Read receipts: Double blue ticks if read, double gray if delivered
-                      Icon(
-                        Icons.done_all,
-                        size: 16,
-                        color: msg.readByUserIdList.isNotEmpty ? Colors.blue : Colors.grey,
+                      MessageStatusIcon(
+                        status: msg.readByUserIdList.isNotEmpty
+                            ? MessageDeliveryStatus.read
+                            : MessageDeliveryStatus.delivered,
                       ),
                     ],
                   ],
                 ),
               ],
             ),
+          ),
           ),
         ],
       ),

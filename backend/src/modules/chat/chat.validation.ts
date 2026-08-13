@@ -3,25 +3,25 @@ import { ChatRoomType } from '@prisma/client';
 
 export const createDirectChatSchema = z.object({
   body: z.object({
-    targetUserId: z.string().uuid('Invalid target user ID'),
+    targetUserId: z.string().min(1, 'Target user ID is required'),
   }),
 });
 
 export const sendMessageSchema = z.object({
   body: z.object({
-    roomId: z.string().uuid('Invalid room ID'),
-    message: z.string().default(''),
-    media_url: z.string().url().optional().or(z.literal('')),
-    media_type: z.enum(['IMAGE', 'DOCUMENT', 'AUDIO']).optional(),
-    file_name: z.string().optional(),
-    file_size: z.number().int().optional(),
+    roomId: z.string().min(1, 'Room ID is required'),
+    message: z.string().optional().default(''),
+    media_url: z.string().optional().nullable(),
+    media_type: z.enum(['IMAGE', 'DOCUMENT', 'AUDIO']).optional().nullable(),
+    file_name: z.string().optional().nullable(),
+    file_size: z.number().optional().nullable(),
   }),
 });
 
 export const markReadSchema = z.object({
   body: z.object({
-    roomId: z.string().uuid('Invalid room ID'),
-    messageIds: z.array(z.string().uuid()).min(1, 'At least one message ID required'),
+    roomId: z.string().min(1, 'Room ID is required'),
+    messageIds: z.array(z.string()).min(1, 'At least one message ID required'),
   }),
 });
 

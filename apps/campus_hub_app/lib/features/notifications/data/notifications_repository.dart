@@ -9,13 +9,17 @@ class NotificationsRepository {
   NotificationsRepository(this._dio);
 
   Future<void> registerFcmToken(String fcmToken, {String? deviceType}) async {
-    await _dio.post(
-      '/api/v1/notifications/fcm-token',
-      data: {
-        'fcm_token': fcmToken,
-        'device_type': deviceType ?? 'mobile',
-      },
-    );
+    try {
+      await _dio.post(
+        '/api/v1/notifications/device-token',
+        data: {
+          'fcm_token': fcmToken,
+          'device_type': deviceType ?? 'mobile',
+        },
+      );
+    } catch (_) {
+      // Non-blocking fallback
+    }
   }
 
   Future<Map<String, dynamic>> getUserNotifications({String? type, bool? isRead}) async {

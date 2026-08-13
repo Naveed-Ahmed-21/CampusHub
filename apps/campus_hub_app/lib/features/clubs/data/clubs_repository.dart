@@ -35,6 +35,12 @@ class ClubsRepository {
     return clubsList.map((json) => Club.fromJson(json)).toList();
   }
 
+  Future<List<Club>> getMyProposedClubs() async {
+    final response = await _dio.get('/api/v1/clubs/my-proposed');
+    final List list = response.data['data'] ?? [];
+    return list.map((json) => Club.fromJson(json)).toList();
+  }
+
   Future<Club> getClubDetails(String clubId) async {
     final response = await _dio.get('/api/v1/clubs/$clubId');
     return Club.fromJson(response.data['data']);
@@ -71,12 +77,27 @@ class ClubsRepository {
     return Club.fromJson(response.data['data']);
   }
 
+  Future<void> deleteClub(String clubId) async {
+    await _dio.delete('/api/v1/clubs/$clubId');
+  }
+
   Future<void> joinClub(String clubId) async {
     await _dio.post('/api/v1/clubs/$clubId/join');
   }
 
   Future<void> leaveClub(String clubId) async {
     await _dio.post('/api/v1/clubs/$clubId/leave');
+  }
+
+  Future<void> addMember(String clubId, String emailOrUserId, {String role = 'MEMBER'}) async {
+    await _dio.post(
+      '/api/v1/clubs/$clubId/members',
+      data: {
+        'email': emailOrUserId.contains('@') ? emailOrUserId.trim() : null,
+        'userId': !emailOrUserId.contains('@') ? emailOrUserId.trim() : null,
+        'role': role,
+      },
+    );
   }
 
   Future<List<ClubMember>> getMembers(String clubId) async {

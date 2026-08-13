@@ -70,3 +70,8 @@ final userPresenceProvider = StreamProvider.family.autoDispose<Map<String, dynam
   final socket = ref.watch(socketChatServiceProvider);
   return socket.onPresenceChange.where((event) => event['userId'] == userId);
 });
+
+final campusUsersProvider = FutureProvider.autoDispose.family<List<ChatParticipantUser>, String?>((ref, query) async {
+  final repo = ref.watch(chatRepositoryProvider);
+  return repo.searchCampusUsers(query: query);
+});

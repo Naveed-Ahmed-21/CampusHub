@@ -19,10 +19,18 @@ export const chatRouter = Router();
 
 chatRouter.use(authenticate);
 
+// Users Directory
+chatRouter.get('/users', chatController.searchUsers);
+
 // Rooms
 chatRouter.get('/rooms', validateRequest(queryRoomsSchema), chatController.getUserRooms);
 chatRouter.post('/direct', validateRequest(createDirectChatSchema), chatController.createDirectChat);
+chatRouter.post('/group', chatController.createGroupChat);
 chatRouter.get('/department', chatController.getDepartmentChat);
+
+// Room Members
+chatRouter.post('/rooms/:roomId/members', chatController.addRoomMember);
+chatRouter.delete('/rooms/:roomId/members/:userId', chatController.removeRoomMember);
 
 // Messages & Read Receipts
 chatRouter.get('/rooms/:roomId/messages', chatController.getRoomMessages);

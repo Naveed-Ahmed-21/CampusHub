@@ -115,7 +115,6 @@ class _EventsListViewState extends ConsumerState<EventsListView> with SingleTick
         onPressed: _showCreateEventDialog,
         icon: const Icon(Icons.add),
         label: const Text('Create Event'),
-        backgroundColor: Colors.indigo,
       ),
       body: _isCalendarView
           ? _buildCalendarView(eventsAsync.valueOrNull ?? [])

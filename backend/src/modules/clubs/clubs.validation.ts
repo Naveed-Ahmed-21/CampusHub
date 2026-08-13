@@ -5,8 +5,8 @@ export const createClubSchema = z.object({
   body: z.object({
     name: z.string().min(2, 'Name must be at least 2 characters').max(150),
     category: z.string().min(2, 'Category is required').max(100),
-    description: z.string().optional(),
-    logo_url: z.string().url('Invalid logo URL').optional().or(z.literal('')),
+    description: z.string().optional().nullable(),
+    logo_url: z.string().optional().nullable(),
     is_cross_department: z.boolean().optional().default(true),
   }),
 });
@@ -14,7 +14,7 @@ export const createClubSchema = z.object({
 export const verifyClubSchema = z.object({
   body: z.object({
     status: z.enum([ClubStatus.APPROVED, ClubStatus.REJECTED]),
-    rejection_reason: z.string().optional(),
+    rejection_reason: z.string().optional().nullable(),
   }),
 });
 
@@ -35,18 +35,18 @@ export const createClubPostSchema = z.object({
 export const createClubEventSchema = z.object({
   body: z.object({
     title: z.string().min(3, 'Title is required').max(255),
-    description: z.string().optional(),
-    venue: z.string().optional(),
-    start_time: z.string().datetime('Start time must be a valid ISO date'),
-    end_time: z.string().datetime('End time must be a valid ISO date'),
-    banner_url: z.string().url().optional().or(z.literal('')),
+    description: z.string().optional().nullable(),
+    venue: z.string().optional().nullable(),
+    start_time: z.string().refine((v) => !isNaN(Date.parse(v)), 'Start time must be a valid ISO date'),
+    end_time: z.string().refine((v) => !isNaN(Date.parse(v)), 'End time must be a valid ISO date'),
+    banner_url: z.string().optional().nullable(),
   }),
 });
 
 export const createClubResourceSchema = z.object({
   body: z.object({
     title: z.string().min(2, 'Title is required').max(255),
-    description: z.string().optional(),
+    description: z.string().optional().nullable(),
     file_url: z.string().min(1, 'File URL is required'),
     file_name: z.string().min(1, 'File name is required'),
     file_type: z.string().min(1, 'File type is required'),

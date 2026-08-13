@@ -1,4 +1,5 @@
 import argon2 from 'argon2';
+import crypto from 'crypto';
 import { AdminRepository } from './admin.repository';
 import { QueryAdminUsersDto, UpdateUserRoleDto, UpdateUserStatusDto, CreateDepartmentDto } from './admin.types';
 import { Role } from '@prisma/client';
@@ -83,7 +84,7 @@ export class AdminService {
       });
     } catch (_) {
       return {
-        id: 'usr_' + Date.now(),
+        id: crypto.randomUUID(),
         email: data.email,
         first_name: data.firstName,
         last_name: data.lastName,

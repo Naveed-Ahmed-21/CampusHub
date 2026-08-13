@@ -21,7 +21,7 @@ export class AuthService {
       const validPassword = await argon2.verify(user.password_hash, dto.password);
       if (!validPassword) throw new UnauthorizedError('Invalid credentials');
 
-      const tokens = await this.createAuthSession(user.id, user.college_id, user.role, user.email);
+      const tokens = await this.createAuthSession(user.id, user.college_id, user.role, user.email, user.department_id);
 
       return {
         user: {
@@ -43,27 +43,28 @@ export class AuthService {
       let role = 'STUDENT';
       let firstName = 'Alex';
       let lastName = 'Vance';
-      let userId = 'std_10092';
+      let userId = '00000000-0000-4000-8000-000000000002';
+      const fallbackCollegeId = '00000000-0000-4000-8000-000000000001';
 
       const emailLower = dto.email.toLowerCase();
       if (emailLower.includes('faculty')) {
         role = 'FACULTY';
         firstName = 'Dr. Robert';
         lastName = 'Taylor';
-        userId = 'fac_20021';
+        userId = '00000000-0000-4000-8000-000000000003';
       } else if (emailLower.includes('placement')) {
         role = 'PLACEMENT_OFFICER';
         firstName = 'Sarah';
         lastName = 'Jenkins';
-        userId = 'po_30031';
+        userId = '00000000-0000-4000-8000-000000000004';
       } else if (emailLower.includes('admin')) {
         role = 'ADMIN';
         firstName = 'Campus';
         lastName = 'Administrator';
-        userId = 'adm_40041';
+        userId = '00000000-0000-4000-8000-000000000005';
       }
 
-      const tokens = await this.createAuthSession(userId, 'clg_88291', role, dto.email);
+      const tokens = await this.createAuthSession(userId, fallbackCollegeId, role, dto.email);
       return {
         user: {
           id: userId,
@@ -71,7 +72,7 @@ export class AuthService {
           firstName,
           lastName,
           role: role as never,
-          collegeId: 'clg_88291',
+          collegeId: fallbackCollegeId,
         },
         tokens,
       };
@@ -166,12 +167,12 @@ export class AuthService {
       firstName: 'Alex',
       lastName: 'Vance',
       role: 'STUDENT',
-      collegeId: 'clg_88291',
+      collegeId: '00000000-0000-4000-8000-000000000001',
     };
   }
 
-  private async createAuthSession(userId: string, collegeId: string, role: string, email: string): Promise<AuthTokensDTO> {
-    const payload = { userId, collegeId, role: role as never, email };
+  private async createAuthSession(userId: string, collegeId: string, role: string, email: string, departmentId?: string | null): Promise<AuthTokensDTO> {
+    const payload = { userId, collegeId, role: role as never, email, departmentId };
     const accessToken = generateAccessToken(payload);
     const refreshToken = generateRefreshToken(payload);
 

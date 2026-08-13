@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../providers/chat_provider.dart';
 import 'start_direct_chat_dialog.dart';
 import '../../data/chat_repository.dart';
+import '../../../auth/presentation/controllers/auth_controller.dart';
 
 class ChatInboxView extends ConsumerStatefulWidget {
   const ChatInboxView({super.key});
@@ -85,10 +86,9 @@ class _ChatInboxViewState extends ConsumerState<ChatInboxView> with SingleTicker
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showStartDirectChatDialog,
+        onPressed: () => context.push('/chat/contacts'),
         icon: const Icon(Icons.message),
         label: const Text('New Chat'),
-        backgroundColor: Colors.teal,
       ),
       body: roomsAsync.when(
         data: (rooms) {
@@ -125,6 +125,9 @@ class _ChatInboxViewState extends ConsumerState<ChatInboxView> with SingleTicker
   }
 
   Widget _buildRoomsList(List rooms) {
+    final currentUser = ref.watch(authControllerProvider).asData?.value;
+    final currentUserId = currentUser?.id ?? '';
+
     if (rooms.isEmpty) {
       return Center(
         child: Column(
@@ -150,9 +153,9 @@ class _ChatInboxViewState extends ConsumerState<ChatInboxView> with SingleTicker
       separatorBuilder: (_, __) => const Divider(height: 1, indent: 72),
       itemBuilder: (context, index) {
         final room = rooms[index];
-        final otherUser = room.getOtherParticipant('me');
+        final otherUser = room.getOtherParticipant(currentUserId);
         final isOnline = otherUser?.isOnline ?? false;
-        final roomName = room.getDisplayName('me');
+        final roomName = room.getDisplayName(currentUserId);
         final lastMsg = room.lastMessage;
 
         return ListTile(

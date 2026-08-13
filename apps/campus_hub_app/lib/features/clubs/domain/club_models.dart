@@ -278,6 +278,7 @@ class ClubChatMessage {
   final DateTime createdAt;
   final String senderName;
   final String? senderAvatarUrl;
+  final List<String> readByUserIdList;
 
   ClubChatMessage({
     required this.id,
@@ -286,10 +287,13 @@ class ClubChatMessage {
     required this.createdAt,
     required this.senderName,
     this.senderAvatarUrl,
+    this.readByUserIdList = const [],
   });
 
   factory ClubChatMessage.fromJson(Map<String, dynamic> json) {
     final sender = json['sender'] as Map<String, dynamic>? ?? {};
+    final receipts = json['read_receipts'] as List<dynamic>? ?? [];
+    final readUsers = receipts.map((r) => r['user_id'] as String? ?? '').where((id) => id.isNotEmpty).toList();
 
     return ClubChatMessage(
       id: json['id'] ?? '',
@@ -300,6 +304,7 @@ class ClubChatMessage {
           : DateTime.now(),
       senderName: '${sender['first_name'] ?? ''} ${sender['last_name'] ?? ''}'.trim(),
       senderAvatarUrl: sender['avatar_url'],
+      readByUserIdList: readUsers,
     );
   }
 }

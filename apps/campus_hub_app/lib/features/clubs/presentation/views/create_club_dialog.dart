@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/clubs_repository.dart';
 import '../providers/club_provider.dart';
@@ -63,9 +64,15 @@ class _CreateClubDialogState extends ConsumerState<CreateClubDialog> {
       }
     } catch (e) {
       if (mounted) {
+        String msg = 'Failed to create club. Please try again.';
+        if (e is DioException && e.response?.data is Map) {
+          msg = e.response?.data['message'] ?? msg;
+        } else {
+          msg = e.toString();
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to create club: ${e.toString()}'),
+            content: Text(msg),
             backgroundColor: Colors.red,
           ),
         );

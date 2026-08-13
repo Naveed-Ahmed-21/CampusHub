@@ -7,9 +7,9 @@ export const createPostSchema = z.object({
     type: z.enum(['ANNOUNCEMENT', 'GENERAL', 'ACADEMIC', 'EVENT_PROMO', 'PLACEMENT']).default('GENERAL'),
     attachments: z.array(z.object({
       fileName: z.string(),
-      fileUrl: z.string().url('Invalid file URL'),
+      fileUrl: z.string().min(1, 'File URL is required'),
       fileType: z.string(),
-    })).optional(),
+    })).optional().nullable(),
   }),
 });
 

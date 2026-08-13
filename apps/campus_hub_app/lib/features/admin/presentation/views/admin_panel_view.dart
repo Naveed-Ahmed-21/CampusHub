@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/admin_provider.dart';
+import '../../../clubs/presentation/providers/club_provider.dart';
+import '../../../clubs/data/clubs_repository.dart';
 
 class AdminPanelView extends ConsumerStatefulWidget {
   const AdminPanelView({super.key});
@@ -83,14 +85,62 @@ class _AdminPanelViewState extends ConsumerState<AdminPanelView> with SingleTick
               mainAxisSpacing: 12,
               childAspectRatio: 1.3,
               children: [
-                _buildKpiCard('Total Users', '${metrics['totalUsers'] ?? 0}', Icons.people_outline, Colors.indigo),
-                _buildKpiCard('Departments', '${metrics['totalDepartments'] ?? 0}', Icons.domain_outlined, Colors.teal),
-                _buildKpiCard('Active Clubs', '${metrics['approvedClubs'] ?? 0}', Icons.groups_outlined, Colors.amber.shade800),
-                _buildKpiCard('Pending Clubs', '${metrics['pendingClubs'] ?? 0}', Icons.pending_actions_outlined, Colors.orange),
-                _buildKpiCard('Campus Events', '${metrics['totalEvents'] ?? 0}', Icons.event_outlined, Colors.purple),
-                _buildKpiCard('Placement Drives', '${metrics['totalDrives'] ?? 0}', Icons.work_outline, Colors.blue),
-                _buildKpiCard('Students Placed', '${metrics['placedCount'] ?? 0}', Icons.school_outlined, Colors.green),
-                _buildKpiCard('System Status', 'HEALTHY', Icons.verified_outlined, Colors.green),
+                _buildKpiCard(
+                  'Total Users',
+                  '${metrics['totalUsers'] ?? 0}',
+                  Icons.people_outline,
+                  Colors.indigo,
+                  onTap: () => _tabController.animateTo(1),
+                ),
+                _buildKpiCard(
+                  'Departments',
+                  '${metrics['totalDepartments'] ?? 0}',
+                  Icons.domain_outlined,
+                  Colors.teal,
+                  onTap: () => _tabController.animateTo(2),
+                ),
+                _buildKpiCard(
+                  'Active Clubs',
+                  '${metrics['approvedClubs'] ?? 0}',
+                  Icons.groups_outlined,
+                  Colors.amber.shade800,
+                  onTap: () => _tabController.animateTo(3),
+                ),
+                _buildKpiCard(
+                  'Pending Clubs',
+                  '${metrics['pendingClubs'] ?? 0}',
+                  Icons.pending_actions_outlined,
+                  Colors.orange,
+                  onTap: () => _tabController.animateTo(3),
+                ),
+                _buildKpiCard(
+                  'Campus Events',
+                  '${metrics['totalEvents'] ?? 0}',
+                  Icons.event_outlined,
+                  Colors.purple,
+                  onTap: () => _tabController.animateTo(3),
+                ),
+                _buildKpiCard(
+                  'Placement Drives',
+                  '${metrics['totalDrives'] ?? 0}',
+                  Icons.work_outline,
+                  Colors.blue,
+                  onTap: () => _tabController.animateTo(4),
+                ),
+                _buildKpiCard(
+                  'Students Placed',
+                  '${metrics['placedCount'] ?? 0}',
+                  Icons.school_outlined,
+                  Colors.green,
+                  onTap: () => _tabController.animateTo(4),
+                ),
+                _buildKpiCard(
+                  'System Status',
+                  'HEALTHY',
+                  Icons.verified_outlined,
+                  Colors.green,
+                  onTap: () => _tabController.animateTo(5),
+                ),
               ],
             ),
             const SizedBox(height: 24),
@@ -105,27 +155,31 @@ class _AdminPanelViewState extends ConsumerState<AdminPanelView> with SingleTick
     );
   }
 
-  Widget _buildKpiCard(String title, String value, IconData icon, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, color: color, size: 24),
-          const SizedBox(height: 4),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text(value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: color)),
-          ),
-          const SizedBox(height: 2),
-          Text(title, style: const TextStyle(fontSize: 11, color: Colors.grey), maxLines: 1, overflow: TextOverflow.ellipsis),
-        ],
+  Widget _buildKpiCard(String title, String value, IconData icon, Color color, {VoidCallback? onTap}) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: color, size: 24),
+            const SizedBox(height: 4),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: color)),
+            ),
+            const SizedBox(height: 2),
+            Text(title, style: const TextStyle(fontSize: 11, color: Colors.grey), maxLines: 1, overflow: TextOverflow.ellipsis),
+          ],
+        ),
       ),
     );
   }
@@ -266,22 +320,121 @@ class _AdminPanelViewState extends ConsumerState<AdminPanelView> with SingleTick
   }
 
   Widget _buildClubsAndEventsTab(ThemeData theme) {
+    final pendingClubsAsync = ref.watch(pendingClubsProvider);
+
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        Text('Pending Club Verification Requests', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('Pending Club Verification Requests', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: () => ref.invalidate(pendingClubsProvider),
+            ),
+          ],
+        ),
         const SizedBox(height: 12),
-        Card(
-          child: ListTile(
-            leading: const CircleAvatar(backgroundColor: Colors.amber, child: Icon(Icons.groups, color: Colors.white)),
-            title: const Text('CyberSecurity & Ethical Hacking Guild'),
-            subtitle: const Text('Category: Technical • Lead: Alex Vance'),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(icon: const Icon(Icons.check_circle, color: Colors.green), onPressed: () {}),
-                IconButton(icon: const Icon(Icons.cancel, color: Colors.red), onPressed: () {}),
-              ],
+        pendingClubsAsync.when(
+          data: (clubs) {
+            if (clubs.isEmpty) {
+              return Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Center(
+                    child: Column(
+                      children: [
+                        const Icon(Icons.verified_outlined, size: 48, color: Colors.green),
+                        const SizedBox(height: 12),
+                        Text(
+                          'No pending club requests to approve!',
+                          style: theme.textTheme.titleMedium?.copyWith(color: Colors.grey.shade700),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }
+
+            return Column(
+              children: clubs.map((club) {
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  child: ListTile(
+                    leading: const CircleAvatar(
+                      backgroundColor: Colors.amber,
+                      child: Icon(Icons.groups, color: Colors.white),
+                    ),
+                    title: Text(club.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Category: ${club.category} • Proposed by Student'),
+                        if (club.description != null && club.description!.isNotEmpty)
+                          Text(club.description!, style: const TextStyle(fontSize: 12)),
+                      ],
+                    ),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.check_circle, color: Colors.green, size: 28),
+                          tooltip: 'Approve Club',
+                          onPressed: () async {
+                            try {
+                              final repo = ref.read(clubsRepositoryProvider);
+                              await repo.verifyClub(club.id, 'APPROVED');
+                              ref.invalidate(pendingClubsProvider);
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text("Approved '${club.name}' successfully!"), backgroundColor: Colors.green),
+                                );
+                              }
+                            } catch (e) {
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Verification error: $e'), backgroundColor: Colors.red),
+                                );
+                              }
+                            }
+                          },
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.cancel, color: Colors.red, size: 28),
+                          tooltip: 'Reject Club',
+                          onPressed: () async {
+                            try {
+                              final repo = ref.read(clubsRepositoryProvider);
+                              await repo.verifyClub(club.id, 'REJECTED', rejectionReason: 'Admin declined proposal');
+                              ref.invalidate(pendingClubsProvider);
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text("Rejected '${club.name}'."), backgroundColor: Colors.red),
+                                );
+                              }
+                            } catch (e) {
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Verification error: $e'), backgroundColor: Colors.red),
+                                );
+                              }
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }).toList(),
+            );
+          },
+          loading: () => const Center(child: Padding(padding: EdgeInsets.all(24), child: CircularProgressIndicator())),
+          error: (err, _) => Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text('Error loading pending clubs: $err', style: const TextStyle(color: Colors.red)),
             ),
           ),
         ),

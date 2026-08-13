@@ -151,4 +151,64 @@ describe('ClubsService', () => {
       expect(member.role).toBe(ClubRole.MEMBER);
     });
   });
+
+  describe('createClubResource', () => {
+    it('should throw ForbiddenError if non-member tries to upload resource', async () => {
+      clubsRepository.findClubById.mockResolvedValue({ id: mockClubId, college_id: mockCollegeId } as never);
+      clubsRepository.findMember.mockResolvedValue(null);
+
+      await expect(
+        clubsService.createClubResource(mockClubId, mockStudentId, mockCollegeId, Role.STUDENT, {
+          title: 'Notes',
+          file_url: 'https://file.pdf',
+          file_name: 'notes.pdf',
+          file_type: 'pdf',
+        })
+      ).rejects.toThrow(ForbiddenError);
+    });
+
+    it('should throw ForbiddenError if regular MEMBER tries to upload resource', async () => {
+      clubsRepository.findClubById.mockResolvedValue({ id: mockClubId, college_id: mockCollegeId } as never);
+      clubsRepository.findMember.mockResolvedValue({ id: 'mem-1', role: ClubRole.MEMBER } as never);
+
+      await expect(
+        clubsService.createClubResource(mockClubId, mockStudentId, mockCollegeId, Role.STUDENT, {
+          title: 'Notes',
+          file_url: 'https://file.pdf',
+          file_name: 'notes.pdf',
+          file_type: 'pdf',
+        })
+      ).rejects.toThrow(ForbiddenError);
+    });
+
+    it('should allow Club LEAD to upload resource', async () => {
+      clubsRepository.findClubById.mockResolvedValue({ id: mockClubId, college_id: mockCollegeId } as never);
+      clubsRepository.findMember.mockResolvedValue({ id: 'mem-1', role: ClubRole.LEAD } as never);
+      clubsRepository.createClubResource.mockResolvedValue({ id: 'res-1', title: 'Notes' } as never);
+
+      const res = await clubsService.createClubResource(mockClubId, mockStudentId, mockCollegeId, Role.STUDENT, {
+        title: 'Notes',
+        file_url: 'https://file.pdf',
+        file_name: 'notes.pdf',
+        file_type: 'pdf',
+      });
+
+      expect(res.title).toBe('Notes');
+    });
+
+    it('should allow COLLEGE_ADMIN to upload resource', async () => {
+      clubsRepository.findClubById.mockResolvedValue({ id: mockClubId, college_id: mockCollegeId } as never);
+      clubsRepository.findMember.mockResolvedValue(null);
+      clubsRepository.createClubResource.mockResolvedValue({ id: 'res-2', title: 'Admin Doc' } as never);
+
+      const res = await clubsService.createClubResource(mockClubId, mockAdminId, mockCollegeId, Role.COLLEGE_ADMIN, {
+        title: 'Admin Doc',
+        file_url: 'https://file.pdf',
+        file_name: 'doc.pdf',
+        file_type: 'pdf',
+      });
+
+      expect(res.title).toBe('Admin Doc');
+    });
+  });
 });

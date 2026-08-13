@@ -13,6 +13,9 @@ const envSchema = z.object({
   JWT_ACCESS_EXPIRES_IN: z.string().default('15m'),
   JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
   CORS_ORIGIN: z.string().default('*'),
+  IMAGEKIT_PUBLIC_KEY: z.string().default('public_bHmTVCtLh/0L81p/u7EV158jBBM='),
+  IMAGEKIT_PRIVATE_KEY: z.string().default('private_zFhrQRZdn8JqZEZBxcXHNMYTrcI='),
+  IMAGEKIT_URL_ENDPOINT: z.string().default('https://ik.imagekit.io/campushub'),
 });
 
 export const env = envSchema.parse(process.env);

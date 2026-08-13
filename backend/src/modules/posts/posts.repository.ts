@@ -18,17 +18,38 @@ export class PostsRepository {
     skip: number;
     take: number;
   }) {
+    let effectiveDeptId = departmentId;
+    if (!effectiveDeptId && userId) {
+      try {
+        const user = await prisma.user.findUnique({
+          where: { id: userId },
+          select: { department_id: true },
+        });
+        effectiveDeptId = user?.department_id;
+      } catch (_) {}
+    }
+
     let whereCondition: Record<string, unknown> = { college_id: collegeId };
 
     switch (feedType) {
       case FeedType.MY_FEED:
-        whereCondition = { author_id: userId };
+        whereCondition = { college_id: collegeId, author_id: userId };
         break;
       case FeedType.DEPARTMENT:
-        if (departmentId) whereCondition.department_id = departmentId;
+        if (effectiveDeptId) {
+          whereCondition.OR = [
+            { department_id: effectiveDeptId },
+            { department_id: null },
+          ];
+        }
         break;
       case FeedType.CROSS_DEPARTMENT:
-        if (departmentId) whereCondition.department_id = { not: departmentId };
+        if (effectiveDeptId) {
+          whereCondition.OR = [
+            { department_id: { not: effectiveDeptId } },
+            { department_id: null },
+          ];
+        }
         break;
       case FeedType.CLUB:
         whereCondition.type = PostType.ANNOUNCEMENT;
@@ -74,12 +95,23 @@ export class PostsRepository {
     title: string;
     content: string;
     type: PostType;
-    attachments?: Array<{ fileName: string; fileUrl: string; fileType: string }>;
+    attachments?: Array<{ fileName: string; fileUrl: string; fileType: string }> | null;
   }): Promise<Post> {
+    let effectiveDeptId = data.departmentId;
+    if (!effectiveDeptId && data.authorId) {
+      try {
+        const user = await prisma.user.findUnique({
+          where: { id: data.authorId },
+          select: { department_id: true },
+        });
+        effectiveDeptId = user?.department_id;
+      } catch (_) {}
+    }
+
     return prisma.post.create({
       data: {
         college_id: data.collegeId,
-        department_id: data.departmentId,
+        department_id: effectiveDeptId,
         author_id: data.authorId,
         title: data.title,
         content: data.content,

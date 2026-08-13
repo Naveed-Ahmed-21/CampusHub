@@ -59,6 +59,34 @@ class ChatRepository {
     return ChatMessageModel.fromJson(response.data['data']);
   }
 
+  Future<ChatRoomModel> createGroupChat({required String name, required List<String> memberIds}) async {
+    final response = await _dio.post(
+      '/api/v1/chat/group',
+      data: {'name': name, 'memberIds': memberIds},
+    );
+    return ChatRoomModel.fromJson(response.data['data']);
+  }
+
+  Future<List<ChatParticipantUser>> searchCampusUsers({String? query}) async {
+    final response = await _dio.get(
+      '/api/v1/chat/users',
+      queryParameters: query != null && query.isNotEmpty ? {'query': query} : null,
+    );
+    final List list = response.data['data'] ?? [];
+    return list.map((json) => ChatParticipantUser.fromJson(json)).toList();
+  }
+
+  Future<void> addRoomMember(String roomId, String userId) async {
+    await _dio.post(
+      '/api/v1/chat/rooms/$roomId/members',
+      data: {'userId': userId},
+    );
+  }
+
+  Future<void> removeRoomMember(String roomId, String userId) async {
+    await _dio.delete('/api/v1/chat/rooms/$roomId/members/$userId');
+  }
+
   Future<void> markRead(String roomId, List<String> messageIds) async {
     if (messageIds.isEmpty) return;
     await _dio.post(

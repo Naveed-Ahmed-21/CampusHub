@@ -15,7 +15,10 @@ import { eventsRouter } from './modules/events/events.routes';
 import { placementRouter } from './modules/placement/placement.routes';
 import { portfolioRouter } from './modules/portfolio/portfolio.routes';
 import { notificationsRouter } from './modules/notifications/notifications.routes';
+import { searchRouter } from './modules/search/search.routes';
+import { departmentsRouter } from './modules/departments/departments.routes';
 import { adminRouter } from './modules/admin/admin.routes';
+import { mediaRouter } from './modules/media/routes/media.routes';
 
 export const createApp = (): Application => {
   const app: Application = express();
@@ -98,7 +101,10 @@ export const createApp = (): Application => {
   app.use('/api/v1/placement', placementRouter);
   app.use('/api/v1/portfolio', portfolioRouter);
   app.use('/api/v1/notifications', notificationsRouter);
+  app.use('/api/v1/search', searchRouter);
+  app.use('/api/v1/departments', departmentsRouter);
   app.use('/api/v1/admin', adminRouter);
+  app.use('/api/v1/media', mediaRouter);
 
   // Global Error Handler
   app.use(errorHandler);

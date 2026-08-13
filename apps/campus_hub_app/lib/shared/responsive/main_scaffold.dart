@@ -13,14 +13,10 @@ class MainScaffold extends ConsumerWidget {
   int _calculateSelectedIndex(BuildContext context, bool isAdmin) {
     final String location = GoRouterState.of(context).uri.toString();
     if (location.startsWith('/feed')) return 0;
-    if (location.startsWith('/events')) return 1;
+    if (location.startsWith('/search')) return 1;
     if (location.startsWith('/clubs')) return 2;
     if (location.startsWith('/chat')) return 3;
-    if (location.startsWith('/placement')) return 4;
-    if (location.startsWith('/notifications')) return 5;
-    if (location.startsWith('/career')) return 6;
-    if (location.startsWith('/profile')) return 7;
-    if (location.startsWith('/admin') && isAdmin) return 8;
+    if (location.startsWith('/profile')) return 4;
     return 0;
   }
 
@@ -30,7 +26,7 @@ class MainScaffold extends ConsumerWidget {
         context.go('/feed');
         break;
       case 1:
-        context.go('/events');
+        context.go('/search');
         break;
       case 2:
         context.go('/clubs');
@@ -39,19 +35,7 @@ class MainScaffold extends ConsumerWidget {
         context.go('/chat');
         break;
       case 4:
-        context.go('/placement');
-        break;
-      case 5:
-        context.go('/notifications');
-        break;
-      case 6:
-        context.go('/career');
-        break;
-      case 7:
         context.go('/profile');
-        break;
-      case 8:
-        context.go('/admin');
         break;
     }
   }
@@ -64,14 +48,14 @@ class MainScaffold extends ConsumerWidget {
 
     final destinations = [
       const NavigationDestination(
-        icon: Icon(Icons.dynamic_feed_outlined),
-        selectedIcon: Icon(Icons.dynamic_feed),
-        label: 'Feed',
+        icon: Icon(Icons.home_outlined),
+        selectedIcon: Icon(Icons.home),
+        label: 'Home',
       ),
       const NavigationDestination(
-        icon: Icon(Icons.event_outlined),
-        selectedIcon: Icon(Icons.event),
-        label: 'Events',
+        icon: Icon(Icons.search_outlined),
+        selectedIcon: Icon(Icons.search),
+        label: 'Search',
       ),
       const NavigationDestination(
         icon: Icon(Icons.groups_outlined),
@@ -79,48 +63,27 @@ class MainScaffold extends ConsumerWidget {
         label: 'Clubs',
       ),
       const NavigationDestination(
-        icon: Icon(Icons.chat_outlined),
-        selectedIcon: Icon(Icons.chat),
-        label: 'Messages',
-      ),
-      const NavigationDestination(
-        icon: Icon(Icons.business_center_outlined),
-        selectedIcon: Icon(Icons.business_center),
-        label: 'Placement',
-      ),
-      const NavigationDestination(
-        icon: Icon(Icons.notifications_outlined),
-        selectedIcon: Icon(Icons.notifications),
-        label: 'Alerts',
-      ),
-      const NavigationDestination(
-        icon: Icon(Icons.work_outline),
-        selectedIcon: Icon(Icons.work),
-        label: 'Career',
+        icon: Icon(Icons.chat_bubble_outline),
+        selectedIcon: Icon(Icons.chat_bubble),
+        label: 'Chats',
       ),
       const NavigationDestination(
         icon: Icon(Icons.person_outline),
         selectedIcon: Icon(Icons.person),
         label: 'Profile',
       ),
-      if (isAdmin)
-        const NavigationDestination(
-          icon: Icon(Icons.admin_panel_settings_outlined),
-          selectedIcon: Icon(Icons.admin_panel_settings),
-          label: 'Admin',
-        ),
     ];
 
     final railDestinations = [
       const NavigationRailDestination(
-        icon: Icon(Icons.dynamic_feed_outlined),
-        selectedIcon: Icon(Icons.dynamic_feed),
-        label: Text('Feed'),
+        icon: Icon(Icons.home_outlined),
+        selectedIcon: Icon(Icons.home),
+        label: Text('Home'),
       ),
       const NavigationRailDestination(
-        icon: Icon(Icons.event_outlined),
-        selectedIcon: Icon(Icons.event),
-        label: Text('Events'),
+        icon: Icon(Icons.search_outlined),
+        selectedIcon: Icon(Icons.search),
+        label: Text('Search'),
       ),
       const NavigationRailDestination(
         icon: Icon(Icons.groups_outlined),
@@ -128,36 +91,15 @@ class MainScaffold extends ConsumerWidget {
         label: Text('Clubs'),
       ),
       const NavigationRailDestination(
-        icon: Icon(Icons.chat_outlined),
-        selectedIcon: Icon(Icons.chat),
-        label: Text('Messages'),
-      ),
-      const NavigationRailDestination(
-        icon: Icon(Icons.business_center_outlined),
-        selectedIcon: Icon(Icons.business_center),
-        label: Text('Placement'),
-      ),
-      const NavigationRailDestination(
-        icon: Icon(Icons.notifications_outlined),
-        selectedIcon: Icon(Icons.notifications),
-        label: Text('Alerts'),
-      ),
-      const NavigationRailDestination(
-        icon: Icon(Icons.work_outline),
-        selectedIcon: Icon(Icons.work),
-        label: Text('Career'),
+        icon: Icon(Icons.chat_bubble_outline),
+        selectedIcon: Icon(Icons.chat_bubble),
+        label: Text('Chats'),
       ),
       const NavigationRailDestination(
         icon: Icon(Icons.person_outline),
         selectedIcon: Icon(Icons.person),
         label: Text('Profile'),
       ),
-      if (isAdmin)
-        const NavigationRailDestination(
-          icon: Icon(Icons.admin_panel_settings_outlined),
-          selectedIcon: Icon(Icons.admin_panel_settings),
-          label: Text('Admin'),
-        ),
     ];
 
     return ResponsiveLayout(

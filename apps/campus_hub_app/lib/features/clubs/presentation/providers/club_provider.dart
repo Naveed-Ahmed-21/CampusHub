@@ -46,6 +46,11 @@ final pendingClubsProvider = FutureProvider.autoDispose<List<Club>>((ref) async 
   return repository.getPendingClubs();
 });
 
+final myProposedClubsProvider = FutureProvider.autoDispose<List<Club>>((ref) async {
+  final repository = ref.watch(clubsRepositoryProvider);
+  return repository.getMyProposedClubs();
+});
+
 final clubDetailsProvider = FutureProvider.autoDispose.family<Club, String>((ref, clubId) async {
   final repository = ref.watch(clubsRepositoryProvider);
   return repository.getClubDetails(clubId);

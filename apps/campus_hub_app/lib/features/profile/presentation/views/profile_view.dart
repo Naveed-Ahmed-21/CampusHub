@@ -7,6 +7,10 @@ import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../controllers/profile_controller.dart';
 import '../../domain/models/user_profile.dart';
 import '../../../portfolio/presentation/views/portfolio_view.dart';
+import '../../../clubs/presentation/providers/club_provider.dart';
+import '../../../clubs/data/clubs_repository.dart';
+import 'user_posts_view.dart';
+import 'user_events_view.dart';
 
 class ProfileView extends ConsumerWidget {
   const ProfileView({super.key});
@@ -21,7 +25,10 @@ class ProfileView extends ConsumerWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: () => ref.read(profileControllerProvider.notifier).refreshProfile(),
+            onPressed: () {
+              ref.read(profileControllerProvider.notifier).refreshProfile();
+              ref.invalidate(myProposedClubsProvider);
+            },
           ),
           IconButton(
             icon: const Icon(Icons.logout),
@@ -50,7 +57,11 @@ class _ProfileMobileLayout extends ConsumerWidget {
       padding: const EdgeInsets.all(16),
       children: [
         _ProfileHeader(profile: profile),
-        const SizedBox(height: 24),
+        const SizedBox(height: 16),
+        const _QuickActivityStatsSection(),
+        const SizedBox(height: 16),
+        const _MyProposedClubsSection(),
+        const SizedBox(height: 16),
         _BioSection(profile: profile),
         const SizedBox(height: 16),
         _SocialLinksSection(profile: profile),
@@ -80,6 +91,8 @@ class _ProfileDesktopLayout extends ConsumerWidget {
             children: [
               _ProfileHeader(profile: profile),
               const SizedBox(height: 24),
+              const _QuickActivityStatsSection(),
+              const SizedBox(height: 24),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -87,6 +100,8 @@ class _ProfileDesktopLayout extends ConsumerWidget {
                     flex: 1,
                     child: Column(
                       children: [
+                        const _MyProposedClubsSection(),
+                        const SizedBox(height: 16),
                         _BioSection(profile: profile),
                         const SizedBox(height: 16),
                         _SocialLinksSection(profile: profile),
@@ -97,7 +112,7 @@ class _ProfileDesktopLayout extends ConsumerWidget {
                   ),
                   const SizedBox(width: 24),
                   Expanded(
-                    flex: 2,
+                    flex: 1,
                     child: Column(
                       children: [
                         _SkillsSection(profile: profile),
@@ -110,6 +125,277 @@ class _ProfileDesktopLayout extends ConsumerWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _QuickActivityStatsSection extends StatelessWidget {
+  const _QuickActivityStatsSection();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Row(
+      children: [
+        Expanded(
+          child: Card(
+            elevation: 2,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (ctx) => const UserPostsView()),
+                );
+              },
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      backgroundColor: theme.colorScheme.primaryContainer,
+                      child: Icon(Icons.article_outlined, color: theme.colorScheme.onPrimaryContainer),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Your Posts', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                          Text('View all created posts', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.outline)),
+                        ],
+                      ),
+                    ),
+                    const Icon(Icons.chevron_right),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Card(
+            elevation: 2,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (ctx) => const UserEventsView()),
+                );
+              },
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      backgroundColor: theme.colorScheme.secondaryContainer,
+                      child: Icon(Icons.event_outlined, color: theme.colorScheme.onSecondaryContainer),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Your Events', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                          Text('Tickets & registrations', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.outline)),
+                        ],
+                      ),
+                    ),
+                    const Icon(Icons.chevron_right),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _MyProposedClubsSection extends ConsumerWidget {
+  const _MyProposedClubsSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final myClubsAsync = ref.watch(myProposedClubsProvider);
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.groups, color: theme.colorScheme.primary),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Your Proposed Clubs',
+                      style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+                IconButton(
+                  icon: const Icon(Icons.refresh, size: 20),
+                  onPressed: () => ref.invalidate(myProposedClubsProvider),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            myClubsAsync.when(
+              data: (clubs) {
+                if (clubs.isEmpty) {
+                  return Text(
+                    'You haven\'t proposed any clubs yet. Go to Clubs tab to propose a new club!',
+                    style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.outline),
+                  );
+                }
+
+                return Column(
+                  children: clubs.map((club) {
+                    Color statusColor = Colors.orange;
+                    IconData statusIcon = Icons.access_time;
+                    String statusLabel = 'PENDING APPROVAL';
+
+                    if (club.status == 'APPROVED') {
+                      statusColor = Colors.green;
+                      statusIcon = Icons.check_circle_outline;
+                      statusLabel = 'APPROVED & ACTIVE';
+                    } else if (club.status == 'REJECTED') {
+                      statusColor = Colors.red;
+                      statusIcon = Icons.cancel_outlined;
+                      statusLabel = 'REJECTED';
+                    }
+
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      color: theme.colorScheme.surfaceContainerLow,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    club.name,
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: statusColor.withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: statusColor.withValues(alpha: 0.5)),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(statusIcon, size: 14, color: statusColor),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        statusLabel,
+                                        style: TextStyle(
+                                          color: statusColor,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 11,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            Text('Category: ${club.category}', style: theme.textTheme.bodySmall),
+                            if (club.description != null) ...[
+                              const SizedBox(height: 6),
+                              Text(club.description!, style: theme.textTheme.bodyMedium),
+                            ],
+                            if (club.status == 'PENDING' || club.status == 'REJECTED') ...[
+                              const SizedBox(height: 12),
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: OutlinedButton.icon(
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: Colors.red,
+                                    side: const BorderSide(color: Colors.red),
+                                    visualDensity: VisualDensity.compact,
+                                  ),
+                                  icon: const Icon(Icons.delete_outline, size: 16),
+                                  label: const Text('Withdraw Request'),
+                                  onPressed: () async {
+                                    final confirmed = await showDialog<bool>(
+                                      context: context,
+                                      builder: (ctx) => AlertDialog(
+                                        title: const Text('Withdraw Club Request'),
+                                        content: Text('Are you sure you want to cancel and withdraw your request for "${club.name}"?'),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () => Navigator.pop(ctx, false),
+                                            child: const Text('Cancel'),
+                                          ),
+                                          FilledButton(
+                                            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+                                            onPressed: () => Navigator.pop(ctx, true),
+                                            child: const Text('Withdraw'),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+
+                                    if (confirmed == true) {
+                                      try {
+                                        final repo = ref.read(clubsRepositoryProvider);
+                                        await repo.deleteClub(club.id);
+                                        ref.invalidate(myProposedClubsProvider);
+                                        ref.invalidate(pendingClubsProvider);
+
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: Text('Club proposal for "${club.name}" has been withdrawn.'),
+                                              backgroundColor: Colors.orange,
+                                            ),
+                                          );
+                                        }
+                                      } catch (e) {
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: Text('Failed to withdraw request: $e'),
+                                              backgroundColor: Colors.red,
+                                            ),
+                                          );
+                                        }
+                                      }
+                                    }
+                                  },
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                );
+              },
+              loading: () => const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator())),
+              error: (err, _) => Text('Could not load proposed clubs', style: TextStyle(color: theme.colorScheme.error)),
+            ),
+          ],
         ),
       ),
     );
@@ -240,14 +526,13 @@ class _SocialLinksSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Social & Web Links', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+            Text('Social & Web Links', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
             ListTile(
               leading: const Icon(Icons.code),

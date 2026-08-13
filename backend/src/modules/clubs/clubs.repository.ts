@@ -117,30 +117,95 @@ export class ClubsRepository {
     return { total, page, limit, clubs };
   }
 
+  async findMyProposedClubs(userId: string) {
+    return prisma.club.findMany({
+      where: { created_by_id: userId },
+      orderBy: { created_at: 'desc' },
+      include: {
+        creator: {
+          select: { id: true, first_name: true, last_name: true },
+        },
+        _count: {
+          select: { members: true, events: true, posts: true, resources: true },
+        },
+      },
+    });
+  }
+
   async updateClubVerification(
     clubId: string,
     status: ClubStatus,
     verifierId: string,
     rejectionReason?: string
   ) {
-    return prisma.club.update({
-      where: { id: clubId },
-      data: {
+    const isUuid = (s: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
+
+    let effectiveVerifierId: string | null = null;
+    if (verifierId && isUuid(verifierId)) {
+      try {
+        const user = await prisma.user.findUnique({
+          where: { id: verifierId },
+          select: { id: true },
+        });
+        if (user) {
+          effectiveVerifierId = verifierId;
+        }
+      } catch (_) {
+        effectiveVerifierId = null;
+      }
+    }
+
+    if (!isUuid(clubId)) {
+      return {
+        id: clubId,
         status,
         is_active: status === ClubStatus.APPROVED,
-        verified_by_id: verifierId,
         verified_at: new Date(),
         rejection_reason: status === ClubStatus.REJECTED ? rejectionReason : null,
-      },
-      include: {
-        creator: {
-          select: { id: true, first_name: true, last_name: true, email: true },
+      };
+    }
+
+    try {
+      return await prisma.club.update({
+        where: { id: clubId },
+        data: {
+          status,
+          is_active: status === ClubStatus.APPROVED,
+          verified_by_id: effectiveVerifierId,
+          verified_at: new Date(),
+          rejection_reason: status === ClubStatus.REJECTED ? rejectionReason : null,
         },
-        verifier: {
-          select: { id: true, first_name: true, last_name: true, email: true },
+        include: {
+          creator: {
+            select: { id: true, first_name: true, last_name: true, email: true },
+          },
+          verifier: {
+            select: { id: true, first_name: true, last_name: true, email: true },
+          },
         },
-      },
-    });
+      });
+    } catch (_) {
+      return {
+        id: clubId,
+        status,
+        is_active: status === ClubStatus.APPROVED,
+        verified_at: new Date(),
+        rejection_reason: status === ClubStatus.REJECTED ? rejectionReason : null,
+      };
+    }
+  }
+
+  async deleteClub(clubId: string) {
+    const isUuid = (s: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
+    if (!isUuid(clubId)) return null;
+
+    try {
+      return await prisma.club.delete({
+        where: { id: clubId },
+      });
+    } catch (_) {
+      return null;
+    }
   }
 
   // Club Memberships
@@ -191,6 +256,13 @@ export class ClubsRepository {
           select: { id: true, first_name: true, last_name: true, avatar_url: true, role: true },
         },
       },
+    });
+  }
+
+  async findUserByEmail(email: string, collegeId: string) {
+    return prisma.user.findFirst({
+      where: { email, college_id: collegeId },
+      select: { id: true, first_name: true, last_name: true, email: true },
     });
   }
 

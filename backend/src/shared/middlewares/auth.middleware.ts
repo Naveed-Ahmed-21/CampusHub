@@ -30,9 +30,10 @@ export const requireAuth = () => {
       } catch {
         if (process.env.NODE_ENV === 'development') {
           req.user = {
-            sub: 'std_10092',
-            userId: 'std_10092',
-            collegeId: 'clg_88291',
+            sub: '47ff6b35-dc06-4dc3-a62a-346cb73be31f',
+            userId: '47ff6b35-dc06-4dc3-a62a-346cb73be31f',
+            collegeId: '7b910a52-f576-45ca-a2e6-2b9a840426b5',
+            departmentId: 'ef9b6927-88ac-41a9-8b5f-c64093d3e00d',
             role: Role.STUDENT,
             email: 'student@campushub.edu',
           };
@@ -44,9 +45,10 @@ export const requireAuth = () => {
 
     if (process.env.NODE_ENV === 'development') {
       req.user = {
-        sub: 'std_10092',
-        userId: 'std_10092',
-        collegeId: 'clg_88291',
+        sub: '47ff6b35-dc06-4dc3-a62a-346cb73be31f',
+        userId: '47ff6b35-dc06-4dc3-a62a-346cb73be31f',
+        collegeId: '7b910a52-f576-45ca-a2e6-2b9a840426b5',
+        departmentId: 'ef9b6927-88ac-41a9-8b5f-c64093d3e00d',
         role: Role.STUDENT,
         email: 'student@campushub.edu',
       };
@@ -69,9 +71,10 @@ export const requireRole = (...allowedRoles: (Role | 'ADMIN' | string)[]) => {
     if (!req.user) {
       if (process.env.NODE_ENV === 'development') {
         req.user = {
-          sub: 'std_10092',
-          userId: 'std_10092',
-          collegeId: 'clg_88291',
+          sub: '47ff6b35-dc06-4dc3-a62a-346cb73be31f',
+          userId: '47ff6b35-dc06-4dc3-a62a-346cb73be31f',
+          collegeId: '7b910a52-f576-45ca-a2e6-2b9a840426b5',
+          departmentId: 'ef9b6927-88ac-41a9-8b5f-c64093d3e00d',
           role: Role.STUDENT,
           email: 'student@campushub.edu',
         };

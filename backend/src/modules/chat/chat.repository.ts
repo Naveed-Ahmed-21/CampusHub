@@ -187,6 +187,74 @@ export class ChatRepository {
     });
   }
 
+  async createGroupRoom(name: string, creatorId: string, memberIds: string[], collegeId: string) {
+    const allParticipantIds = Array.from(new Set([creatorId, ...memberIds]));
+    return prisma.chatRoom.create({
+      data: {
+        college_id: collegeId,
+        name,
+        type: ChatRoomType.GROUP,
+        participants: {
+          create: allParticipantIds.map((uid) => ({ user_id: uid })),
+        },
+      },
+      include: {
+        participants: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                first_name: true,
+                last_name: true,
+                email: true,
+                avatar_url: true,
+                role: true,
+                is_online: true,
+                last_seen: true,
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
+  async removeParticipantFromRoom(roomId: string, userId: string) {
+    return prisma.chatParticipant.deleteMany({
+      where: { room_id: roomId, user_id: userId },
+    });
+  }
+
+  async searchCampusUsers(collegeId: string, query?: string) {
+    const whereClause: any = { college_id: collegeId };
+    if (query && query.trim().length > 0) {
+      const q = query.trim();
+      whereClause.OR = [
+        { first_name: { contains: q, mode: 'insensitive' } },
+        { last_name: { contains: q, mode: 'insensitive' } },
+        { email: { contains: q, mode: 'insensitive' } },
+      ];
+    }
+
+    return prisma.user.findMany({
+      where: whereClause,
+      take: 50,
+      select: {
+        id: true,
+        first_name: true,
+        last_name: true,
+        email: true,
+        avatar_url: true,
+        role: true,
+        department_id: true,
+        is_online: true,
+        last_seen: true,
+        department: { select: { id: true, name: true } },
+      },
+      orderBy: { first_name: 'asc' },
+    });
+  }
+
   async addParticipantToRoom(roomId: string, userId: string) {
     const existing = await prisma.chatParticipant.findUnique({
       where: { room_id_user_id: { room_id: roomId, user_id: userId } },

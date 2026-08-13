@@ -75,12 +75,11 @@ class FeedController extends _$FeedController {
       attachments: attachments,
     );
 
-    result.when(
-      success: (newPost) {
-        final currentPosts = state.asData?.value ?? [];
-        state = AsyncValue.data([newPost, ...currentPosts]);
+    await result.when(
+      success: (newPost) async {
+        await refreshFeed();
       },
-      failure: (_) {},
+      failure: (error) => throw error,
     );
   }
 

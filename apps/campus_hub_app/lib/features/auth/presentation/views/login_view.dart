@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -14,8 +15,8 @@ class LoginView extends ConsumerStatefulWidget {
 }
 
 class _LoginViewState extends ConsumerState<LoginView> {
-  final _emailController = TextEditingController(text: 'student@campushub.edu');
-  final _passwordController = TextEditingController(text: 'Password@123');
+  final _emailController = TextEditingController(text: kReleaseMode ? '' : 'student@campushub.edu');
+  final _passwordController = TextEditingController(text: kReleaseMode ? '' : 'Password@123');
   final _formKey = GlobalKey<FormState>();
 
   @override
@@ -92,42 +93,43 @@ class _LoginViewState extends ConsumerState<LoginView> {
           ),
           const SizedBox(height: 24),
 
-          // Sample Accounts Quick Role Selection Bar
-          Text(
-            'Sample Accounts (Select Role):',
-            style: theme.textTheme.labelMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: theme.colorScheme.primary,
+          if (!kReleaseMode) ...[
+            Text(
+              'Sample Accounts (Select Role):',
+              style: theme.textTheme.labelMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: theme.colorScheme.primary,
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              ActionChip(
-                avatar: const Icon(Icons.person, size: 16, color: Colors.blue),
-                label: const Text('Student'),
-                onPressed: () => _selectSampleAccount('student@campushub.edu', 'Student'),
-              ),
-              ActionChip(
-                avatar: const Icon(Icons.school, size: 16, color: Colors.purple),
-                label: const Text('Faculty'),
-                onPressed: () => _selectSampleAccount('faculty@campushub.edu', 'Faculty'),
-              ),
-              ActionChip(
-                avatar: const Icon(Icons.work, size: 16, color: Colors.orange),
-                label: const Text('Placement Officer'),
-                onPressed: () => _selectSampleAccount('placement@campushub.edu', 'Placement Officer'),
-              ),
-              ActionChip(
-                avatar: const Icon(Icons.admin_panel_settings, size: 16, color: Colors.red),
-                label: const Text('Admin'),
-                onPressed: () => _selectSampleAccount('admin@campushub.edu', 'Admin'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                ActionChip(
+                  avatar: const Icon(Icons.person, size: 16, color: Colors.blue),
+                  label: const Text('Student'),
+                  onPressed: () => _selectSampleAccount('student@campushub.edu', 'Student'),
+                ),
+                ActionChip(
+                  avatar: const Icon(Icons.school, size: 16, color: Colors.purple),
+                  label: const Text('Faculty'),
+                  onPressed: () => _selectSampleAccount('faculty@campushub.edu', 'Faculty'),
+                ),
+                ActionChip(
+                  avatar: const Icon(Icons.work, size: 16, color: Colors.orange),
+                  label: const Text('Placement Officer'),
+                  onPressed: () => _selectSampleAccount('placement@campushub.edu', 'Placement Officer'),
+                ),
+                ActionChip(
+                  avatar: const Icon(Icons.admin_panel_settings, size: 16, color: Colors.red),
+                  label: const Text('Admin'),
+                  onPressed: () => _selectSampleAccount('admin@campushub.edu', 'Admin'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+          ],
 
           CustomTextField(
             controller: _emailController,

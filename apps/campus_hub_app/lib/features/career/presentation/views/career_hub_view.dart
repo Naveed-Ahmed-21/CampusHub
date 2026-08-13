@@ -278,7 +278,6 @@ class _CareerHubViewState extends ConsumerState<CareerHubView> with SingleTicker
         onPressed: _showAddGoalDialog,
         icon: const Icon(Icons.add),
         label: const Text('Add Goal'),
-        backgroundColor: Colors.teal,
       ),
       body: goalsAsync.when(
         data: (goals) {

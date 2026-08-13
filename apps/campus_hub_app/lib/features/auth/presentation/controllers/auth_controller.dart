@@ -1,6 +1,7 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../domain/models/auth_user.dart';
 import '../../data/repositories/auth_repository_impl.dart';
+import '../../../notifications/data/notifications_repository.dart';
 
 part 'auth_controller.g.dart';
 
@@ -26,6 +27,10 @@ class AuthController extends _$AuthController {
     return result.when(
       success: (user) {
         state = AsyncValue.data(user);
+        // Non-blocking device token registration
+        try {
+          ref.read(notificationsRepositoryProvider).registerFcmToken('fcm_token_$email');
+        } catch (_) {}
         return true;
       },
       failure: (error) {

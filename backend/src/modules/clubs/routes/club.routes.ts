@@ -33,6 +33,9 @@ clubsRouter.get(
   clubsController.getPendingClubs
 );
 
+// Get user proposed clubs and approval status
+clubsRouter.get('/my-proposed', clubsController.getMyProposedClubs);
+
 // Create a new club (Students & Faculty can create, admins can auto-approve)
 clubsRouter.post('/', requireRole('STUDENT', 'FACULTY', 'ADMIN'), validateRequest(createClubSchema), clubsController.createClub);
 
@@ -47,12 +50,16 @@ clubsRouter.patch(
   clubsController.verifyClub
 );
 
+// Delete / Withdraw Club
+clubsRouter.delete('/:clubId', clubsController.deleteClub);
+
 // Join & Leave Club
 clubsRouter.post('/:clubId/join', clubsController.joinClub);
 clubsRouter.post('/:clubId/leave', clubsController.leaveClub);
 
 // Club Members
 clubsRouter.get('/:clubId/members', clubsController.getClubMembers);
+clubsRouter.post('/:clubId/members', clubsController.addMember);
 clubsRouter.patch(
   '/:clubId/members/:userId',
   validateRequest(updateClubMemberSchema),

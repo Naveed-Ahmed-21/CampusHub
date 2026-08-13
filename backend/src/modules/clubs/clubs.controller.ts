@@ -37,6 +37,12 @@ export class ClubsController {
     ResponseUtil.success(res, result, 'Pending club requests retrieved successfully');
   });
 
+  getMyProposedClubs = asyncHandler(async (req: Request, res: Response) => {
+    const user = req.user!;
+    const clubs = await this.clubsService.getMyProposedClubs(user.userId);
+    ResponseUtil.success(res, clubs, 'User proposed clubs retrieved successfully');
+  });
+
   getClubDetails = asyncHandler(async (req: Request, res: Response) => {
     const user = req.user!;
     const { clubId } = req.params;
@@ -46,9 +52,16 @@ export class ClubsController {
 
   verifyClub = asyncHandler(async (req: Request, res: Response) => {
     const user = req.user!;
-    const { clubId } = req.params;
+    const clubId = req.params?.clubId || req.body?.clubId || '';
     const club = await this.clubsService.verifyClub(clubId, user.collegeId, user.userId, user.role, req.body);
     ResponseUtil.success(res, club, `Club status updated to ${req.body.status}`);
+  });
+
+  deleteClub = asyncHandler(async (req: Request, res: Response) => {
+    const user = req.user!;
+    const clubId = req.params?.clubId || req.body?.clubId || '';
+    await this.clubsService.deleteClub(clubId, user.userId, user.role);
+    ResponseUtil.success(res, null, 'Club request withdrawn successfully');
   });
 
   joinClub = asyncHandler(async (req: Request, res: Response) => {
@@ -63,6 +76,13 @@ export class ClubsController {
     const { clubId } = req.params;
     const result = await this.clubsService.leaveClub(clubId, user.userId, user.collegeId);
     ResponseUtil.success(res, result, 'Successfully left the club');
+  });
+
+  addMember = asyncHandler(async (req: Request, res: Response) => {
+    const user = req.user!;
+    const clubId = req.params?.clubId || req.body?.clubId || '';
+    const member = await this.clubsService.addMember(clubId, user.collegeId, user.userId, user.role, req.body);
+    ResponseUtil.success(res, member, 'Member added to club successfully', 201);
   });
 
   updateMemberRole = asyncHandler(async (req: Request, res: Response) => {

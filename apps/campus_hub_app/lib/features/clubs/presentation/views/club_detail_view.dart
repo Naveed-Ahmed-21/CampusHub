@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/clubs_repository.dart';
+import '../../domain/club_models.dart';
 import '../providers/club_provider.dart';
+import '../../../auth/presentation/controllers/auth_controller.dart';
+import '../../../chat/presentation/widgets/message_status_icon.dart';
+import '../../../../core/services/imagekit_media_service.dart';
 
 String formatDateTime(DateTime dt) {
   return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
@@ -278,12 +282,24 @@ class _ClubDetailViewState extends ConsumerState<ClubDetailView>
               if (titleCtrl.text.trim().isEmpty || urlCtrl.text.trim().isEmpty) return;
               Navigator.of(ctx).pop();
               try {
+                final fileUrl = urlCtrl.text.trim();
+                final fileName = nameCtrl.text.trim().isEmpty ? 'document.pdf' : nameCtrl.text.trim();
+
+                try {
+                  final mediaService = ref.read(imageKitMediaServiceProvider);
+                  await mediaService.saveUrlMetadata(
+                    url: fileUrl,
+                    category: MediaCategory.clubResource,
+                    fileName: fileName,
+                  );
+                } catch (_) {}
+
                 final repo = ref.read(clubsRepositoryProvider);
                 await repo.createClubResource(
                   clubId: widget.clubId,
                   title: titleCtrl.text.trim(),
-                  fileUrl: urlCtrl.text.trim(),
-                  fileName: nameCtrl.text.trim().isEmpty ? 'document.pdf' : nameCtrl.text.trim(),
+                  fileUrl: fileUrl,
+                  fileName: fileName,
                   fileType: 'PDF',
                 );
                 ref.invalidate(clubResourcesProvider(widget.clubId));
@@ -331,7 +347,8 @@ class _ClubDetailViewState extends ConsumerState<ClubDetailView>
       ),
       body: clubAsync.when(
         data: (club) {
-          final isMember = membersAsync.valueOrNull?.any((m) => m.userId.isNotEmpty) ?? false;
+          final currentUser = ref.watch(authControllerProvider).asData?.value;
+          final isMember = membersAsync.valueOrNull?.any((m) => m.userId == currentUser?.id) ?? false;
 
           return NestedScrollView(
             headerSliverBuilder: (context, innerBoxIsScrolled) => [
@@ -447,7 +464,7 @@ class _ClubDetailViewState extends ConsumerState<ClubDetailView>
                 _buildFeedTab(),
 
                 // 2. Club Members Tab
-                _buildMembersTab(),
+                _buildMembersTab(club),
 
                 // 3. Club Events Tab
                 _buildEventsTab(),
@@ -456,7 +473,7 @@ class _ClubDetailViewState extends ConsumerState<ClubDetailView>
                 _buildResourcesTab(),
 
                 // 5. Club Real-time Chat Tab
-                _buildChatTab(),
+                _buildChatTab(isMember),
               ],
             ),
           );
@@ -531,37 +548,155 @@ class _ClubDetailViewState extends ConsumerState<ClubDetailView>
     );
   }
 
+  // Dialog to Add Member
+  void _showAddMemberDialog() {
+    final emailOrIdCtrl = TextEditingController();
+    String selectedRole = 'MEMBER';
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('Add Member to Club'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: emailOrIdCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'User Email or User ID',
+                  hintText: 'e.g. student@campushub.edu',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                initialValue: selectedRole,
+                decoration: const InputDecoration(
+                  labelText: 'Member Role',
+                  border: OutlineInputBorder(),
+                ),
+                items: const [
+                  DropdownMenuItem(value: 'MEMBER', child: Text('Regular Member')),
+                  DropdownMenuItem(value: 'LEAD', child: Text('Club Lead / Admin')),
+                  DropdownMenuItem(value: 'FACULTY_ADVISOR', child: Text('Faculty Advisor')),
+                ],
+                onChanged: (val) {
+                  if (val != null) setDialogState(() => selectedRole = val);
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final input = emailOrIdCtrl.text.trim();
+                if (input.isEmpty) return;
+                Navigator.of(ctx).pop();
+                try {
+                  final repo = ref.read(clubsRepositoryProvider);
+                  await repo.addMember(widget.clubId, input, role: selectedRole);
+                  ref.invalidate(clubMembersProvider(widget.clubId));
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Member added successfully!'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Failed to add member: $e'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              },
+              child: const Text('Add Member'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   // 2. Members Tab
-  Widget _buildMembersTab() {
+  Widget _buildMembersTab(Club club) {
     final membersAsync = ref.watch(clubMembersProvider(widget.clubId));
 
-    return membersAsync.when(
-      data: (members) {
-        if (members.isEmpty) {
-          return const Center(child: Text('No members found.'));
-        }
-        return ListView.separated(
-          padding: const EdgeInsets.all(16),
-          itemCount: members.length,
-          separatorBuilder: (ctx, idx) => const Divider(),
-          itemBuilder: (ctx, idx) {
-            final member = members[idx];
-            return ListTile(
-              leading: CircleAvatar(
-                child: Text(member.firstName.isNotEmpty ? member.firstName[0] : 'M'),
-              ),
-              title: Text(member.fullName, style: const TextStyle(fontWeight: FontWeight.bold)),
-              subtitle: Text(member.departmentName ?? member.email),
-              trailing: Chip(
-                label: Text(member.role),
-                backgroundColor: member.role == 'LEAD' ? Colors.amber.shade100 : Colors.grey.shade200,
-              ),
-            );
-          },
-        );
-      },
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (err, stack) => Center(child: Text('Error loading members: $err')),
+    return Scaffold(
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _showAddMemberDialog,
+        icon: const Icon(Icons.person_add),
+        label: const Text('Add Member'),
+      ),
+      body: membersAsync.when(
+        data: (members) {
+          if (members.isEmpty) {
+            return const Center(child: Text('No members found.'));
+          }
+          return ListView.separated(
+            padding: const EdgeInsets.all(16),
+            itemCount: members.length,
+            separatorBuilder: (ctx, idx) => const Divider(),
+            itemBuilder: (ctx, idx) {
+              final member = members[idx];
+              final isLeadOrCreator = member.role == 'LEAD' ||
+                  member.role == 'ADMIN' ||
+                  member.userId == club.createdById;
+
+              final roleText = isLeadOrCreator
+                  ? 'Club Lead / Admin'
+                  : (member.role == 'FACULTY_ADVISOR' ? 'Faculty Advisor' : 'Member');
+
+              return ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: isLeadOrCreator ? Colors.amber.shade100 : Colors.blue.shade50,
+                  child: Text(
+                    member.firstName.isNotEmpty ? member.firstName[0] : 'M',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: isLeadOrCreator ? Colors.amber.shade900 : Colors.blue.shade800,
+                    ),
+                  ),
+                ),
+                title: Row(
+                  children: [
+                    Text(member.fullName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                    if (isLeadOrCreator) ...[
+                      const SizedBox(width: 6),
+                      const Icon(Icons.star, size: 16, color: Colors.amber),
+                    ],
+                  ],
+                ),
+                subtitle: Text(member.departmentName ?? member.email),
+                trailing: Chip(
+                  avatar: isLeadOrCreator ? const Icon(Icons.workspace_premium, size: 14, color: Colors.amber) : null,
+                  label: Text(
+                    roleText,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: isLeadOrCreator ? FontWeight.bold : FontWeight.normal,
+                      color: isLeadOrCreator ? Colors.amber.shade900 : Colors.black87,
+                    ),
+                  ),
+                  backgroundColor: isLeadOrCreator ? Colors.amber.shade100 : Colors.grey.shade200,
+                ),
+              );
+            },
+          );
+        },
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (err, stack) => Center(child: Text('Error loading members: $err')),
+      ),
     );
   }
 
@@ -658,7 +793,39 @@ class _ClubDetailViewState extends ConsumerState<ClubDetailView>
   }
 
   // 5. Chat Tab
-  Widget _buildChatTab() {
+  Widget _buildChatTab(bool isMember) {
+    if (!isMember) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.lock_outline, size: 64, color: Colors.grey),
+              const SizedBox(height: 16),
+              const Text(
+                'Members-Only Group Chat',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Join this club to view and participate in official group chat discussions.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton.icon(
+                onPressed: _isActionLoading ? null : _joinClub,
+                icon: const Icon(Icons.person_add),
+                label: const Text('Join Club Now'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final currentUser = ref.watch(authControllerProvider).asData?.value;
     final chatAsync = ref.watch(clubChatMessagesProvider(widget.clubId));
 
     return Column(
@@ -674,44 +841,88 @@ class _ClubDetailViewState extends ConsumerState<ClubDetailView>
                 itemCount: messages.length,
                 itemBuilder: (ctx, idx) {
                   final msg = messages[idx];
+                  final isMe = (currentUser != null && msg.senderId == currentUser.id) ||
+                      (currentUser != null && msg.senderName.contains(currentUser.firstName));
+
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 12),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    child: Align(
+                      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        CircleAvatar(
-                          radius: 18,
-                          child: Text(msg.senderName.isNotEmpty ? msg.senderName[0] : 'U'),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Text(msg.senderName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                                  const SizedBox(width: 8),
+                        if (!isMe) ...[
+                          CircleAvatar(
+                            radius: 16,
+                            backgroundColor: Colors.blue.shade100,
+                            child: Text(
+                              msg.senderName.isNotEmpty ? msg.senderName[0] : 'U',
+                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                        ],
+                        Flexible(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: isMe ? Colors.blue.shade600 : Colors.grey.shade200,
+                              borderRadius: BorderRadius.only(
+                                topLeft: const Radius.circular(16),
+                                topRight: const Radius.circular(16),
+                                bottomLeft: Radius.circular(isMe ? 16 : 4),
+                                bottomRight: Radius.circular(isMe ? 4 : 16),
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                              children: [
+                                if (!isMe)
                                   Text(
-                                    formatTime(msg.createdAt),
-                                    style: const TextStyle(fontSize: 10, color: Colors.grey),
+                                    msg.senderName,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 11,
+                                      color: Colors.blue.shade900,
+                                    ),
                                   ),
-                                ],
-                              ),
-                              const SizedBox(height: 4),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                                decoration: BoxDecoration(
-                                  color: Colors.blue.shade50,
-                                  borderRadius: BorderRadius.circular(12),
+                                if (!isMe) const SizedBox(height: 2),
+                                Text(
+                                  msg.message,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: isMe ? Colors.white : Colors.black87,
+                                  ),
                                 ),
-                                child: Text(msg.message, style: const TextStyle(fontSize: 14)),
-                              ),
-                            ],
+                                const SizedBox(height: 4),
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      formatTime(msg.createdAt),
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: isMe ? Colors.white70 : Colors.grey.shade600,
+                                      ),
+                                    ),
+                                    if (isMe) ...[
+                                      const SizedBox(width: 4),
+                                      MessageStatusIcon(
+                                        status: msg.readByUserIdList.isNotEmpty
+                                            ? MessageDeliveryStatus.read
+                                            : MessageDeliveryStatus.delivered,
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ],
                     ),
+                  ),
                   );
                 },
               );

@@ -8,7 +8,7 @@ export class AdminController {
 
   getMetrics = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const collegeId = req.user?.collegeId || 'clg_default';
+      const collegeId = req.user?.collegeId || '7b910a52-f576-45ca-a2e6-2b9a840426b5';
       const metrics = await this.adminService.getDashboardMetrics(collegeId);
       res.status(200).json({ success: true, data: metrics });
     } catch (err) {
@@ -18,7 +18,7 @@ export class AdminController {
 
   getUsers = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const collegeId = req.user?.collegeId || 'clg_default';
+      const collegeId = req.user?.collegeId || '7b910a52-f576-45ca-a2e6-2b9a840426b5';
       const query = {
         role: req.query.role as Role | undefined,
         departmentId: req.query.departmentId as string | undefined,
@@ -36,7 +36,7 @@ export class AdminController {
 
   createUser = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const collegeId = req.user?.collegeId || 'clg_default';
+      const collegeId = req.user?.collegeId || '7b910a52-f576-45ca-a2e6-2b9a840426b5';
       const { email, firstName, lastName, role, departmentId, rollNumber } = req.body;
       if (!email || !firstName || !lastName || !role) {
         throw new BadRequestError('Email, firstName, lastName, and role are required');
@@ -86,7 +86,7 @@ export class AdminController {
 
   getDepartments = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const collegeId = req.user?.collegeId || 'clg_default';
+      const collegeId = req.user?.collegeId || '7b910a52-f576-45ca-a2e6-2b9a840426b5';
       const departments = await this.adminService.getDepartments(collegeId);
       res.status(200).json({ success: true, data: departments });
     } catch (err) {
@@ -96,7 +96,7 @@ export class AdminController {
 
   createDepartment = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const collegeId = req.user?.collegeId || 'clg_default';
+      const collegeId = req.user?.collegeId || '7b910a52-f576-45ca-a2e6-2b9a840426b5';
       const { name, code, hodName } = req.body;
       const dept = await this.adminService.createDepartment(collegeId, { name, code, hodName });
       res.status(201).json({ success: true, message: 'Department created successfully', data: dept });
@@ -107,7 +107,7 @@ export class AdminController {
 
   getAnalytics = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const collegeId = req.user?.collegeId || 'clg_default';
+      const collegeId = req.user?.collegeId || '7b910a52-f576-45ca-a2e6-2b9a840426b5';
       const analytics = await this.adminService.getAnalytics(collegeId);
       res.status(200).json({ success: true, data: analytics });
     } catch (err) {
@@ -117,7 +117,7 @@ export class AdminController {
 
   getAuditReports = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const collegeId = req.user?.collegeId || 'clg_default';
+      const collegeId = req.user?.collegeId || '7b910a52-f576-45ca-a2e6-2b9a840426b5';
       const reports = await this.adminService.getAuditReports(collegeId);
       res.status(200).json({ success: true, data: reports });
     } catch (err) {

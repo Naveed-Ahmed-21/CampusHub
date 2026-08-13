@@ -45,7 +45,7 @@ class QRTicketDialog extends StatelessWidget {
             ),
             const SizedBox(height: 20),
 
-            // QR Code Placeholder Card (Simulating QR Attendance for future scanner)
+            // Visual QR Code Card
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -62,19 +62,22 @@ class QRTicketDialog extends StatelessWidget {
               child: Column(
                 children: [
                   Container(
-                    width: 160,
-                    height: 160,
+                    width: 180,
+                    height: 180,
+                    padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
+                      color: Colors.grey.shade50,
                       borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.deepPurple.shade100),
                     ),
-                    child: const Column(
+                    child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.qr_code_2, size: 100, color: Colors.black87),
+                        const Icon(Icons.qr_code_2_rounded, size: 110, color: Colors.deepPurple),
+                        const SizedBox(height: 4),
                         Text(
-                          'Scan at Venue',
-                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey),
+                          'E-TICKET CODE',
+                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey.shade700),
                         ),
                       ],
                     ),

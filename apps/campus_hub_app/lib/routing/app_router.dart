@@ -12,11 +12,15 @@ import '../features/clubs/presentation/views/club_detail_view.dart';
 import '../features/clubs/presentation/views/admin_verify_clubs_view.dart';
 import '../features/chat/presentation/views/chat_inbox_view.dart';
 import '../features/chat/presentation/views/chat_room_view.dart';
+import '../features/chat/presentation/views/contact_select_view.dart';
+import '../features/chat/presentation/views/create_group_view.dart';
+import '../features/chat/presentation/views/group_info_view.dart';
 import '../features/career/presentation/views/career_hub_view.dart';
 import '../features/events/presentation/views/events_list_view.dart';
 import '../features/placement/presentation/views/placement_hub_view.dart';
 import '../features/notifications/presentation/views/notifications_view.dart';
 import '../features/admin/presentation/views/admin_panel_view.dart';
+import '../features/search/presentation/views/global_search_view.dart';
 import '../shared/responsive/main_scaffold.dart';
 
 part 'app_router.g.dart';
@@ -67,6 +71,35 @@ GoRouter appRouter(AppRouterRef ref) {
         builder: (context, state) => ChatRoomView(
           roomId: state.pathParameters['roomId']!,
         ),
+      ),
+      GoRoute(
+        path: '/chat/:roomId',
+        name: 'chat-room-alias',
+        builder: (context, state) => ChatRoomView(
+          roomId: state.pathParameters['roomId']!,
+        ),
+      ),
+      GoRoute(
+        path: '/chat/contacts',
+        name: 'chat-contacts',
+        builder: (context, state) => const ContactSelectView(),
+      ),
+      GoRoute(
+        path: '/chat/create-group',
+        name: 'chat-create-group',
+        builder: (context, state) => const CreateGroupView(),
+      ),
+      GoRoute(
+        path: '/chat/group-info/:roomId',
+        name: 'chat-group-info',
+        builder: (context, state) => GroupInfoView(
+          roomId: state.pathParameters['roomId']!,
+        ),
+      ),
+      GoRoute(
+        path: '/search',
+        name: 'search',
+        builder: (context, state) => const GlobalSearchView(),
       ),
       ShellRoute(
         navigatorKey: _shellNavigatorKey,

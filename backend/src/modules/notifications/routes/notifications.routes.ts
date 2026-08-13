@@ -18,6 +18,7 @@ export const notificationsRouter = Router();
 notificationsRouter.use(authenticate);
 
 notificationsRouter.post('/fcm-token', validateRequest(registerFcmTokenSchema), notificationsController.registerFcmToken);
+notificationsRouter.post('/device-token', validateRequest(registerFcmTokenSchema), notificationsController.registerFcmToken);
 notificationsRouter.post('/send', validateRequest(sendNotificationSchema), notificationsController.sendNotification);
 notificationsRouter.get('/', notificationsController.getUserNotifications);
 notificationsRouter.patch('/:id/read', notificationsController.markAsRead);

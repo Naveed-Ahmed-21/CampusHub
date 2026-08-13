@@ -1,6 +1,8 @@
+import crypto from 'crypto';
 import { PostsRepository } from './posts.repository';
 import { CreatePostDTO, FeedType, PostResponseDTO } from './posts.types';
 import { PostType } from '@prisma/client';
+import { logger } from '../../infrastructure/logger/logger';
 
 export class PostsService {
   constructor(private readonly postsRepo: PostsRepository) {}
@@ -55,8 +57,8 @@ export class PostsService {
         isLiked: p.likes.length > 0,
         isSaved: p.saves.length > 0,
       }));
-    } catch (_) {
-      // Return clean empty feed when DB is offline or empty
+    } catch (err) {
+      logger.error({ err }, 'Error in getFeed repository query');
       return [];
     }
   }
@@ -113,9 +115,10 @@ export class PostsService {
         isLiked: false,
         isSaved: false,
       };
-    } catch (_) {
+    } catch (err) {
+      logger.error({ err }, 'Error in createPost repository call');
       return {
-        id: 'post_' + Date.now(),
+        id: crypto.randomUUID(),
         title: dto.title,
         content: dto.content,
         type: dto.type || 'ANNOUNCEMENT',

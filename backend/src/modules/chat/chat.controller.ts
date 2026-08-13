@@ -40,6 +40,33 @@ export class ChatController {
     ResponseUtil.success(res, message, 'Message sent successfully', 201);
   });
 
+  createGroupChat = asyncHandler(async (req: Request, res: Response) => {
+    const user = req.user!;
+    const { name, memberIds } = req.body;
+    const room = await this.chatService.createGroupRoom(user.userId, user.collegeId, name || 'Group Chat', memberIds || []);
+    ResponseUtil.success(res, room, 'Group chat created successfully', 201);
+  });
+
+  addRoomMember = asyncHandler(async (req: Request, res: Response) => {
+    const { roomId } = req.params;
+    const { userId } = req.body;
+    const result = await this.chatService.addRoomMember(roomId, userId);
+    ResponseUtil.success(res, result, 'Member added to chat room');
+  });
+
+  removeRoomMember = asyncHandler(async (req: Request, res: Response) => {
+    const { roomId, userId } = req.params;
+    const result = await this.chatService.removeRoomMember(roomId, userId);
+    ResponseUtil.success(res, result, 'Member removed from chat room');
+  });
+
+  searchUsers = asyncHandler(async (req: Request, res: Response) => {
+    const user = req.user!;
+    const query = req.query.query as string | undefined;
+    const users = await this.chatService.searchCampusUsers(user.collegeId, query);
+    ResponseUtil.success(res, users, 'Campus users retrieved successfully');
+  });
+
   markRead = asyncHandler(async (req: Request, res: Response) => {
     const user = req.user!;
     const result = await this.chatService.markRead(user.userId, req.body);

@@ -1,3 +1,4 @@
+/// <reference types="node" />
 import { PrismaClient, Role, UserStatus } from '@prisma/client';
 import argon2 from 'argon2';
 

@@ -59,24 +59,24 @@ export class NotificationsService {
     } catch (_) {
       return [
         {
-          id: 'notif_101',
+          id: '10000000-0000-4000-8000-000000000101',
           user_id: userId,
           title: 'Upcoming Event: Tech Summit 2026',
           body: 'Annual Tech Summit starts in 3 days. Check your e-ticket inside the app.',
           category: 'Events',
           type: 'SYSTEM',
-          deep_link: '/events/evt_101',
+          deep_link: '/events/10000000-0000-4000-8000-000000000201',
           is_read: false,
           created_at: new Date(Date.now() - 3600000 * 2),
         },
         {
-          id: 'notif_102',
+          id: '10000000-0000-4000-8000-000000000102',
           user_id: userId,
           title: 'Placement Drive Application Update',
           body: 'Your application for TechCorp Systems has been shortlisted for Technical Interview Round 1.',
           category: 'Placement',
           type: 'SYSTEM',
-          deep_link: '/placement/drv_101',
+          deep_link: '/placement/10000000-0000-4000-8000-000000000301',
           is_read: true,
           created_at: new Date(Date.now() - 86400000),
         },

@@ -26,7 +26,7 @@ export class PostsController {
 
   createPost = asyncHandler(async (req: Request, res: Response) => {
     const user = req.user!;
-    const post = await this.postsService.createPost(user.userId, user.collegeId, undefined, req.body);
+    const post = await this.postsService.createPost(user.userId, user.collegeId, user.departmentId, req.body);
     res.status(201).json({ success: true, data: post });
   });
 
