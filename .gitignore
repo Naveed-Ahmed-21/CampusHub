@@ -16,6 +16,8 @@ lerna-debug.log*
 *.pem
 *.crt
 *.key
+*firebase-adminsdk*.json
+*-adminsdk-*.json
 
 # Build outputs
 dist/
