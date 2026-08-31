@@ -1,13 +1,11 @@
 import 'package:dio/dio.dart';
-import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/network/api_exception.dart';
 import '../../../../core/network/api_result.dart';
 import '../../../../core/storage/secure_storage_service.dart';
 import '../datasources/auth_remote_datasource.dart';
 import '../../domain/models/auth_user.dart';
 import '../../domain/repositories/auth_repository.dart';
-
-part 'auth_repository_impl.g.dart';
 
 class AuthRepositoryImpl implements AuthRepository {
   final AuthRemoteDataSource _remoteDataSource;
@@ -103,9 +101,8 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 }
 
-@Riverpod(keepAlive: true)
-AuthRepository authRepository(AuthRepositoryRef ref) {
+final authRepositoryProvider = Provider<AuthRepository>((ref) {
   final remote = ref.watch(authRemoteDataSourceProvider);
   final storage = ref.watch(secureStorageServiceProvider);
   return AuthRepositoryImpl(remote, storage);
-}
+});

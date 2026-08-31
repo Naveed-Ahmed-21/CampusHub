@@ -2,73 +2,17 @@ import { ChatRepository } from './chat.repository';
 import { CreateDirectChatDto, SendMessageDto, MarkReadDto } from './chat.types';
 import { NotFoundError, ForbiddenError, BadRequestError } from '../../shared/errors/AppError';
 import { prisma } from '../../config/database';
+import { ChatRoomType, Role } from '@prisma/client';
 
 export class ChatService {
   constructor(private readonly chatRepository: ChatRepository) {}
 
-  async getUserRooms(userId: string, collegeId: string) {
-    try {
-      return await this.chatRepository.findUserRooms(userId, collegeId);
-    } catch (_) {
-      return [
-        {
-          id: '20000000-0000-4000-8000-000000000101',
-          name: 'Computer Science Department Chat',
-          type: 'DEPARTMENT',
-          college_id: collegeId,
-          created_at: new Date(),
-          updated_at: new Date(),
-          participants: [
-            {
-              user_id: userId,
-              user: { id: userId, first_name: 'Alex', last_name: 'Vance', avatar_url: null, role: 'STUDENT' },
-            },
-            {
-              user_id: '00000000-0000-4000-8000-000000000003',
-              user: { id: '00000000-0000-4000-8000-000000000003', first_name: 'Dr. Sarah', last_name: 'Connor', avatar_url: null, role: 'DEPT_ADMIN' },
-            },
-          ],
-          messages: [
-            {
-              id: '30000000-0000-4000-8000-000000000101',
-              sender_id: '00000000-0000-4000-8000-000000000003',
-              content: 'Welcome to the Computer Science Department Chat! Please share project queries here.',
-              message_type: 'TEXT',
-              created_at: new Date(Date.now() - 3600000 * 3),
-              sender: { id: '00000000-0000-4000-8000-000000000003', first_name: 'Dr. Sarah', last_name: 'Connor', avatar_url: null },
-            },
-          ],
-        },
-        {
-          id: '20000000-0000-4000-8000-000000000102',
-          name: 'Robotics & AI Club Chat',
-          type: 'CLUB',
-          college_id: collegeId,
-          created_at: new Date(),
-          updated_at: new Date(),
-          participants: [
-            {
-              user_id: userId,
-              user: { id: userId, first_name: 'Alex', last_name: 'Vance', avatar_url: null, role: 'STUDENT' },
-            },
-            {
-              user_id: '00000000-0000-4000-8000-000000000004',
-              user: { id: '00000000-0000-4000-8000-000000000004', first_name: 'Jordan', last_name: 'Lee', avatar_url: null, role: 'CLUB_COORDINATOR' },
-            },
-          ],
-          messages: [
-            {
-              id: '30000000-0000-4000-8000-000000000102',
-              sender_id: '00000000-0000-4000-8000-000000000004',
-              content: 'Robotics hackathon design sprint starting tomorrow at 10 AM in Lab 3!',
-              message_type: 'TEXT',
-              created_at: new Date(Date.now() - 3600000 * 1),
-              sender: { id: '00000000-0000-4000-8000-000000000004', first_name: 'Jordan', last_name: 'Lee', avatar_url: null },
-            },
-          ],
-        },
-      ];
-    }
+  async getUserRooms(userId: string, collegeId: string, type?: ChatRoomType, search?: string) {
+    return this.chatRepository.findUserRooms(userId, collegeId, type, search);
+  }
+
+  async getPublicGroups(collegeId: string, currentUserId: string, query?: string, limit?: number) {
+    return this.chatRepository.findPublicGroups(collegeId, currentUserId, query, limit);
   }
 
   async getOrCreateDirectChat(userId: string, collegeId: string, dto: CreateDirectChatDto) {
@@ -76,212 +20,369 @@ export class ChatService {
       throw new BadRequestError('Cannot start a direct chat with yourself');
     }
 
-    try {
-      const targetUser = await prisma.user.findUnique({
-        where: { id: dto.targetUserId },
-        select: { id: true, college_id: true, first_name: true, last_name: true },
-      });
+    const targetUser = await prisma.user.findUnique({
+      where: { id: dto.targetUserId },
+      select: { id: true, college_id: true, first_name: true, last_name: true, status: true },
+    });
 
-      if (targetUser && targetUser.college_id === collegeId) {
-        let room = await this.chatRepository.findDirectChatRoom(userId, dto.targetUserId, collegeId);
-        if (!room) {
-          room = await this.chatRepository.createDirectChatRoom(userId, dto.targetUserId, collegeId);
-        }
-        return room;
-      }
-    } catch (_) {
-      // Fallback
+    if (!targetUser || targetUser.college_id !== collegeId || targetUser.status !== 'ACTIVE') {
+      throw new NotFoundError('Target user not found in this college');
     }
 
-    return {
-      id: 'room_dm_' + dto.targetUserId,
-      name: 'Direct Chat',
-      type: 'DIRECT',
-      college_id: collegeId,
-      created_at: new Date(),
-      updated_at: new Date(),
-      participants: [
-        { user_id: userId, user: { id: userId, first_name: 'Alex', last_name: 'Vance', avatar_url: null } },
-        { user_id: dto.targetUserId, user: { id: dto.targetUserId, first_name: 'Peer', last_name: 'Student', avatar_url: null } },
-      ],
-      messages: [],
-    };
+    let room = await this.chatRepository.findDirectChatRoom(userId, dto.targetUserId, collegeId);
+    if (!room) {
+      room = await this.chatRepository.createDirectChatRoom(userId, dto.targetUserId, collegeId);
+    }
+    return room;
   }
 
   async getOrCreateDepartmentChat(userId: string, collegeId: string, departmentId?: string | null) {
-    try {
-      let targetDeptId = departmentId;
-      if (!targetDeptId) {
-        const user = await prisma.user.findUnique({
-          where: { id: userId },
-          select: { department_id: true },
-        });
-        targetDeptId = user?.department_id;
-      }
-
-      if (targetDeptId) {
-        const dept = await prisma.department.findUnique({
-          where: { id: targetDeptId },
-        });
-        if (dept && dept.college_id === collegeId) {
-          const room = await this.chatRepository.findOrCreateDepartmentChatRoom(targetDeptId, collegeId, dept.name);
-          await this.chatRepository.addParticipantToRoom(room.id, userId);
-          return room;
-        }
-      }
-    } catch (_) {
-      // Fallback
+    let targetDeptId = departmentId;
+    if (!targetDeptId) {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { department_id: true },
+      });
+      targetDeptId = user?.department_id;
     }
 
+    if (!targetDeptId) {
+      throw new NotFoundError('User has no department assigned');
+    }
+
+    const dept = await prisma.department.findUnique({
+      where: { id: targetDeptId },
+    });
+    if (!dept || dept.college_id !== collegeId) {
+      throw new NotFoundError('Department not found in this college');
+    }
+
+    const room = await this.chatRepository.findOrCreateDepartmentChatRoom(targetDeptId, collegeId, dept.name);
+    await this.chatRepository.addParticipantToRoom(room.id, userId);
+    return room;
+  }
+
+  async getOrCreateClubChat(userId: string, collegeId: string, clubId: string, userRole?: string) {
+    const club = await prisma.club.findUnique({
+      where: { id: clubId },
+      include: {
+        members: { where: { user_id: userId } },
+      },
+    });
+
+    if (!club || club.college_id !== collegeId) {
+      throw new NotFoundError('Club not found');
+    }
+
+    const isAdmin = [Role.ADMIN, Role.COLLEGE_ADMIN, Role.SUPER_ADMIN, Role.DEPT_ADMIN, 'ADMIN'].includes(userRole as any);
+    const isMember = club.members.length > 0;
+
+    if (!isMember && !isAdmin) {
+      throw new ForbiddenError('Only club members can access club chat');
+    }
+
+    const userClubRole = club.members[0]?.role;
+    const roomRole = userClubRole === 'LEAD' || userClubRole === 'FACULTY_ADVISOR' ? 'ADMIN' : 'MEMBER';
+
+    const room = await this.chatRepository.findOrCreateClubChatRoom(clubId, collegeId, club.name, club.logo_url);
+    await this.chatRepository.addParticipantToRoom(room.id, userId, roomRole);
+    return room;
+  }
+
+  async getRoomDetails(roomId: string, userId: string) {
+    const room = await this.chatRepository.findRoomById(roomId);
+    if (!room) {
+      throw new NotFoundError('Chat room not found');
+    }
+
+    const isMember = room.participants.some((p) => p.user_id === userId && p.status === 'ACTIVE');
+
+    if (!isMember && room.is_private) {
+      throw new ForbiddenError('Access denied: This is a private group');
+    }
+
+    const activeParticipants = room.participants.filter((p: any) => p.status === 'ACTIVE');
+    const onlineParticipants = activeParticipants.filter((p: any) => p.user?.is_online);
+
     return {
-      id: 'room_dept_1',
-      name: 'Computer Science Dept Chat',
-      type: 'DEPARTMENT',
-      college_id: collegeId,
-      created_at: new Date(),
-      updated_at: new Date(),
-      participants: [
-        { user_id: userId, user: { id: userId, first_name: 'Alex', last_name: 'Vance', avatar_url: null } },
-      ],
-      messages: [],
+      ...room,
+      isMember,
+      memberCount: room._count?.participants ?? activeParticipants.length,
+      onlineMemberCount: onlineParticipants.length,
+      participants: room.participants.map((p: any) => ({
+        ...p,
+        user: {
+          ...p.user,
+          username: p.user.username
+            ? (p.user.username.startsWith('@') ? p.user.username : `@${p.user.username}`)
+            : `@${p.user.email.split('@')[0].toLowerCase()}`,
+        },
+      })),
     };
   }
 
   async getRoomMessages(roomId: string, userId: string, page: number = 1, limit: number = 50) {
-    try {
-      const room = await this.chatRepository.findRoomById(roomId);
-      if (room) {
-        const isParticipant = room.participants.some((p) => p.user_id === userId);
-        if (!isParticipant) {
-          throw new ForbiddenError('You are not a participant in this chat room');
-        }
-        return await this.chatRepository.getRoomMessages(roomId, page, limit);
-      }
-    } catch (err) {
-      if (err instanceof ForbiddenError) throw err;
+    const room = await this.chatRepository.findRoomById(roomId);
+    if (!room) {
+      throw new NotFoundError('Chat room not found');
     }
 
-    return {
-      total: 2,
-      page: 1,
-      limit: 50,
-      messages: [
-        {
-          id: '30000000-0000-4000-8000-000000000101',
-          room_id: roomId,
-          sender_id: '00000000-0000-4000-8000-000000000003',
-          content: 'Welcome to the Chat Room! Feel free to ask any academic or technical questions.',
-          message_type: 'TEXT',
-          created_at: new Date(Date.now() - 3600000 * 2),
-          sender: { id: '00000000-0000-4000-8000-000000000003', first_name: 'Dr. Sarah', last_name: 'Connor', avatar_url: null },
-          read_receipts: [],
-        },
-        {
-          id: '30000000-0000-4000-8000-000000000102',
-          room_id: roomId,
-          sender_id: userId,
-          content: 'Thanks! Super excited for the upcoming events and workshops.',
-          message_type: 'TEXT',
-          created_at: new Date(Date.now() - 1800000),
-          sender: { id: userId, first_name: 'Alex', last_name: 'Vance', avatar_url: null },
-          read_receipts: [],
-        },
-      ],
-    };
+    const isParticipant = room.participants.some((p) => p.user_id === userId && p.status === 'ACTIVE');
+    if (!isParticipant) {
+      throw new ForbiddenError('You must join this group before you can access messages');
+    }
+
+    return this.chatRepository.getRoomMessages(roomId, userId, page, limit);
   }
 
   async sendMessage(senderId: string, collegeId: string, dto: SendMessageDto) {
-    const isUuid = (s: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
+    const room = await this.chatRepository.findRoomById(dto.roomId);
+    if (!room) {
+      throw new NotFoundError('Chat room not found');
+    }
 
-    if (isUuid(dto.roomId) && isUuid(senderId)) {
-      try {
-        const room = await this.chatRepository.findRoomById(dto.roomId);
-        if (room) {
-          const isParticipant = room.participants.some((p) => p.user_id === senderId);
-          if (!isParticipant) {
-            await this.chatRepository.addParticipantToRoom(dto.roomId, senderId);
-          }
-          return await this.chatRepository.createMessage(senderId, dto);
-        }
-      } catch (err) {
-        // Graceful fallback below
+    if (room.college_id !== collegeId) {
+      throw new ForbiddenError('Unauthorized: room belongs to another college');
+    }
+
+    const isParticipant = room.participants.some((p) => p.user_id === senderId && p.status === 'ACTIVE');
+    if (!isParticipant) {
+      throw new ForbiddenError('You must be an active member of this chat to send messages');
+    }
+
+    if (dto.reply_to_message_id) {
+      const replyTarget = await this.chatRepository.findMessageById(dto.reply_to_message_id);
+      if (!replyTarget || replyTarget.room_id !== dto.roomId) {
+        throw new BadRequestError('Invalid reply target message');
       }
     }
 
+    return this.chatRepository.createMessage(senderId, dto);
+  }
+
+  async addOrToggleReaction(messageId: string, userId: string, emoji: string) {
+    const allowed = ['❤️', '😂', '😮', '😢', '👍', '👎'];
+    if (!allowed.includes(emoji)) {
+      throw new BadRequestError(`Invalid emoji. Allowed emojis: ${allowed.join(' ')}`);
+    }
+
+    const message = await this.chatRepository.findMessageById(messageId);
+    if (!message) {
+      throw new NotFoundError('Message not found');
+    }
+
+    const isParticipant = (message as any).room?.participants?.some(
+      (p: any) => p.user_id === userId && p.status === 'ACTIVE'
+    );
+    if (!isParticipant) {
+      throw new ForbiddenError('You must be an active member of this chat to react to messages');
+    }
+
+    if (message.is_deleted_for_everyone) {
+      throw new BadRequestError('Cannot react to deleted messages');
+    }
+
+    return this.chatRepository.addOrToggleReaction(messageId, userId, emoji);
+  }
+
+  async removeReaction(messageId: string, userId: string, emoji: string) {
+    const message = await this.chatRepository.findMessageById(messageId);
+    if (!message) {
+      throw new NotFoundError('Message not found');
+    }
+
+    const isParticipant = (message as any).room?.participants?.some(
+      (p: any) => p.user_id === userId && p.status === 'ACTIVE'
+    );
+    if (!isParticipant) {
+      throw new ForbiddenError('You must be an active member of this chat to remove reactions');
+    }
+
+    return this.chatRepository.removeReaction(messageId, userId, emoji);
+  }
+
+  async deleteMessageForMe(messageId: string, userId: string) {
+    const message = await this.chatRepository.findMessageById(messageId);
+    if (!message) {
+      throw new NotFoundError('Message not found');
+    }
+
+    const isParticipant = (message as any).room?.participants?.some(
+      (p: any) => p.user_id === userId && p.status === 'ACTIVE'
+    );
+    if (!isParticipant) {
+      throw new ForbiddenError('You must be a member of this chat to delete messages');
+    }
+
+    return this.chatRepository.deleteMessageForMe(messageId, userId);
+  }
+
+  async deleteMessageForEveryone(messageId: string, userId: string) {
+    const message = await this.chatRepository.findMessageById(messageId);
+    if (!message) {
+      throw new NotFoundError('Message not found');
+    }
+
+    if (message.sender_id !== userId) {
+      throw new ForbiddenError('Only the original sender can delete this message for everyone');
+    }
+
+    if (message.is_deleted_for_everyone) {
+      return message;
+    }
+
+    // 24-HOUR BUSINESS RULE ENFORCEMENT ON BACKEND
+    const now = new Date();
+    const sentAt = new Date(message.created_at);
+    const diffHours = (now.getTime() - sentAt.getTime()) / (1000 * 60 * 60);
+
+    if (diffHours > 24) {
+      throw new BadRequestError('Messages can only be deleted for everyone within 24 hours of being sent');
+    }
+
+    return this.chatRepository.deleteMessageForEveryone(messageId);
+  }
+
+  async createGroupRoom(
+    creatorId: string,
+    collegeId: string,
+    dto: { name: string; description?: string | null; isPrivate?: boolean; memberIds?: string[]; avatarUrl?: string | null }
+  ) {
+    if (!dto.name || dto.name.trim().length === 0) {
+      throw new BadRequestError('Group name is required');
+    }
+
+    return this.chatRepository.createGroupRoom(
+      collegeId,
+      creatorId,
+      dto.name.trim(),
+      dto.description?.trim() || null,
+      Boolean(dto.isPrivate),
+      dto.memberIds || [],
+      dto.avatarUrl || null
+    );
+  }
+
+  async updateGroupAvatar(roomId: string, userId: string, avatarUrl: string | null) {
+    const room = await this.chatRepository.findRoomById(roomId);
+    if (!room) {
+      throw new NotFoundError('Chat room not found');
+    }
+
+    if (room.type !== ChatRoomType.GROUP) {
+      throw new BadRequestError('Only group conversations can have a group image updated');
+    }
+
+    const participant = room.participants.find((p) => p.user_id === userId && p.status === 'ACTIVE');
+    const isCreator = room.created_by_id === userId;
+    const isAdmin = participant?.role === 'ADMIN' || isCreator;
+
+    if (room.is_private) {
+      if (!isAdmin) {
+        throw new ForbiddenError('Only group admins can modify the group image of a private group');
+      }
+    } else {
+      if (!participant && !isCreator) {
+        throw new ForbiddenError('You must be an active member of this public group to modify its image');
+      }
+    }
+
+    await this.chatRepository.updateRoomAvatar(roomId, avatarUrl);
+    return this.getRoomDetails(roomId, userId);
+  }
+
+  async joinPublicGroup(roomId: string, userId: string) {
+    const room = await this.chatRepository.findRoomById(roomId);
+    if (!room) {
+      throw new NotFoundError('Group not found');
+    }
+
+    if (room.type !== ChatRoomType.GROUP) {
+      throw new BadRequestError('Only group chats can be joined');
+    }
+
+    if (room.is_private) {
+      throw new ForbiddenError('This is a private group. An admin invitation is required to join.');
+    }
+
+    await this.chatRepository.addParticipantToRoom(roomId, userId, 'MEMBER');
+
+    const updatedRoom = await this.chatRepository.findRoomById(roomId);
     return {
-      id: 'msg_' + Date.now(),
-      room_id: dto.roomId,
-      sender_id: senderId,
-      message: dto.message || '',
-      media_url: dto.media_url || null,
-      media_type: dto.media_type || null,
-      created_at: new Date(),
-      sender: { id: senderId, first_name: 'Campus', last_name: 'User', avatar_url: null },
+      roomId,
+      userId,
+      isMember: true,
+      memberCount: updatedRoom?._count?.participants || 1,
+      message: 'Joined group successfully',
     };
   }
 
-  async createGroupRoom(creatorId: string, collegeId: string, name: string, memberIds: string[]) {
-    try {
-      return await this.chatRepository.createGroupRoom(name, creatorId, memberIds, collegeId);
-    } catch (_) {
-      return {
-        id: 'group_' + Date.now(),
-        name,
-        type: 'GROUP',
-        college_id: collegeId,
-        created_at: new Date(),
-        updated_at: new Date(),
-        participants: [
-          { user_id: creatorId, user: { id: creatorId, first_name: 'Creator', last_name: 'User', avatar_url: null } },
-          ...memberIds.map((id) => ({
-            user_id: id,
-            user: { id, first_name: 'Member', last_name: 'User', avatar_url: null },
-          })),
-        ],
-      };
+  async leaveGroup(roomId: string, userId: string) {
+    const room = await this.chatRepository.findRoomById(roomId);
+    if (!room) {
+      throw new NotFoundError('Group not found');
     }
+
+    await this.chatRepository.removeParticipantFromRoom(roomId, userId);
+
+    return {
+      roomId,
+      userId,
+      isMember: false,
+      message: 'Left group successfully',
+    };
   }
 
-  async removeRoomMember(roomId: string, userId: string) {
-    try {
-      await this.chatRepository.removeParticipantFromRoom(roomId, userId);
-      return { roomId, userId, success: true };
-    } catch (_) {
-      return { roomId, userId, success: true };
+  async addRoomMember(roomId: string, actorId: string, targetUserId: string) {
+    const room = await this.chatRepository.findRoomById(roomId);
+    if (!room) {
+      throw new NotFoundError('Group not found');
     }
+
+    const actorParticipant = room.participants.find((p) => p.user_id === actorId && p.status === 'ACTIVE');
+    const isActorAdmin = actorParticipant?.role === 'ADMIN' || room.created_by_id === actorId;
+
+    if (!isActorAdmin) {
+      throw new ForbiddenError('Only group admins can add members to this group');
+    }
+
+    await this.chatRepository.addParticipantToRoom(roomId, targetUserId, 'MEMBER');
+    return { roomId, userId: targetUserId, success: true, message: 'Member added successfully' };
   }
 
-  async addRoomMember(roomId: string, userId: string) {
-    try {
-      await this.chatRepository.addParticipantToRoom(roomId, userId);
-      return { roomId, userId, success: true };
-    } catch (_) {
-      return { roomId, userId, success: true };
+  async removeRoomMember(roomId: string, actorId: string, targetUserId: string) {
+    const room = await this.chatRepository.findRoomById(roomId);
+    if (!room) {
+      throw new NotFoundError('Group not found');
     }
+
+    const isSelfLeave = actorId === targetUserId;
+    const actorParticipant = room.participants.find((p) => p.user_id === actorId && p.status === 'ACTIVE');
+    const isActorAdmin = actorParticipant?.role === 'ADMIN' || room.created_by_id === actorId;
+
+    if (!isSelfLeave && !isActorAdmin) {
+      throw new ForbiddenError('Only group admins can remove members');
+    }
+
+    await this.chatRepository.removeParticipantFromRoom(roomId, targetUserId);
+    return { roomId, userId: targetUserId, success: true, message: 'Member removed successfully' };
   }
 
-  async searchCampusUsers(collegeId: string, query?: string) {
-    try {
-      return await this.chatRepository.searchCampusUsers(collegeId, query);
-    } catch (_) {
-      return [];
-    }
+  async searchCampusUsers(collegeId: string, currentUserId: string, query?: string) {
+    return this.chatRepository.searchCampusUsers(collegeId, currentUserId, query);
   }
 
   async markRead(userId: string, dto: MarkReadDto) {
-    try {
-      const room = await this.chatRepository.findRoomById(dto.roomId);
-      if (room) {
-        const isParticipant = room.participants.some((p) => p.user_id === userId);
-        if (!isParticipant) {
-          throw new ForbiddenError('You are not a participant in this chat room');
-        }
-        return await this.chatRepository.markMessagesAsRead(dto.roomId, userId, dto.messageIds);
-      }
-    } catch (err) {
-      if (err instanceof ForbiddenError) throw err;
+    const room = await this.chatRepository.findRoomById(dto.roomId);
+    if (!room) {
+      throw new NotFoundError('Chat room not found');
     }
 
-    return { count: dto.messageIds?.length || 1 };
+    const isParticipant = room.participants.some((p) => p.user_id === userId && p.status === 'ACTIVE');
+    if (!isParticipant) {
+      throw new ForbiddenError('You are not an active participant in this chat room');
+    }
+
+    return this.chatRepository.markMessagesAsRead(dto.roomId, userId, dto.messageIds);
   }
 }

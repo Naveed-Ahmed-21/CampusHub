@@ -101,9 +101,10 @@ export class SocketServer {
         roomId: string;
         message: string;
         media_url?: string;
-        media_type?: 'IMAGE' | 'DOCUMENT' | 'AUDIO';
+        media_type?: 'IMAGE' | 'DOCUMENT' | 'AUDIO' | 'VIDEO';
         file_name?: string;
         file_size?: number;
+        reply_to_message_id?: string;
       }) => {
         try {
           const message = await chatRepository.createMessage(user.userId, {
@@ -113,6 +114,7 @@ export class SocketServer {
             media_type: data.media_type,
             file_name: data.file_name,
             file_size: data.file_size,
+            reply_to_message_id: data.reply_to_message_id,
           });
 
           // Emit to all users in the room
@@ -120,6 +122,37 @@ export class SocketServer {
         } catch (err) {
           logger.error(err, 'Error handling socket send_message');
           socket.emit('error', { message: 'Failed to send message' });
+        }
+      });
+
+      // Real-time Reactions
+      socket.on('add_reaction', async (data: { messageId: string; emoji: string }) => {
+        try {
+          const updated = await chatRepository.addOrToggleReaction(data.messageId, user.userId, data.emoji);
+          if (updated) {
+            this.io.to(`room:${updated.room_id}`).emit('message_reaction_updated', {
+              roomId: updated.room_id,
+              messageId: updated.id,
+              reactions: (updated as any).reactions,
+            });
+          }
+        } catch (err) {
+          logger.error(err, 'Error handling socket add_reaction');
+        }
+      });
+
+      socket.on('remove_reaction', async (data: { messageId: string; emoji: string }) => {
+        try {
+          const updated = await chatRepository.removeReaction(data.messageId, user.userId, data.emoji);
+          if (updated) {
+            this.io.to(`room:${updated.room_id}`).emit('message_reaction_updated', {
+              roomId: updated.room_id,
+              messageId: updated.id,
+              reactions: (updated as any).reactions,
+            });
+          }
+        } catch (err) {
+          logger.error(err, 'Error handling socket remove_reaction');
         }
       });
 
@@ -131,6 +164,27 @@ export class SocketServer {
           this.io.to(`room:${data.roomId}`).emit('messages_read', result);
         } catch (err) {
           logger.error(err, 'Error handling socket mark_read');
+        }
+      });
+
+      // Presence Ping & Status Update
+      socket.on('presence_ping', async () => {
+        try {
+          await chatRepository.updateUserOnlineStatus(user.userId, true);
+        } catch (_) {}
+      });
+
+      socket.on('presence_set', async (data: { isOnline: boolean }) => {
+        try {
+          const isOnline = Boolean(data.isOnline);
+          const updated = await chatRepository.updateUserOnlineStatus(user.userId, isOnline);
+          this.emitToCollege(user.collegeId, 'presence_change', {
+            userId: user.userId,
+            isOnline,
+            lastSeen: updated.last_seen,
+          });
+        } catch (err) {
+          logger.error(err, 'Failed to update online status on presence_set');
         }
       });
 

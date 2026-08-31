@@ -321,11 +321,20 @@ export class ClubsRepository {
           author: {
             select: { id: true, first_name: true, last_name: true, avatar_url: true, role: true },
           },
+          club: {
+            select: { id: true, name: true, logo_url: true, category: true },
+          },
           attachments: true,
           _count: {
             select: { likes: true, comments: true },
           },
           likes: currentUserId
+            ? {
+                where: { user_id: currentUserId },
+                select: { id: true },
+              }
+            : false,
+          saves: currentUserId
             ? {
                 where: { user_id: currentUserId },
                 select: { id: true },

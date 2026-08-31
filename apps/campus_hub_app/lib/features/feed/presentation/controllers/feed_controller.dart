@@ -1,19 +1,20 @@
-import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'dart:async';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/models/post_item.dart';
 import '../../data/repositories/feed_repository_impl.dart';
+import '../../../profile/presentation/views/user_posts_view.dart';
+import '../../../clubs/presentation/providers/club_provider.dart';
 
-part 'feed_controller.g.dart';
-
-@riverpod
-class ActiveFeedType extends _$ActiveFeedType {
+class ActiveFeedType extends Notifier<String> {
   @override
   String build() => 'DEPARTMENT';
 
   void setFeedType(String type) => state = type;
 }
 
-@riverpod
-class FeedController extends _$FeedController {
+final activeFeedTypeProvider = NotifierProvider<ActiveFeedType, String>(ActiveFeedType.new);
+
+class FeedController extends AsyncNotifier<List<PostItem>> {
   int _currentPage = 1;
   bool _hasMore = true;
   bool _isFetchingMore = false;
@@ -25,37 +26,50 @@ class FeedController extends _$FeedController {
   FutureOr<List<PostItem>> build() async {
     _currentPage = 1;
     _hasMore = true;
-    return _fetchPosts(page: 1);
+    return _fetchFeed(page: 1);
   }
 
-  Future<List<PostItem>> _fetchPosts({required int page}) async {
-    final activeType = ref.watch(activeFeedTypeProvider);
+  Future<List<PostItem>> _fetchFeed({required int page}) async {
     final repository = ref.watch(feedRepositoryProvider);
+    final activeType = ref.watch(activeFeedTypeProvider);
 
-    final result = await repository.getFeed(feedType: activeType, page: page);
+    final result = await repository.getFeed(
+      feedType: activeType,
+      page: page,
+      limit: 20,
+    );
 
     return result.when(
       success: (posts) {
-        if (posts.length < 10) _hasMore = false;
+        if (posts.length < 20) {
+          _hasMore = false;
+        }
         return posts;
       },
       failure: (error) => throw error,
     );
   }
 
-  Future<void> fetchNextPage() async {
-    if (!_hasMore || _isFetchingMore) return;
-    _isFetchingMore = true;
+  Future<void> refreshFeed() async {
+    _currentPage = 1;
+    _hasMore = true;
+    state = const AsyncValue.loading();
+    state = await AsyncValue.guard(() => _fetchFeed(page: 1));
+  }
 
+  Future<void> fetchNextPage() async {
+    if (!_hasMore || _isFetchingMore || state.isLoading) return;
+
+    _isFetchingMore = true;
     try {
       final nextPage = _currentPage + 1;
-      final newPosts = await _fetchPosts(page: nextPage);
+      final newPosts = await _fetchFeed(page: nextPage);
 
-      if (newPosts.isNotEmpty) {
-        _currentPage = nextPage;
-        final currentPosts = state.asData?.value ?? [];
-        state = AsyncValue.data([...currentPosts, ...newPosts]);
-      }
+      _currentPage = nextPage;
+      final currentPosts = state.asData?.value ?? [];
+      state = AsyncValue.data([...currentPosts, ...newPosts]);
+    } catch (_) {
+      // Ignored for pagination failure
     } finally {
       _isFetchingMore = false;
     }
@@ -65,6 +79,9 @@ class FeedController extends _$FeedController {
     required String title,
     required String content,
     String type = 'GENERAL',
+    bool isCrossDepartment = false,
+    String? scope,
+    String? clubId,
     List<Map<String, String>>? attachments,
   }) async {
     final repository = ref.read(feedRepositoryProvider);
@@ -72,11 +89,22 @@ class FeedController extends _$FeedController {
       title: title,
       content: content,
       type: type,
+      isCrossDepartment: isCrossDepartment,
+      scope: scope,
+      clubId: clubId,
       attachments: attachments,
     );
 
     await result.when(
       success: (newPost) async {
+        final currentPosts = state.asData?.value ?? [];
+        // Prepend if not already present
+        if (!currentPosts.any((p) => p.id == newPost.id)) {
+          state = AsyncValue.data([newPost, ...currentPosts]);
+        }
+        if (clubId != null && clubId.isNotEmpty) {
+          ref.invalidate(clubFeedProvider(clubId));
+        }
         await refreshFeed();
       },
       failure: (error) => throw error,
@@ -115,6 +143,7 @@ class FeedController extends _$FeedController {
 
     final repository = ref.read(feedRepositoryProvider);
     await repository.toggleSave(postId);
+    ref.invalidate(mySavedPostsProvider);
   }
 
   Future<void> addComment(String postId, String content) async {
@@ -137,10 +166,34 @@ class FeedController extends _$FeedController {
     );
   }
 
-  Future<void> refreshFeed() async {
-    state = const AsyncValue.loading();
-    _currentPage = 1;
-    _hasMore = true;
-    state = await AsyncValue.guard(() => _fetchPosts(page: 1));
+  Future<void> deletePost(String postId) async {
+    final currentPosts = state.asData?.value ?? [];
+    state = AsyncValue.data(currentPosts.where((p) => p.id != postId).toList());
+
+    final repository = ref.read(feedRepositoryProvider);
+    final result = await repository.deletePost(postId);
+    result.when(
+      success: (_) {},
+      failure: (_) async {
+        await refreshFeed();
+      },
+    );
+  }
+
+  Future<void> updatePost(String postId, {String? title, String? content}) async {
+    final repository = ref.read(feedRepositoryProvider);
+    final result = await repository.updatePost(postId, title: title, content: content);
+
+    result.when(
+      success: (updatedPost) {
+        final currentPosts = state.asData?.value ?? [];
+        state = AsyncValue.data(
+          currentPosts.map((p) => p.id == postId ? updatedPost : p).toList(),
+        );
+      },
+      failure: (_) {},
+    );
   }
 }
+
+final feedControllerProvider = AsyncNotifierProvider<FeedController, List<PostItem>>(FeedController.new);

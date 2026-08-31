@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-part 'theme_notifier.g.dart';
-
-@riverpod
-class ThemeNotifier extends _$ThemeNotifier {
+class ThemeNotifier extends Notifier<ThemeMode> {
   @override
   ThemeMode build() => ThemeMode.system;
 
@@ -16,3 +13,5 @@ class ThemeNotifier extends _$ThemeNotifier {
     state = ThemeMode.system;
   }
 }
+
+final themeNotifierProvider = NotifierProvider<ThemeNotifier, ThemeMode>(ThemeNotifier.new);

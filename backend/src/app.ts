@@ -1,6 +1,7 @@
 import express, { Application, Request, Response } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import path from 'path';
 import rateLimit from 'express-rate-limit';
 import { env } from './config/env.config';
 import { httpLogger } from './infrastructure/logger/logger';
@@ -8,6 +9,7 @@ import { errorHandler } from './shared/middlewares/error.middleware';
 import { authRouter } from './modules/auth/auth.routes';
 import { profileRouter } from './modules/profile/profile.routes';
 import { postsRouter } from './modules/posts/posts.routes';
+import { storiesRouter } from './modules/stories/stories.routes';
 import { clubsRouter } from './modules/clubs/clubs.routes';
 import { chatRouter } from './modules/chat/chat.routes';
 import { careerRouter } from './modules/career/career.routes';
@@ -19,14 +21,17 @@ import { searchRouter } from './modules/search/search.routes';
 import { departmentsRouter } from './modules/departments/departments.routes';
 import { adminRouter } from './modules/admin/admin.routes';
 import { mediaRouter } from './modules/media/routes/media.routes';
+import { facultyRouter } from './modules/faculty/faculty.routes';
 
 export const createApp = (): Application => {
   const app: Application = express();
 
   // Security & Utility Middlewares
-  app.use(helmet());
+  app.use(helmet({ crossOriginResourcePolicy: false }));
   app.use(cors({ origin: env.CORS_ORIGIN, credentials: true }));
-  app.use(express.json());
+  app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+  app.use(express.json({ limit: '50mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '50mb' }));
   app.use(express.urlencoded({ extended: true }));
   app.use(httpLogger);
 
@@ -94,6 +99,8 @@ export const createApp = (): Application => {
   app.use('/api/v1/auth', authRouter);
   app.use('/api/v1/profile', profileRouter);
   app.use('/api/v1/posts', postsRouter);
+  app.use('/api/v1/stories', storiesRouter);
+  app.use('/api/v1/posts/stories', storiesRouter);
   app.use('/api/v1/clubs', clubsRouter);
   app.use('/api/v1/chat', chatRouter);
   app.use('/api/v1/career', careerRouter);
@@ -105,6 +112,7 @@ export const createApp = (): Application => {
   app.use('/api/v1/departments', departmentsRouter);
   app.use('/api/v1/admin', adminRouter);
   app.use('/api/v1/media', mediaRouter);
+  app.use('/api/v1/faculty', facultyRouter);
 
   // Global Error Handler
   app.use(errorHandler);

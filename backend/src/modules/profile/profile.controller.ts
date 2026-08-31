@@ -6,8 +6,32 @@ export class ProfileController {
   constructor(private readonly profileService: ProfileService) {}
 
   getProfile = asyncHandler(async (req: Request, res: Response) => {
-    const profile = await this.profileService.getProfile(req.user!.userId);
+    const profile = await this.profileService.getProfile(req.user!.userId, req.user!.userId);
     res.status(200).json({ success: true, data: profile });
+  });
+
+  getUserProfileById = asyncHandler(async (req: Request, res: Response) => {
+    const targetUserId = req.params.userId;
+    const profile = await this.profileService.getProfile(targetUserId, req.user!.userId);
+    res.status(200).json({ success: true, data: profile });
+  });
+
+  getFollowers = asyncHandler(async (req: Request, res: Response) => {
+    const targetUserId = req.params.userId || req.user!.userId;
+    const followers = await this.profileService.getFollowers(targetUserId, req.user!.userId);
+    res.status(200).json({ success: true, data: followers });
+  });
+
+  getFollowing = asyncHandler(async (req: Request, res: Response) => {
+    const targetUserId = req.params.userId || req.user!.userId;
+    const following = await this.profileService.getFollowing(targetUserId, req.user!.userId);
+    res.status(200).json({ success: true, data: following });
+  });
+
+  toggleFollow = asyncHandler(async (req: Request, res: Response) => {
+    const targetUserId = req.params.targetUserId || req.params.userId;
+    const result = await this.profileService.toggleFollow(req.user!.userId, targetUserId);
+    res.status(200).json({ success: true, data: result });
   });
 
   updateProfile = asyncHandler(async (req: Request, res: Response) => {
@@ -16,14 +40,14 @@ export class ProfileController {
   });
 
   uploadAvatar = asyncHandler(async (req: Request, res: Response) => {
-    const { avatarUrl } = req.body;
-    const profile = await this.profileService.updateAvatar(req.user!.userId, avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb');
+    const avatarUrl = req.body?.avatarUrl || req.body?.avatar_url || req.body?.url || '';
+    const profile = await this.profileService.updateAvatar(req.user!.userId, avatarUrl);
     res.status(200).json({ success: true, data: profile });
   });
 
   uploadResume = asyncHandler(async (req: Request, res: Response) => {
-    const { resumeUrl } = req.body;
-    const profile = await this.profileService.updateResume(req.user!.userId, resumeUrl || 'https://campushub.edu/resumes/sample_resume.pdf');
+    const resumeUrl = req.body?.resumeUrl || req.body?.resume_url || req.body?.url || '';
+    const profile = await this.profileService.updateResume(req.user!.userId, resumeUrl);
     res.status(200).json({ success: true, data: profile });
   });
 

@@ -1,8 +1,6 @@
 import 'package:dio/dio.dart';
-import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/network/api_client.dart';
-
-part 'admin_remote_datasource.g.dart';
 
 class AdminRemoteDataSource {
   final Dio _dio;
@@ -153,8 +151,7 @@ class AdminRemoteDataSource {
   }
 }
 
-@Riverpod(keepAlive: true)
-AdminRemoteDataSource adminRemoteDataSource(AdminRemoteDataSourceRef ref) {
+final adminRemoteDataSourceProvider = Provider<AdminRemoteDataSource>((ref) {
   final dio = ref.watch(dioClientProvider);
   return AdminRemoteDataSource(dio);
-}
+});

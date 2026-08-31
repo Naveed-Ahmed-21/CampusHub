@@ -5,6 +5,8 @@ export const updateProfileSchema = z.object({
     firstName: z.string().min(1, 'First name cannot be empty').optional(),
     lastName: z.string().min(1, 'Last name cannot be empty').optional(),
     phone: z.string().optional(),
+    avatarUrl: z.string().optional().nullable(),
+    avatar_url: z.string().optional().nullable(),
     bio: z.string().max(500, 'Bio must be at most 500 characters').optional(),
     githubUrl: z.string().url('Invalid GitHub URL').or(z.literal('')).optional(),
     linkedinUrl: z.string().url('Invalid LinkedIn URL').or(z.literal('')).optional(),

@@ -14,11 +14,15 @@ class SocketChatService {
   final _typingStreamController = StreamController<Map<String, dynamic>>.broadcast();
   final _presenceStreamController = StreamController<Map<String, dynamic>>.broadcast();
   final _readReceiptStreamController = StreamController<Map<String, dynamic>>.broadcast();
+  final _reactionStreamController = StreamController<Map<String, dynamic>>.broadcast();
+  final _deletedMessageStreamController = StreamController<Map<String, dynamic>>.broadcast();
 
   Stream<ChatMessageModel> get onNewMessage => _messageStreamController.stream;
   Stream<Map<String, dynamic>> get onTypingChange => _typingStreamController.stream;
   Stream<Map<String, dynamic>> get onPresenceChange => _presenceStreamController.stream;
   Stream<Map<String, dynamic>> get onMessagesRead => _readReceiptStreamController.stream;
+  Stream<Map<String, dynamic>> get onReactionUpdated => _reactionStreamController.stream;
+  Stream<Map<String, dynamic>> get onMessageDeleted => _deletedMessageStreamController.stream;
 
   SocketChatService(this._storage);
 
@@ -44,6 +48,18 @@ class SocketChatService {
     _socket!.on('new_message', (data) {
       if (data != null && data is Map<String, dynamic>) {
         _messageStreamController.add(ChatMessageModel.fromJson(data));
+      }
+    });
+
+    _socket!.on('message_reaction_updated', (data) {
+      if (data != null && data is Map<String, dynamic>) {
+        _reactionStreamController.add(data);
+      }
+    });
+
+    _socket!.on('message_deleted_everyone', (data) {
+      if (data != null && data is Map<String, dynamic>) {
+        _deletedMessageStreamController.add(data);
       }
     });
 
@@ -92,7 +108,15 @@ class SocketChatService {
     _socket?.emit('typing_stop', {'roomId': roomId});
   }
 
-  void sendSocketMessage(String roomId, String message, {String? mediaUrl, String? mediaType, String? fileName, int? fileSize}) {
+  void sendSocketMessage(
+    String roomId,
+    String message, {
+    String? mediaUrl,
+    String? mediaType,
+    String? fileName,
+    int? fileSize,
+    String? replyToMessageId,
+  }) {
     _socket?.emit('send_message', {
       'roomId': roomId,
       'message': message,
@@ -100,7 +124,16 @@ class SocketChatService {
       'media_type': mediaType,
       'file_name': fileName,
       'file_size': fileSize,
+      'reply_to_message_id': replyToMessageId,
     });
+  }
+
+  void addReaction(String messageId, String emoji) {
+    _socket?.emit('add_reaction', {'messageId': messageId, 'emoji': emoji});
+  }
+
+  void removeReaction(String messageId, String emoji) {
+    _socket?.emit('remove_reaction', {'messageId': messageId, 'emoji': emoji});
   }
 
   void markRead(String roomId, List<String> messageIds) {
@@ -108,6 +141,14 @@ class SocketChatService {
       'roomId': roomId,
       'messageIds': messageIds,
     });
+  }
+
+  void sendPresencePing() {
+    _socket?.emit('presence_ping');
+  }
+
+  void sendPresenceSet(bool isOnline) {
+    _socket?.emit('presence_set', {'isOnline': isOnline});
   }
 
   void disconnect() {
@@ -122,6 +163,8 @@ class SocketChatService {
     _typingStreamController.close();
     _presenceStreamController.close();
     _readReceiptStreamController.close();
+    _reactionStreamController.close();
+    _deletedMessageStreamController.close();
   }
 }
 

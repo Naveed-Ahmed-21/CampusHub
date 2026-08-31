@@ -15,7 +15,7 @@ const envSchema = z.object({
   CORS_ORIGIN: z.string().default('*'),
   IMAGEKIT_PUBLIC_KEY: z.string().default('public_bHmTVCtLh/0L81p/u7EV158jBBM='),
   IMAGEKIT_PRIVATE_KEY: z.string().default('private_zFhrQRZdn8JqZEZBxcXHNMYTrcI='),
-  IMAGEKIT_URL_ENDPOINT: z.string().default('https://ik.imagekit.io/campushub'),
+  IMAGEKIT_URL_ENDPOINT: z.string().default('https://ik.imagekit.io/mycloudkit'),
 });
 
 export const env = envSchema.parse(process.env);

@@ -9,13 +9,23 @@ export const initFirebaseAdmin = () => {
       return;
     }
 
-    const serviceAccountPath = path.join(__dirname, '../../../campushub-4f0e5-firebase-adminsdk-fbsvc-b400d3ac99.json');
-    if (fs.existsSync(serviceAccountPath)) {
+    const backendRoot = path.join(__dirname, '../../../');
+    let serviceAccountPath: string | null = process.env.FIREBASE_SERVICE_ACCOUNT_PATH || null;
+
+    if (!serviceAccountPath || !fs.existsSync(serviceAccountPath)) {
+      const files = fs.readdirSync(backendRoot);
+      const matched = files.find((f) => f.includes('firebase-adminsdk') && f.endsWith('.json'));
+      if (matched) {
+        serviceAccountPath = path.join(backendRoot, matched);
+      }
+    }
+
+    if (serviceAccountPath && fs.existsSync(serviceAccountPath)) {
       const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
       initializeApp({
         credential: cert(serviceAccount),
       });
-      logger.info('Firebase Admin SDK initialized successfully with campushub-4f0e5 project credentials');
+      logger.info(`Firebase Admin SDK initialized successfully using ${path.basename(serviceAccountPath)}`);
     } else {
       logger.warn('Firebase service account file not found, FCM push dispatch running in mock mode');
     }

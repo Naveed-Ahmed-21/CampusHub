@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../features/auth/presentation/controllers/auth_controller.dart';
 import '../../../../features/chat/presentation/providers/chat_provider.dart';
 import '../../../../features/notifications/presentation/providers/notifications_provider.dart';
+import 'create_post_sheet.dart';
 
 class CampusTopAppBar extends ConsumerWidget implements PreferredSizeWidget {
   final VoidCallback onOpenDrawer;
@@ -22,11 +23,7 @@ class CampusTopAppBar extends ConsumerWidget implements PreferredSizeWidget {
     final theme = Theme.of(context);
     final campusName = user?.collegeId != null ? 'GCEE Campus' : 'CampusHub';
 
-    final roomsAsync = ref.watch(userChatRoomsProvider);
-    final unreadChats = roomsAsync.maybeWhen(
-      data: (rooms) => rooms.length,
-      orElse: () => 1,
-    );
+    final unreadChats = ref.watch(unreadChatsCountProvider);
 
     final unreadNotifications = ref.watch(unreadNotificationsCountProvider);
 
@@ -54,6 +51,19 @@ class CampusTopAppBar extends ConsumerWidget implements PreferredSizeWidget {
         ],
       ),
       actions: [
+        // New Post Button (With hover tooltip)
+        IconButton(
+          icon: const Icon(Icons.add_box_outlined, size: 24),
+          tooltip: 'New Post',
+          onPressed: () {
+            showModalBottomSheet(
+              context: context,
+              isScrollControlled: true,
+              backgroundColor: Colors.transparent,
+              builder: (ctx) => const CreatePostSheet(),
+            );
+          },
+        ),
         // Activity / Notifications (Heart) Button
         Stack(
           clipBehavior: Clip.none,

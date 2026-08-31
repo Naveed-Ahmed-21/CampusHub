@@ -11,8 +11,9 @@ export class SearchController {
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 10;
       const collegeId = req.user!.collegeId;
+      const currentUserId = req.user!.userId;
 
-      const data = await this.searchService.search(collegeId, q, type, page, limit);
+      const data = await this.searchService.search(collegeId, q, type, page, limit, currentUserId);
 
       return res.status(200).json({
         success: true,

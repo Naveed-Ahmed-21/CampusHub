@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/club_provider.dart';
 import 'create_club_dialog.dart';
+import '../../../auth/presentation/controllers/auth_controller.dart';
 
 class ClubsListView extends ConsumerStatefulWidget {
   const ClubsListView({super.key});
@@ -11,7 +12,7 @@ class ClubsListView extends ConsumerStatefulWidget {
   ConsumerState<ClubsListView> createState() => _ClubsListViewState();
 }
 
-class _ClubsListViewState extends ConsumerState<ClubsListView> {
+class _ClubsListViewState extends ConsumerState<ClubsListView> with AutomaticKeepAliveClientMixin {
   final _searchController = TextEditingController();
   final List<String> _categories = [
     'ALL',
@@ -22,6 +23,9 @@ class _ClubsListViewState extends ConsumerState<ClubsListView> {
     'Social Service',
     'Innovation & E-Cell',
   ];
+
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void dispose() {
@@ -38,19 +42,24 @@ class _ClubsListViewState extends ConsumerState<ClubsListView> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final clubsAsync = ref.watch(approvedClubsProvider);
     final filter = ref.watch(clubFilterProvider);
     final theme = Theme.of(context);
+    final authUser = ref.watch(authControllerProvider).asData?.value;
+    final isAdmin = authUser?.role == 'ADMIN' || authUser?.role == 'COLLEGE_ADMIN' || authUser?.role == 'SUPER_ADMIN';
+    final isDepartmentOnly = filter.isCrossDepartment == false;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Campus Clubs & Communities'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.fact_check_outlined),
-            tooltip: 'Pending Verifications (Admin)',
-            onPressed: () => context.push('/clubs/pending'),
-          ),
+          if (isAdmin)
+            IconButton(
+              icon: const Icon(Icons.fact_check_outlined),
+              tooltip: 'Pending Verifications (Admin)',
+              onPressed: () => context.push('/admin/clubs/pending'),
+            ),
           IconButton(
             icon: const Icon(Icons.refresh),
             tooltip: 'Refresh',
@@ -59,6 +68,7 @@ class _ClubsListViewState extends ConsumerState<ClubsListView> {
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: null,
         onPressed: _showCreateClubDialog,
         icon: const Icon(Icons.add),
         label: const Text('Create Club'),
@@ -98,12 +108,27 @@ class _ClubsListViewState extends ConsumerState<ClubsListView> {
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    const Text('Cross-Dept Only: ', style: TextStyle(fontWeight: FontWeight.w600)),
+                    Icon(
+                      Icons.domain,
+                      size: 18,
+                      color: isDepartmentOnly ? theme.colorScheme.primary : theme.colorScheme.outline,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Department Only',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13.5,
+                        color: isDepartmentOnly ? theme.colorScheme.primary : null,
+                      ),
+                    ),
+                    const Spacer(),
                     Switch(
-                      value: filter.isCrossDepartment ?? false,
+                      value: isDepartmentOnly,
                       onChanged: (val) {
                         ref.read(clubFilterProvider.notifier).state = filter.copyWith(
-                          isCrossDepartment: val ? true : null,
+                          isCrossDepartment: val ? false : null,
+                          clearCrossDepartment: !val,
                         );
                       },
                     ),
@@ -165,6 +190,7 @@ class _ClubsListViewState extends ConsumerState<ClubsListView> {
                 }
 
                 return ListView.builder(
+                  key: const PageStorageKey<String>('clubs_list_scroll_key'),
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   itemCount: clubs.length,
                   itemBuilder: (context, index) {

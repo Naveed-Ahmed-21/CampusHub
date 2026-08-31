@@ -2,112 +2,66 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/auth/presentation/controllers/auth_controller.dart';
-import '../../features/auth/domain/models/auth_user.dart';
 import 'responsive_layout.dart';
+import 'role_navigation_config.dart';
 
 class MainScaffold extends ConsumerWidget {
-  final Widget child;
+  final StatefulNavigationShell navigationShell;
 
-  const MainScaffold({super.key, required this.child});
-
-  int _calculateSelectedIndex(BuildContext context, bool isAdmin) {
-    final String location = GoRouterState.of(context).uri.toString();
-    if (location.startsWith('/feed')) return 0;
-    if (location.startsWith('/search')) return 1;
-    if (location.startsWith('/clubs')) return 2;
-    if (location.startsWith('/chat')) return 3;
-    if (location.startsWith('/profile')) return 4;
-    return 0;
-  }
-
-  void _onItemTapped(int index, BuildContext context) {
-    switch (index) {
-      case 0:
-        context.go('/feed');
-        break;
-      case 1:
-        context.go('/search');
-        break;
-      case 2:
-        context.go('/clubs');
-        break;
-      case 3:
-        context.go('/chat');
-        break;
-      case 4:
-        context.go('/profile');
-        break;
-    }
-  }
+  const MainScaffold({
+    super.key,
+    required this.navigationShell,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final user = ref.watch(authControllerProvider).asData?.value;
-    final isAdmin = user?.isAdmin ?? false;
-    final selectedIndex = _calculateSelectedIndex(context, isAdmin);
+    // Narrow watch using select to only rebuild when role/user identity changes
+    final user = ref.watch(authControllerProvider.select((state) => state.asData?.value));
+    final items = RoleNavigationConfig.getNavigationItemsForUser(user);
 
-    final destinations = [
-      const NavigationDestination(
-        icon: Icon(Icons.home_outlined),
-        selectedIcon: Icon(Icons.home),
-        label: 'Home',
-      ),
-      const NavigationDestination(
-        icon: Icon(Icons.search_outlined),
-        selectedIcon: Icon(Icons.search),
-        label: 'Search',
-      ),
-      const NavigationDestination(
-        icon: Icon(Icons.groups_outlined),
-        selectedIcon: Icon(Icons.groups),
-        label: 'Clubs',
-      ),
-      const NavigationDestination(
-        icon: Icon(Icons.chat_bubble_outline),
-        selectedIcon: Icon(Icons.chat_bubble),
-        label: 'Chats',
-      ),
-      const NavigationDestination(
-        icon: Icon(Icons.person_outline),
-        selectedIcon: Icon(Icons.person),
-        label: 'Profile',
-      ),
-    ];
+    // Calculate current selected index matching active branch index
+    int selectedIndex = items.indexWhere((item) => item.branchIndex == navigationShell.currentIndex);
+    if (selectedIndex < 0) {
+      selectedIndex = 0;
+    }
 
-    final railDestinations = [
-      const NavigationRailDestination(
-        icon: Icon(Icons.home_outlined),
-        selectedIcon: Icon(Icons.home),
-        label: Text('Home'),
-      ),
-      const NavigationRailDestination(
-        icon: Icon(Icons.search_outlined),
-        selectedIcon: Icon(Icons.search),
-        label: Text('Search'),
-      ),
-      const NavigationRailDestination(
-        icon: Icon(Icons.groups_outlined),
-        selectedIcon: Icon(Icons.groups),
-        label: Text('Clubs'),
-      ),
-      const NavigationRailDestination(
-        icon: Icon(Icons.chat_bubble_outline),
-        selectedIcon: Icon(Icons.chat_bubble),
-        label: Text('Chats'),
-      ),
-      const NavigationRailDestination(
-        icon: Icon(Icons.person_outline),
-        selectedIcon: Icon(Icons.person),
-        label: Text('Profile'),
-      ),
-    ];
+    void onDestinationTapped(int index) {
+      if (index >= 0 && index < items.length) {
+        final targetItem = items[index];
+        final isCurrent = targetItem.branchIndex == navigationShell.currentIndex;
+        navigationShell.goBranch(
+          targetItem.branchIndex,
+          initialLocation: isCurrent,
+        );
+      }
+    }
+
+    final destinations = items
+        .map(
+          (item) => NavigationDestination(
+            icon: item.icon,
+            selectedIcon: item.selectedIcon,
+            label: item.label,
+          ),
+        )
+        .toList(growable: false);
+
+    final railDestinations = items
+        .map(
+          (item) => NavigationRailDestination(
+            icon: item.icon,
+            selectedIcon: item.selectedIcon,
+            label: Text(item.label),
+          ),
+        )
+        .toList(growable: false);
 
     return ResponsiveLayout(
       mobile: Scaffold(
-        body: child,
+        body: navigationShell,
         bottomNavigationBar: NavigationBar(
           selectedIndex: selectedIndex,
-          onDestinationSelected: (idx) => _onItemTapped(idx, context),
+          onDestinationSelected: onDestinationTapped,
           destinations: destinations,
         ),
       ),
@@ -116,7 +70,7 @@ class MainScaffold extends ConsumerWidget {
           children: [
             NavigationRail(
               selectedIndex: selectedIndex,
-              onDestinationSelected: (idx) => _onItemTapped(idx, context),
+              onDestinationSelected: onDestinationTapped,
               labelType: NavigationRailLabelType.all,
               leading: const Padding(
                 padding: EdgeInsets.symmetric(vertical: 16.0),
@@ -125,7 +79,7 @@ class MainScaffold extends ConsumerWidget {
               destinations: railDestinations,
             ),
             const VerticalDivider(thickness: 1, width: 1),
-            Expanded(child: child),
+            Expanded(child: navigationShell),
           ],
         ),
       ),

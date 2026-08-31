@@ -1,12 +1,10 @@
-import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'dart:async';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/models/auth_user.dart';
 import '../../data/repositories/auth_repository_impl.dart';
 import '../../../notifications/data/notifications_repository.dart';
 
-part 'auth_controller.g.dart';
-
-@riverpod
-class AuthController extends _$AuthController {
+class AuthController extends AsyncNotifier<AuthUser?> {
   @override
   FutureOr<AuthUser?> build() async {
     // Auto-login check on app bootstrap
@@ -81,9 +79,15 @@ class AuthController extends _$AuthController {
     );
   }
 
+  void updateUser(AuthUser user) {
+    state = AsyncValue.data(user);
+  }
+
   Future<void> logout() async {
     final repository = ref.read(authRepositoryProvider);
     await repository.logout();
     state = const AsyncValue.data(null);
   }
 }
+
+final authControllerProvider = AsyncNotifierProvider<AuthController, AuthUser?>(AuthController.new);

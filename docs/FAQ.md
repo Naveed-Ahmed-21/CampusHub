@@ -89,7 +89,7 @@ Other Services
 
 * Socket.IO
 * Firebase Cloud Messaging
-* Cloudinary
+* ImageKit
 
 ---
 
@@ -272,7 +272,7 @@ Students can upload:
 
 ## How are passwords stored?
 
-Passwords are hashed using bcrypt before being stored.
+Passwords are hashed using Argon2id before being stored.
 
 Plain-text passwords are never stored.
 

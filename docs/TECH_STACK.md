@@ -35,7 +35,7 @@ The stack has been selected based on:
 | Authentication   | JWT                      |
 | Realtime         | Socket.IO                |
 | Notifications    | Firebase Cloud Messaging |
-| Storage          | Cloudinary               |
+| Storage          | ImageKit                 |
 | API              | REST                     |
 | Version Control  | Git                      |
 | CI/CD            | GitHub Actions           |
@@ -293,7 +293,7 @@ Supports
 
 ---
 
-## bcrypt
+## Argon2id
 
 Purpose
 
@@ -322,19 +322,21 @@ Used for
 
 # File Storage
 
-## Cloudinary
+## ImageKit
 
 Stores
 
 * Profile photos
 * Club logos
 * Post images
+* Chat documents & media
+* Resumes & certificates
 
 Future
 
-AWS S3
+AWS S3 / Distributed Object Storage
 
-For large files and videos.
+For large files and video streaming archives.
 
 ---
 
@@ -387,7 +389,7 @@ Zod
 
 jsonwebtoken
 
-bcrypt
+Argon2
 
 Purpose
 
@@ -563,7 +565,7 @@ PostgreSQL
       │
       ├──────────────┐
       ▼              ▼
-Cloudinary      Firebase
+ImageKit        Firebase
 (Storage)       (Push Notifications)
 ```
 

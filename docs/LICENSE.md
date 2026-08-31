@@ -26,7 +26,7 @@ Major technologies include:
 * Prisma ORM
 * Socket.IO
 * Firebase Cloud Messaging
-* Cloudinary
+* ImageKit
 
 ---
 

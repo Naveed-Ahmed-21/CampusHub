@@ -58,10 +58,7 @@ class StudentDrawerWidget extends ConsumerWidget {
     final theme = Theme.of(context);
     final currentRoute = GoRouterState.of(context).uri.toString();
 
-    final unreadChats = ref.watch(userChatRoomsProvider).maybeWhen(
-          data: (rooms) => rooms.length,
-          orElse: () => 5,
-        );
+    final unreadChats = ref.watch(unreadChatsCountProvider);
 
     final unreadNotifications = ref.watch(unreadNotificationsCountProvider);
 
@@ -181,15 +178,6 @@ class StudentDrawerWidget extends ConsumerWidget {
                     onTap: () {
                       Navigator.pop(context);
                       context.push('/clubs');
-                    },
-                  ),
-                  _buildMenuItem(
-                    context,
-                    icon: Icons.domain_outlined,
-                    label: 'Departments',
-                    onTap: () {
-                      Navigator.pop(context);
-                      context.push('/feed');
                     },
                   ),
                   _buildMenuItem(

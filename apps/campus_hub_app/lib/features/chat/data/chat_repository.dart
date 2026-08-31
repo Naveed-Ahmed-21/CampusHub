@@ -27,6 +27,11 @@ class ChatRepository {
     return ChatRoomModel.fromJson(response.data['data']);
   }
 
+  Future<ChatRoomModel> getOrCreateClubChat(String clubId) async {
+    final response = await _dio.get('/api/v1/chat/rooms/club/$clubId');
+    return ChatRoomModel.fromJson(response.data['data']);
+  }
+
   Future<List<ChatMessageModel>> getRoomMessages(String roomId, {int page = 1, int limit = 50}) async {
     final response = await _dio.get(
       '/api/v1/chat/rooms/$roomId/messages',
@@ -44,6 +49,7 @@ class ChatRepository {
     String? mediaType,
     String? fileName,
     int? fileSize,
+    String? replyToMessageId,
   }) async {
     final response = await _dio.post(
       '/api/v1/chat/messages',
@@ -54,17 +60,84 @@ class ChatRepository {
         'media_type': mediaType,
         'file_name': fileName,
         'file_size': fileSize,
+        'reply_to_message_id': replyToMessageId,
       },
     );
     return ChatMessageModel.fromJson(response.data['data']);
   }
 
-  Future<ChatRoomModel> createGroupChat({required String name, required List<String> memberIds}) async {
+  Future<ChatMessageModel> addReaction(String messageId, String emoji) async {
+    final response = await _dio.post(
+      '/api/v1/chat/messages/$messageId/reactions',
+      data: {'emoji': emoji},
+    );
+    return ChatMessageModel.fromJson(response.data['data']);
+  }
+
+  Future<ChatMessageModel> removeReaction(String messageId, String emoji) async {
+    final response = await _dio.delete(
+      '/api/v1/chat/messages/$messageId/reactions/${Uri.encodeComponent(emoji)}',
+    );
+    return ChatMessageModel.fromJson(response.data['data']);
+  }
+
+  Future<void> deleteMessageForMe(String messageId) async {
+    await _dio.delete('/api/v1/chat/messages/$messageId/for-me');
+  }
+
+  Future<ChatMessageModel> deleteMessageForEveryone(String messageId) async {
+    final response = await _dio.delete('/api/v1/chat/messages/$messageId/for-everyone');
+    return ChatMessageModel.fromJson(response.data['data']);
+  }
+
+  Future<ChatRoomModel> createGroupChat({
+    required String name,
+    String? description,
+    String? avatarUrl,
+    bool isPrivate = false,
+    required List<String> memberIds,
+  }) async {
     final response = await _dio.post(
       '/api/v1/chat/group',
-      data: {'name': name, 'memberIds': memberIds},
+      data: {
+        'name': name,
+        'description': description,
+        'avatarUrl': avatarUrl,
+        'isPrivate': isPrivate,
+        'memberIds': memberIds,
+      },
     );
     return ChatRoomModel.fromJson(response.data['data']);
+  }
+
+  Future<ChatRoomModel> updateGroupAvatar(String roomId, String? avatarUrl) async {
+    final response = await _dio.patch(
+      '/api/v1/chat/rooms/$roomId/avatar',
+      data: {'avatarUrl': avatarUrl},
+    );
+    return ChatRoomModel.fromJson(response.data['data']);
+  }
+
+  Future<List<ChatRoomModel>> getPublicGroups({String? query}) async {
+    final response = await _dio.get(
+      '/api/v1/chat/groups/public',
+      queryParameters: query != null && query.isNotEmpty ? {'query': query} : null,
+    );
+    final List list = response.data['data'] ?? [];
+    return list.map((json) => ChatRoomModel.fromJson(json)).toList();
+  }
+
+  Future<ChatRoomModel> getRoomDetails(String roomId) async {
+    final response = await _dio.get('/api/v1/chat/rooms/$roomId');
+    return ChatRoomModel.fromJson(response.data['data']);
+  }
+
+  Future<void> joinGroup(String roomId) async {
+    await _dio.post('/api/v1/chat/rooms/$roomId/join');
+  }
+
+  Future<void> leaveGroup(String roomId) async {
+    await _dio.post('/api/v1/chat/rooms/$roomId/leave');
   }
 
   Future<List<ChatParticipantUser>> searchCampusUsers({String? query}) async {

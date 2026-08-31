@@ -135,23 +135,20 @@ export class AdminRepository {
   }
 
   async getAuditLogs(collegeId: string) {
-    return [
-      {
-        id: 'log_1',
-        timestamp: new Date(Date.now() - 1800000),
-        actorName: 'Dr. Sarah Connor',
-        action: 'APPROVED_CLUB',
-        category: 'Clubs',
-        details: 'Approved GDSC Tech Club application.',
-      },
-      {
-        id: 'log_2',
-        timestamp: new Date(Date.now() - 3600000 * 5),
-        actorName: 'Placement Cell',
-        action: 'CREATED_DRIVE',
-        category: 'Placement',
-        details: 'Posted TechCorp Systems SDE-1 Drive (18 LPA).',
-      },
-    ];
+    const recentUsers = await prisma.user.findMany({
+      where: { college_id: collegeId },
+      orderBy: { created_at: 'desc' },
+      take: 10,
+      include: { department: true },
+    });
+
+    return recentUsers.map((u) => ({
+      id: `log_${u.id}`,
+      timestamp: u.created_at,
+      actorName: `${u.first_name} ${u.last_name}`.trim(),
+      action: 'USER_REGISTERED',
+      category: 'Authentication',
+      details: `Active ${u.role} account provisioned in ${u.department?.name || 'Institution'}.`,
+    }));
   }
 }

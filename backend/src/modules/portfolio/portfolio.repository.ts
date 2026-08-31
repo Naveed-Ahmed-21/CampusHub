@@ -57,11 +57,18 @@ export class PortfolioRepository {
   }
 
   async findPublicPortfolio(identifier: string) {
-    return prisma.portfolio.findFirst({
-      where: {
-        is_public: true,
-        OR: [{ user_id: identifier }, { custom_username: identifier }],
-      },
+    const cleanIdentifier = identifier.trim().replace(/^@/, '');
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanIdentifier);
+
+    let portfolio = await prisma.portfolio.findFirst({
+      where: isUuid
+        ? { user_id: cleanIdentifier }
+        : {
+            OR: [
+              { custom_username: cleanIdentifier },
+              { user: { username: cleanIdentifier } },
+            ],
+          },
       include: {
         user: {
           select: {
@@ -80,6 +87,18 @@ export class PortfolioRepository {
         achievements: { orderBy: { created_at: 'desc' } },
       },
     });
+
+    if (!portfolio && isUuid) {
+      const user = await prisma.user.findUnique({
+        where: { id: cleanIdentifier },
+        select: { id: true },
+      });
+      if (user) {
+        portfolio = await this.findPortfolioByUserId(cleanIdentifier);
+      }
+    }
+
+    return portfolio;
   }
 
   async updatePortfolio(userId: string, dto: UpdatePortfolioDto) {

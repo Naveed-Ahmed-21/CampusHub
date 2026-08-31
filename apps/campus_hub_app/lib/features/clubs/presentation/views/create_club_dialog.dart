@@ -3,6 +3,9 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/clubs_repository.dart';
 import '../providers/club_provider.dart';
+import '../../../../core/services/media_picker_service.dart';
+import '../../../../core/services/media_upload_service.dart';
+import '../../../../shared/widgets/selected_media_preview_widget.dart';
 
 class CreateClubDialog extends ConsumerStatefulWidget {
   const CreateClubDialog({super.key});
@@ -18,6 +21,7 @@ class _CreateClubDialogState extends ConsumerState<CreateClubDialog> {
   String _selectedCategory = 'Technical';
   bool _isCrossDepartment = true;
   bool _isSubmitting = false;
+  SelectedMediaFile? _logoFile;
 
   final List<String> _categories = [
     'Technical',
@@ -36,11 +40,34 @@ class _CreateClubDialogState extends ConsumerState<CreateClubDialog> {
     super.dispose();
   }
 
+  Future<void> _pickLogo() async {
+    final file = await MediaPickerService.showMediaPickerSheet(
+      context,
+      title: 'Select Club Logo',
+      enableCamera: true,
+      enableGallery: true,
+      enableVideoCamera: false,
+      enableVideoGallery: false,
+      enableDocuments: false,
+    );
+    if (file != null && mounted) {
+      setState(() => _logoFile = file);
+    }
+  }
+
   Future<void> _submitForm() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isSubmitting = true);
     try {
+      String? uploadedLogoUrl;
+
+      if (_logoFile != null) {
+        final uploadService = ref.read(mediaUploadServiceProvider);
+        final result = await uploadService.uploadSelectedFile(_logoFile!);
+        uploadedLogoUrl = result.url;
+      }
+
       final repository = ref.read(clubsRepositoryProvider);
       await repository.createClub(
         name: _nameController.text.trim(),
@@ -48,6 +75,7 @@ class _CreateClubDialogState extends ConsumerState<CreateClubDialog> {
         description: _descriptionController.text.trim().isEmpty
             ? null
             : _descriptionController.text.trim(),
+        logoUrl: uploadedLogoUrl,
         isCrossDepartment: _isCrossDepartment,
       );
 
@@ -115,6 +143,42 @@ class _CreateClubDialogState extends ConsumerState<CreateClubDialog> {
                     ],
                   ),
                   const SizedBox(height: 16),
+
+                  // Club Logo Picker
+                  Center(
+                    child: Column(
+                      children: [
+                        if (_logoFile != null) ...[
+                          SelectedMediaPreviewWidget(
+                            file: _logoFile!,
+                            onRemove: () => setState(() => _logoFile = null),
+                          ),
+                        ] else ...[
+                          InkWell(
+                            onTap: _pickLogo,
+                            borderRadius: BorderRadius.circular(50),
+                            child: Container(
+                              width: 80,
+                              height: 80,
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.primaryContainer.withValues(alpha: 0.5),
+                                shape: BoxShape.circle,
+                                border: Border.all(color: theme.colorScheme.primary, width: 1.5),
+                              ),
+                              child: Icon(Icons.add_a_photo, color: theme.colorScheme.primary, size: 30),
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Add Club Logo (Optional)',
+                            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
                   TextFormField(
                     controller: _nameController,
                     decoration: const InputDecoration(

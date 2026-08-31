@@ -77,13 +77,13 @@ docs/
 Flutter code
 
 ```
-apps/mobile_app/
+apps/campus_hub_app/
 ```
 
 Backend
 
 ```
-backend/api/
+backend/
 ```
 
 Documentation
@@ -112,7 +112,8 @@ git clone https://github.com/<your-username>/CampusHub.git
 
 ## 3. Install Flutter Packages
 
-```
+```bash
+cd apps/campus_hub_app
 flutter pub get
 ```
 
@@ -120,7 +121,8 @@ flutter pub get
 
 ## 4. Install Backend Packages
 
-```
+```bash
+cd backend
 npm install
 ```
 
@@ -139,15 +141,15 @@ Example
 ```
 DATABASE_URL=
 
-JWT_SECRET=
+JWT_ACCESS_SECRET=
 
 JWT_REFRESH_SECRET=
 
-CLOUDINARY_NAME=
+IMAGEKIT_PUBLIC_KEY=
 
-CLOUDINARY_KEY=
+IMAGEKIT_PRIVATE_KEY=
 
-CLOUDINARY_SECRET=
+IMAGEKIT_URL_ENDPOINT=
 ```
 
 ---

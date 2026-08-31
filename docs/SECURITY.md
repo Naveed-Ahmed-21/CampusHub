@@ -79,7 +79,7 @@ CampusHub uses:
 
 - JWT Access Tokens
 - Refresh Tokens
-- Secure Password Hashing (bcrypt)
+- Secure Password Hashing (Argon2id)
 
 Passwords are never stored in plain text.
 
@@ -120,7 +120,7 @@ Never commit:
 
 - JWT secrets
 - Database passwords
-- Cloudinary keys
+- ImageKit keys
 - Firebase credentials
 - API tokens
 
@@ -130,11 +130,11 @@ Example:
 
 ```env
 DATABASE_URL=
-JWT_SECRET=
+JWT_ACCESS_SECRET=
 JWT_REFRESH_SECRET=
-CLOUDINARY_NAME=
-CLOUDINARY_KEY=
-CLOUDINARY_SECRET=
+IMAGEKIT_PUBLIC_KEY=
+IMAGEKIT_PRIVATE_KEY=
+IMAGEKIT_URL_ENDPOINT=
 FIREBASE_SERVER_KEY=
 ```
 
@@ -216,7 +216,7 @@ Validate:
 - File extension
 - File size
 
-Store uploaded files outside the application server when possible (e.g., Cloudinary or S3).
+Store uploaded files outside the application server when possible (e.g., ImageKit or S3).
 
 ---
 

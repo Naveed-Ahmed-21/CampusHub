@@ -7,6 +7,20 @@ import { MediaCategory } from '@prisma/client';
 export class MediaController {
   constructor(private readonly mediaService: MediaService) {}
 
+  uploadFile = asyncHandler(async (req: Request, res: Response) => {
+    const file = req.file;
+    const { base64, dataUrl, fileName, mimeType } = req.body || {};
+
+    const uploadResult = await this.mediaService.handleDirectUpload(
+      file,
+      base64 || dataUrl,
+      fileName,
+      mimeType
+    );
+
+    ResponseUtil.success(res, uploadResult, 'File uploaded successfully', 201);
+  });
+
   getUploadAuth = asyncHandler(async (req: Request, res: Response) => {
     const authData = this.mediaService.getUploadAuth();
     ResponseUtil.success(res, authData, 'ImageKit upload credentials generated');

@@ -27,25 +27,19 @@ Benefits:
 CampusHub/
 │
 ├── apps/
-│   ├── mobile_app/
-│   ├── admin_panel/
-│   └── landing_page/
+│   └── campus_hub_app/      # Unified Flutter multi-platform application
 │
 ├── backend/
-│   ├── api/
-│   └── socket/
+│   ├── prisma/              # Prisma schema & migrations
+│   └── src/                 # Modular Express + Socket.IO API
 │
-├── database/
+├── docs/                    # Architecture & specifications
 │
-├── docs/
+├── assets/                  # Shared graphic assets
 │
-├── assets/
+├── docker-compose.yml       # Multi-container orchestration
 │
-├── docker/
-│
-├── scripts/
-│
-├── .github/
+├── .github/                 # CI/CD Workflows
 │
 ├── README.md
 ├── LICENSE
@@ -59,47 +53,24 @@ CampusHub/
 
 # Applications
 
-## mobile_app
+## campus_hub_app
 
-Flutter application for:
+Unified Flutter application for:
 
 * Students
 * Faculty
 * Placement Officers
 * Administrators
 
-Technology
+Technology:
 
 * Flutter
 * Riverpod
 * GoRouter
 * Dio
-
----
-
-## admin_panel
-
-Future Flutter Web application.
-
-Responsibilities
-
-* User management
-* Club verification
-* Analytics
-* Content moderation
-
----
-
-## landing_page
-
-Public website.
-
-Contains
-
-* Product overview
-* Documentation links
-* Download links
-* Contact information
+* Socket.IO Client
+* Flutter Secure Storage
+* Freezed & Json Serializable
 
 ---
 
@@ -107,9 +78,16 @@ Contains
 
 ```text
 backend/
-│
-├── api/
-└── socket/
+├── prisma/
+│   ├── schema.prisma
+│   └── seed.ts
+└── src/
+    ├── config/
+    ├── infrastructure/
+    ├── modules/
+    ├── shared/
+    ├── app.ts
+    └── server.ts
 ```
 
 ---
@@ -279,28 +257,17 @@ settings/
 # Database
 
 ```text
-database/
-
-prisma/
-
-migrations/
-
-seed/
-
-backups/
-
-schema.prisma
-
-database_schema.dbml
+backend/prisma/
+├── schema.prisma
+├── seed.ts
+└── migrations/
 ```
 
-Contains
+Contains:
 
-* Prisma schema
-* Migrations
-* Seed data
-* Backups
-* DBML source
+* Prisma schema & relations
+* Database migrations
+* Seed scripts
 
 ---
 
@@ -308,34 +275,28 @@ Contains
 
 ```text
 docs/
-
-01_Project_Vision.md
-
-02_PRD.md
-
-03_User_Flows.md
-
-04_Database_ERD.md
-
-05_API_Specification.md
-
-06_System_Architecture.md
-
-07_UI_Design_Guidelines.md
-
-08_Development_Roadmap.md
-
-09_Contribution_Guide.md
-
-10_Coding_Standards.md
-
-SECURITY.md
-
-DEPLOYMENT.md
-
-TESTING.md
-
-CHANGELOG.md
+├── Project_Vision.md
+├── PRD.md
+├── User_Flows.md
+├── API_Specification.md
+├── System_Architecture.md
+├── UI_Design_Guidelines.md
+├── Development_Roadmap.md
+├── Contribution_Guide.md
+├── Coding_Standards.md
+├── SECURITY.md
+├── DEPLOYMENT.md
+├── TESTING.md
+├── CHANGELOG.md
+├── TECH_STACK.md
+├── FAQ.md
+├── LICENSE.md
+├── OPEN_SOURCE_GUIDE.md
+├── RELEASE_PROCESS.md
+├── PROJECT_STRUCTURE.md
+└── database/
+    ├── Database_ERD.md
+    └── database_schema.dbml
 ```
 
 Documentation is version-controlled and updated alongside code.

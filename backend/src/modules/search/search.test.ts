@@ -9,6 +9,7 @@ describe('SearchService', () => {
 
   beforeEach(() => {
     searchRepo = {
+      searchUsers: jest.fn().mockResolvedValue([{ id: 'usr-1', first_name: 'Alex' }]),
       searchStudents: jest.fn().mockResolvedValue([{ id: 'std-1', first_name: 'Alex' }]),
       searchFaculty: jest.fn().mockResolvedValue([{ id: 'fac-1', first_name: 'Dr. Smith' }]),
       searchClubs: jest.fn().mockResolvedValue([{ id: 'clb-1', name: 'DevSync' }]),

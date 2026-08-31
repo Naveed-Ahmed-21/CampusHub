@@ -1,3 +1,5 @@
+import '../../feed/domain/models/post_item.dart';
+
 class Club {
   final String id;
   final String collegeId;
@@ -135,6 +137,7 @@ class ClubPost {
   final int likeCount;
   final int commentCount;
   final bool isLikedByMe;
+  final List<PostAttachmentItem> attachments;
 
   ClubPost({
     required this.id,
@@ -149,28 +152,41 @@ class ClubPost {
     this.likeCount = 0,
     this.commentCount = 0,
     this.isLikedByMe = false,
+    this.attachments = const [],
   });
 
   factory ClubPost.fromJson(Map<String, dynamic> json) {
     final author = json['author'] as Map<String, dynamic>? ?? {};
     final count = json['_count'] as Map<String, dynamic>?;
     final likes = json['likes'] as List<dynamic>?;
+    final authorFirstName = author['first_name'] ?? author['firstName'] ?? '';
+    final authorLastName = author['last_name'] ?? author['lastName'] ?? '';
+    String name = '$authorFirstName $authorLastName'.trim();
+    if (name.isEmpty) {
+      name = json['authorName'] ?? json['author_name'] ?? 'User';
+    }
+
+    final rawAttachments = json['attachments'] as List<dynamic>?;
+    final attachments = rawAttachments != null
+        ? rawAttachments.map((a) => PostAttachmentItem.fromJson(a as Map<String, dynamic>)).toList()
+        : <PostAttachmentItem>[];
 
     return ClubPost(
       id: json['id'] ?? '',
-      clubId: json['club_id'] ?? '',
-      authorId: json['author_id'] ?? author['id'] ?? '',
+      clubId: json['club_id'] ?? json['clubId'] ?? '',
+      authorId: json['author_id'] ?? json['authorId'] ?? author['id'] ?? '',
       title: json['title'] ?? '',
       content: json['content'] ?? '',
       type: json['type'] ?? 'GENERAL',
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'])
-          : DateTime.now(),
-      authorName: '${author['first_name'] ?? ''} ${author['last_name'] ?? ''}'.trim(),
-      authorAvatarUrl: author['avatar_url'],
-      likeCount: count?['likes'] ?? 0,
-      commentCount: count?['comments'] ?? 0,
-      isLikedByMe: likes != null && likes.isNotEmpty,
+          : (json['createdAt'] != null ? DateTime.parse(json['createdAt']) : DateTime.now()),
+      authorName: name,
+      authorAvatarUrl: author['avatar_url'] ?? author['avatarUrl'],
+      likeCount: count?['likes'] ?? json['likesCount'] ?? 0,
+      commentCount: count?['comments'] ?? json['commentsCount'] ?? 0,
+      isLikedByMe: likes != null ? likes.isNotEmpty : (json['isLiked'] ?? false),
+      attachments: attachments,
     );
   }
 }

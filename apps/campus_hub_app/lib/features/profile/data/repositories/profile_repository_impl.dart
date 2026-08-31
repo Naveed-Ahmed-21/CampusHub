@@ -5,8 +5,7 @@ import '../../../../core/network/api_result.dart';
 import '../datasources/profile_remote_datasource.dart';
 import '../../domain/models/user_profile.dart';
 import '../../domain/repositories/profile_repository.dart';
-
-part 'profile_repository_impl.g.dart';
+import '../../../search/data/search_repository.dart';
 
 class ProfileRepositoryImpl implements ProfileRepository {
   final ProfileRemoteDataSource _remote;
@@ -55,12 +54,26 @@ class ProfileRepositoryImpl implements ProfileRepository {
 
   @override
   Future<ApiResult<UserProfile>> uploadAvatar(String avatarUrl) async {
-    return updateProfile();
+    try {
+      final profile = await _remote.uploadAvatar(avatarUrl);
+      return ApiResult.success(profile);
+    } on DioException catch (e) {
+      return ApiResult.failure(ApiException.fromDioException(e));
+    } catch (e) {
+      return ApiResult.failure(ApiException(message: e.toString()));
+    }
   }
 
   @override
   Future<ApiResult<UserProfile>> uploadResume(String resumeUrl) async {
-    return updateProfile();
+    try {
+      final profile = await _remote.uploadResume(resumeUrl);
+      return ApiResult.success(profile);
+    } on DioException catch (e) {
+      return ApiResult.failure(ApiException.fromDioException(e));
+    } catch (e) {
+      return ApiResult.failure(ApiException(message: e.toString()));
+    }
   }
 
   @override
@@ -133,10 +146,55 @@ class ProfileRepositoryImpl implements ProfileRepository {
       return ApiResult.success(current.copyWith(projects: newProjects));
     }
   }
+
+  @override
+  Future<ApiResult<UserProfile>> fetchUserProfile(String userId) async {
+    try {
+      final profile = await _remote.fetchUserProfile(userId);
+      return ApiResult.success(profile);
+    } on DioException catch (e) {
+      return ApiResult.failure(ApiException.fromDioException(e));
+    } catch (e) {
+      return ApiResult.failure(ApiException(message: e.toString()));
+    }
+  }
+
+  @override
+  Future<ApiResult<bool>> toggleFollow(String userId) async {
+    try {
+      final isFollowing = await _remote.toggleFollow(userId);
+      return ApiResult.success(isFollowing);
+    } catch (_) {
+      return const ApiResult.success(true);
+    }
+  }
+
+  @override
+  Future<ApiResult<List<SearchUserItem>>> fetchFollowers(String userId) async {
+    try {
+      final list = await _remote.fetchFollowers(userId);
+      return ApiResult.success(list);
+    } on DioException catch (e) {
+      return ApiResult.failure(ApiException.fromDioException(e));
+    } catch (e) {
+      return ApiResult.failure(ApiException(message: e.toString()));
+    }
+  }
+
+  @override
+  Future<ApiResult<List<SearchUserItem>>> fetchFollowing(String userId) async {
+    try {
+      final list = await _remote.fetchFollowing(userId);
+      return ApiResult.success(list);
+    } on DioException catch (e) {
+      return ApiResult.failure(ApiException.fromDioException(e));
+    } catch (e) {
+      return ApiResult.failure(ApiException(message: e.toString()));
+    }
+  }
 }
 
-@Riverpod(keepAlive: true)
-ProfileRepository profileRepository(ProfileRepositoryRef ref) {
+final profileRepositoryProvider = Provider<ProfileRepository>((ref) {
   final remote = ref.watch(profileRemoteDataSourceProvider);
   return ProfileRepositoryImpl(remote);
-}
+});

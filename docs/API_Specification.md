@@ -26,6 +26,7 @@
 14. Portfolio APIs
 15. Notification APIs
 16. Admin APIs
+17. Faculty APIs
 
 ---
 
@@ -839,12 +840,92 @@ multipart/form-data
 
 ---
 
+# Faculty APIs
+
+Base path: `/api/v1/faculty`  
+Protected: `requireAuth()`, `requireRole('FACULTY', 'ADMIN', 'COLLEGE_ADMIN', 'SUPER_ADMIN')`
+
+### Get Faculty Dashboard
+```http
+GET /api/v1/faculty/dashboard
+```
+Returns profile info, KPI statistics, today's lecture schedule, recent announcements, and department events.
+
+### Get Assigned Subjects
+```http
+GET /api/v1/faculty/subjects
+```
+Returns list of subjects handled by the faculty member.
+
+### Create / Register New Subject
+```http
+POST /api/v1/faculty/subjects
+Content-Type: application/json
+
+{
+  "code": "CS301",
+  "name": "Data Structures & Algorithms",
+  "semester": "Semester 5",
+  "section": "A",
+  "credits": 4,
+  "departmentName": "Computer Science & Engineering",
+  "description": "Comprehensive course on data structures and algorithms."
+}
+```
+
+### Get Subject Details
+```http
+GET /api/v1/faculty/subjects/:subjectId
+```
+Returns course overview, uploaded study materials, announcements, and enrollment count.
+
+### Upload Subject Resource / Study Material
+```http
+POST /api/v1/faculty/subjects/:subjectId/resources
+Content-Type: application/json
+
+{
+  "title": "Unit 1 - Complexity Analysis & Big-O.pdf",
+  "description": "Lecture slides and problem walkthroughs.",
+  "fileUrl": "https://ik.imagekit.io/campushub/academic/cs301_unit1.pdf",
+  "fileType": "PDF"
+}
+```
+
+### Delete Subject Resource
+```http
+DELETE /api/v1/faculty/subjects/:subjectId/resources/:resourceId
+```
+
+### Post Subject Announcement
+```http
+POST /api/v1/faculty/subjects/:subjectId/announcements
+Content-Type: application/json
+
+{
+  "title": "Midterm Practical Exam Schedule",
+  "content": "Practical evaluation for Unit 1 and 2 will be held this Thursday in Lab 3."
+}
+```
+
+### Get Today's Class Schedule
+```http
+GET /api/v1/faculty/classes/today
+```
+
+### Get Assigned Student Mentees
+```http
+GET /api/v1/faculty/mentees
+```
+
+---
+
 # Security
 
 - JWT Authentication
 - Refresh Tokens
 - HTTPS
-- Password Hashing (bcrypt)
+- Password Hashing (Argon2id)
 - Role-Based Access Control
 - Request Validation
 - Rate Limiting

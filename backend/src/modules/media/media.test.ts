@@ -1,33 +1,19 @@
 import request from 'supertest';
 import { createApp } from '../../app';
 import { generateAccessToken } from '../../shared/utils/jwt.util';
-import { prisma } from '../../config/database';
 
 const app = createApp();
 
 describe('Media Module Integration Tests', () => {
   let userToken: string;
 
-  beforeAll(async () => {
-    const existingUser = await prisma.user.findFirst({
-      include: { college: true },
+  beforeAll(() => {
+    userToken = generateAccessToken({
+      userId: '10000000-0000-4000-8000-000000000101',
+      collegeId: '10000000-0000-4000-8000-000000000001',
+      role: 'STUDENT',
+      email: 'media_student@campushub.edu',
     });
-
-    if (existingUser) {
-      userToken = generateAccessToken({
-        userId: existingUser.id,
-        collegeId: existingUser.college_id,
-        role: existingUser.role,
-        email: existingUser.email,
-      });
-    } else {
-      userToken = generateAccessToken({
-        userId: '10000000-0000-4000-8000-000000000101',
-        collegeId: '10000000-0000-4000-8000-000000000001',
-        role: 'STUDENT',
-        email: 'media_student@campushub.edu',
-      });
-    }
   });
 
   describe('GET /api/v1/media/auth', () => {

@@ -424,6 +424,7 @@ class _PlacementHubViewState extends ConsumerState<PlacementHubView> {
 
     return Scaffold(
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: null,
         onPressed: _showCreateDriveDialog,
         icon: const Icon(Icons.add),
         label: const Text('Post Drive'),

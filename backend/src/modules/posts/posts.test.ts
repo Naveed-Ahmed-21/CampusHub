@@ -52,6 +52,44 @@ describe('PostsService', () => {
       expect(result.length).toBeGreaterThan(0);
     });
 
+    it('should query author posts for FeedType.AUTHOR with authorId', async () => {
+      const mockPosts = [
+        {
+          id: 'post_author_1',
+          title: 'Student Research Paper',
+          content: 'Here is my research on distributed systems',
+          type: 'ACADEMIC',
+          is_pinned: false,
+          created_at: new Date(),
+          author: { id: 'std_author_1', first_name: 'Student', last_name: 'Author', avatar_url: null, role: 'STUDENT' },
+          attachments: [],
+          likes: [],
+          saves: [],
+          _count: { likes: 5, comments: 2 },
+        },
+      ];
+
+      postsRepository.getPosts.mockResolvedValue(mockPosts as any);
+
+      const result = await postsService.getFeed({
+        userId: 'faculty_1',
+        collegeId: 'clg_1',
+        feedType: FeedType.AUTHOR,
+        authorId: 'std_author_1',
+        page: 1,
+        limit: 50,
+      });
+
+      expect(postsRepository.getPosts).toHaveBeenCalledWith(
+        expect.objectContaining({
+          authorId: 'std_author_1',
+          feedType: FeedType.AUTHOR,
+        })
+      );
+      expect(result).toHaveLength(1);
+      expect(result[0].title).toBe('Student Research Paper');
+    });
+
     it('should return clean empty array if repository throws DB error', async () => {
       postsRepository.getPosts.mockRejectedValue(new Error('DB connection refused'));
 

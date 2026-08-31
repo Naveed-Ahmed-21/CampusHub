@@ -5,76 +5,73 @@ import { UpdateProfileDTO, AddSkillDTO, AddProjectDTO, ProfileResponseDTO } from
 export class ProfileService {
   constructor(private readonly profileRepo: ProfileRepository) {}
 
-  async getProfile(userId: string): Promise<ProfileResponseDTO> {
-    try {
-      const user = await this.profileRepo.getProfileByUserId(userId);
-      if (user) {
-        return {
-          id: user.id,
-          email: user.email,
-          firstName: user.first_name,
-          lastName: user.last_name,
-          rollNumber: user.roll_number,
-          phone: user.phone,
-          avatarUrl: user.avatar_url,
-          bio: user.portfolio?.bio,
-          githubUrl: user.portfolio?.github_url,
-          linkedinUrl: user.portfolio?.linkedin_url,
-          websiteUrl: user.portfolio?.website_url,
-          resumeUrl: user.portfolio?.resume_url,
-          skills: (user.portfolio?.skills || []).map((s) => ({
-            id: s.id,
-            skillName: s.skill_name,
-            proficiency: s.proficiency,
-          })),
-          projects: (user.portfolio?.projects || []).map((p) => ({
-            id: p.id,
-            title: p.title,
-            description: p.description,
-            projectUrl: p.project_url,
-            repoUrl: p.repo_url,
-          })),
-        };
-      }
-    } catch (_) {
-      // Fallback
+  async getProfile(userId: string, currentUserId?: string): Promise<ProfileResponseDTO> {
+    const user = await this.profileRepo.getProfileByUserId(userId);
+    if (!user) {
+      throw new NotFoundError('User not found');
     }
 
+    const stats = await this.profileRepo.getUserFollowStats(user.id, currentUserId);
+
+    const handle = user.username
+      ? (user.username.startsWith('@') ? user.username : `@${user.username}`)
+      : `@${user.email.split('@')[0].toLowerCase()}`;
+
     return {
-      id: userId,
-      email: 'student@campushub.edu',
-      firstName: 'Alex',
-      lastName: 'Vance',
-      rollNumber: 'CS2026-10092',
-      phone: '+1 555-0192',
-      avatarUrl: null,
-      bio: 'Computer Science student passionate about Mobile Development and AI Systems.',
-      githubUrl: 'https://github.com/campushub-dev',
-      linkedinUrl: 'https://linkedin.com/in/campushub-dev',
-      websiteUrl: 'https://campushub.dev',
-      resumeUrl: null,
-      skills: [
-        { id: 'skl_1', skillName: 'Flutter & Dart', proficiency: 'ADVANCED' },
-        { id: 'skl_2', skillName: 'TypeScript & Node.js', proficiency: 'ADVANCED' },
-      ],
-      projects: [
-        {
-          id: 'proj_1',
-          title: 'CampusHub Ecosystem',
-          description: 'Cross-platform student app built with Flutter, Riverpod, and Node.js.',
-          projectUrl: 'https://campushub.dev',
-          repoUrl: 'https://github.com/campushub-dev/app',
-        },
-      ],
+      id: user.id,
+      email: user.email,
+      username: handle,
+      firstName: user.first_name,
+      lastName: user.last_name,
+      role: user.role,
+      department: user.department ? { id: user.department.id, name: user.department.name } : null,
+      rollNumber: user.roll_number,
+      phone: user.phone,
+      avatarUrl: user.avatar_url,
+      bio: user.portfolio?.bio,
+      githubUrl: user.portfolio?.github_url,
+      linkedinUrl: user.portfolio?.linkedin_url,
+      websiteUrl: user.portfolio?.website_url,
+      resumeUrl: user.portfolio?.resume_url,
+      followersCount: stats.followersCount,
+      followingCount: stats.followingCount,
+      postsCount: stats.postsCount ?? 0,
+      isFollowing: stats.isFollowing,
+      skills: (user.portfolio?.skills || []).map((s) => ({
+        id: s.id,
+        skillName: s.skill_name,
+        proficiency: s.proficiency,
+      })),
+      projects: (user.portfolio?.projects || []).map((p) => ({
+        id: p.id,
+        title: p.title,
+        description: p.description,
+        projectUrl: p.project_url,
+        repoUrl: p.repo_url,
+      })),
     };
   }
 
+  async getFollowers(userId: string, currentUserId?: string) {
+    return this.profileRepo.getFollowers(userId, currentUserId);
+  }
+
+  async getFollowing(userId: string, currentUserId?: string) {
+    return this.profileRepo.getFollowing(userId, currentUserId);
+  }
+
+  async toggleFollow(followerId: string, followingId: string) {
+    return this.profileRepo.toggleFollow(followerId, followingId);
+  }
+
   async updateProfile(userId: string, dto: UpdateProfileDTO): Promise<ProfileResponseDTO> {
-    if (dto.firstName || dto.lastName || dto.phone) {
+    const avatar = dto.avatarUrl ?? (dto as any).avatar_url;
+    if (dto.firstName || dto.lastName || dto.phone || avatar !== undefined) {
       await this.profileRepo.updateUser(userId, {
         firstName: dto.firstName,
         lastName: dto.lastName,
         phone: dto.phone,
+        avatarUrl: avatar,
       });
     }
 

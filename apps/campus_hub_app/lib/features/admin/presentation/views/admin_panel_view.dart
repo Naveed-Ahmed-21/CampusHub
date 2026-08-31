@@ -185,7 +185,14 @@ class _AdminPanelViewState extends ConsumerState<AdminPanelView> with SingleTick
   }
 
   Widget _buildUsersTab(ThemeData theme) {
-    final usersAsync = ref.watch(adminUsersProvider(role: _selectedRole, search: _searchController.text.isEmpty ? null : _searchController.text));
+    final usersAsync = ref.watch(
+      adminUsersProvider(
+        AdminUsersFilter(
+          role: _selectedRole,
+          search: _searchController.text.isEmpty ? null : _searchController.text,
+        ),
+      ),
+    );
 
     return Padding(
       padding: const EdgeInsets.all(16),

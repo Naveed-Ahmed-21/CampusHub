@@ -3,7 +3,15 @@ import { User, RefreshToken, PasswordResetToken } from '@prisma/client';
 
 export class AuthRepository {
   async findUserByEmail(email: string): Promise<User | null> {
-    return prisma.user.findUnique({ where: { email } });
+    const cleanEmail = email.trim().toLowerCase();
+    return prisma.user.findFirst({
+      where: {
+        email: {
+          equals: cleanEmail,
+          mode: 'insensitive',
+        },
+      },
+    });
   }
 
   async findUserById(id: string): Promise<User | null> {

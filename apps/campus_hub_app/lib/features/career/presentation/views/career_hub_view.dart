@@ -275,6 +275,7 @@ class _CareerHubViewState extends ConsumerState<CareerHubView> with SingleTicker
 
     return Scaffold(
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: null,
         onPressed: _showAddGoalDialog,
         icon: const Icon(Icons.add),
         label: const Text('Add Goal'),

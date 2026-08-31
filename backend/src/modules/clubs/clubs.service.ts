@@ -221,8 +221,12 @@ export class ClubsService {
     }
 
     const requesterMember = await this.clubsRepository.findMember(clubId, requesterId);
-    const isAdmin = userRole === Role.COLLEGE_ADMIN || userRole === Role.SUPER_ADMIN;
-    const isLead = requesterMember?.role === ClubRole.LEAD || requesterMember?.role === ClubRole.FACULTY_ADVISOR;
+    const isAdmin = userRole === Role.COLLEGE_ADMIN || userRole === Role.SUPER_ADMIN || userRole === Role.ADMIN;
+    const isLead =
+      requesterMember?.role === ClubRole.LEAD ||
+      requesterMember?.role === ClubRole.ASSISTANT_ADMIN ||
+      requesterMember?.role === ClubRole.FACULTY_ADVISOR ||
+      club.created_by_id === requesterId;
 
     if (!isAdmin && !isLead) {
       throw new ForbiddenError('Only club leaders or college admins can change member roles');
@@ -241,6 +245,14 @@ export class ClubsService {
     const club = await this.clubsRepository.findClubById(clubId);
     if (!club || club.college_id !== collegeId) {
       throw new NotFoundError('Club not found');
+    }
+
+    const requesterMember = await this.clubsRepository.findMember(clubId, requesterId);
+    const isCollegeAdmin = userRole === Role.ADMIN || userRole === Role.COLLEGE_ADMIN || userRole === Role.SUPER_ADMIN;
+    const isClubLead = requesterMember?.role === ClubRole.LEAD || requesterMember?.role === ClubRole.FACULTY_ADVISOR || club.created_by_id === requesterId;
+
+    if (!isCollegeAdmin && !isClubLead) {
+      throw new ForbiddenError('Only club leaders or admins can add members to this club');
     }
 
     let targetUserId = data.userId;
@@ -344,8 +356,13 @@ export class ClubsService {
     }
 
     const member = await this.clubsRepository.findMember(clubId, organizerId);
-    const isAdmin = userRole === Role.COLLEGE_ADMIN || userRole === Role.SUPER_ADMIN;
-    const isLeader = member?.role === ClubRole.LEAD || member?.role === ClubRole.FACULTY_ADVISOR;
+    const isAdmin = userRole === Role.COLLEGE_ADMIN || userRole === Role.SUPER_ADMIN || userRole === Role.ADMIN;
+    const isLeader =
+      member?.role === ClubRole.LEAD ||
+      member?.role === ClubRole.ASSISTANT_ADMIN ||
+      member?.role === ClubRole.EVENT_LEADER ||
+      member?.role === ClubRole.FACULTY_ADVISOR ||
+      club.created_by_id === organizerId;
 
     if (!isAdmin && !isLeader) {
       throw new ForbiddenError('Only club leaders or admins can create club events');
@@ -376,8 +393,13 @@ export class ClubsService {
     }
 
     const member = await this.clubsRepository.findMember(clubId, uploaderId);
-    const isAdmin = userRole === Role.COLLEGE_ADMIN || userRole === Role.SUPER_ADMIN;
-    const isLead = member?.role === ClubRole.LEAD || member?.role === ClubRole.FACULTY_ADVISOR;
+    const isAdmin = userRole === Role.COLLEGE_ADMIN || userRole === Role.SUPER_ADMIN || userRole === Role.ADMIN;
+    const isLead =
+      member?.role === ClubRole.LEAD ||
+      member?.role === ClubRole.ASSISTANT_ADMIN ||
+      member?.role === ClubRole.TECHNICAL_LEADER ||
+      member?.role === ClubRole.FACULTY_ADVISOR ||
+      club.created_by_id === uploaderId;
 
     if (!isAdmin && !isLead) {
       throw new ForbiddenError('Only club leaders or college admins can upload club resources');
@@ -399,8 +421,13 @@ export class ClubsService {
     }
 
     const member = await this.clubsRepository.findMember(clubId, requesterId);
-    const isAdmin = userRole === Role.COLLEGE_ADMIN || userRole === Role.SUPER_ADMIN;
-    const isLeader = member?.role === ClubRole.LEAD || member?.role === ClubRole.FACULTY_ADVISOR;
+    const isAdmin = userRole === Role.COLLEGE_ADMIN || userRole === Role.SUPER_ADMIN || userRole === Role.ADMIN;
+    const isLeader =
+      member?.role === ClubRole.LEAD ||
+      member?.role === ClubRole.ASSISTANT_ADMIN ||
+      member?.role === ClubRole.TECHNICAL_LEADER ||
+      member?.role === ClubRole.FACULTY_ADVISOR ||
+      club.created_by_id === requesterId;
 
     if (!isAdmin && !isLeader) {
       throw new ForbiddenError('Only club leaders or admins can delete club resources');

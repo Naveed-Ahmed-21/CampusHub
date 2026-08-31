@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../shared/responsive/responsive_layout.dart';
 import '../../../../shared/widgets/async_value_widget.dart';
-import '../../../../shared/widgets/custom_button.dart';
-import '../../../../shared/widgets/custom_text_field.dart';
 import '../controllers/feed_controller.dart';
 import '../../domain/models/post_item.dart';
-import '../../data/repositories/feed_repository_impl.dart';
 import '../widgets/campus_top_app_bar.dart';
 import '../widgets/student_drawer_widget.dart';
 import '../widgets/stories_section_widget.dart';
@@ -14,6 +12,8 @@ import '../widgets/create_post_bar_widget.dart';
 import '../widgets/feed_filter_tabs_widget.dart';
 import '../widgets/feed_post_card_widget.dart';
 import '../widgets/bottom_search_bar_widget.dart';
+import '../widgets/create_post_sheet.dart';
+import '../widgets/comments_sheet.dart';
 
 class FeedView extends ConsumerStatefulWidget {
   const FeedView({super.key});
@@ -22,15 +22,19 @@ class FeedView extends ConsumerStatefulWidget {
   ConsumerState<FeedView> createState() => _FeedViewState();
 }
 
-class _FeedViewState extends ConsumerState<FeedView> {
+class _FeedViewState extends ConsumerState<FeedView> with AutomaticKeepAliveClientMixin {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final ScrollController _scrollController = ScrollController();
+
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(() {
-      if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 250) {
+      if (_scrollController.hasClients &&
+          _scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 250) {
         ref.read(feedControllerProvider.notifier).fetchNextPage();
       }
     });
@@ -50,8 +54,18 @@ class _FeedViewState extends ConsumerState<FeedView> {
     }
   }
 
+  void _openCreatePost(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => const CreatePostSheet(),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final activeFeedType = ref.watch(activeFeedTypeProvider);
     final feedAsync = ref.watch(feedControllerProvider);
 
@@ -61,11 +75,6 @@ class _FeedViewState extends ConsumerState<FeedView> {
         onOpenDrawer: () => _scaffoldKey.currentState?.openDrawer(),
       ),
       drawer: const StudentDrawerWidget(),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showCreatePostSheet(context, ref),
-        icon: const Icon(Icons.edit),
-        label: const Text('New Post'),
-      ),
       body: AsyncValueWidget<List<PostItem>>(
         value: feedAsync,
         data: (posts) => RefreshIndicator(
@@ -86,9 +95,10 @@ class _FeedViewState extends ConsumerState<FeedView> {
 
   Widget _buildFeedLayout(BuildContext context, List<PostItem> posts, String activeFeedType, {required bool isDesktop}) {
     return CustomScrollView(
+      key: const PageStorageKey<String>('feed_custom_scroll_view'),
       controller: _scrollController,
       slivers: [
-        // 1. Stories Section
+        // 1. Real Stories Section
         const SliverToBoxAdapter(
           child: StoriesSectionWidget(),
         ),
@@ -96,7 +106,7 @@ class _FeedViewState extends ConsumerState<FeedView> {
         // 2. Compact Create Post Bar
         SliverToBoxAdapter(
           child: CreatePostBarWidget(
-            onTap: () => _showCreatePostSheet(context, ref),
+            onTap: () => _openCreatePost(context),
           ),
         ),
 
@@ -112,16 +122,62 @@ class _FeedViewState extends ConsumerState<FeedView> {
         if (posts.isEmpty)
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.all(40.0),
+              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 48.0),
               child: Center(
                 child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.dynamic_feed, size: 64, color: Colors.grey),
+                    Icon(
+                      activeFeedType == 'FOLLOWING' ? Icons.people_outline : Icons.dynamic_feed,
+                      size: 64,
+                      color: Colors.grey.shade400,
+                    ),
                     const SizedBox(height: 16),
                     Text(
-                      'No campus posts found in this feed yet.',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.grey),
+                      activeFeedType == 'FOLLOWING'
+                          ? 'You are not following anyone yet.'
+                          : 'No campus posts found in this feed yet.',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
                     ),
+                    const SizedBox(height: 8),
+                    Text(
+                      activeFeedType == 'FOLLOWING'
+                          ? 'Follow people from your campus to see their posts here.'
+                          : 'Be the first to share an update with your campus community!',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Colors.grey,
+                          ),
+                    ),
+                    const SizedBox(height: 18),
+                    if (activeFeedType == 'FOLLOWING') ...[
+                      Wrap(
+                        alignment: WrapAlignment.center,
+                        spacing: 10,
+                        runSpacing: 10,
+                        children: [
+                          FilledButton.icon(
+                            onPressed: () => context.push('/search'),
+                            icon: const Icon(Icons.person_search, size: 18),
+                            label: const Text('Discover People to Follow'),
+                          ),
+                          OutlinedButton.icon(
+                            onPressed: () => _onSelectTab('MY_FEED'),
+                            icon: const Icon(Icons.dynamic_feed, size: 18),
+                            label: const Text('Explore For You Feed'),
+                          ),
+                        ],
+                      ),
+                    ] else
+                      ElevatedButton.icon(
+                        onPressed: () => _openCreatePost(context),
+                        icon: const Icon(Icons.add),
+                        label: const Text('Create the first post'),
+                      ),
                   ],
                 ),
               ),
@@ -135,7 +191,7 @@ class _FeedViewState extends ConsumerState<FeedView> {
                   final post = posts[index];
                   return FeedPostCardWidget(
                     post: post,
-                    onOpenComments: () => _showCommentsSheet(context, ref, post.id),
+                    onOpenComments: () => PostCommentsSheet.show(context, post.id),
                   );
                 } else {
                   final hasMore = ref.watch(feedControllerProvider.notifier).hasMore;
@@ -161,164 +217,4 @@ class _FeedViewState extends ConsumerState<FeedView> {
       ],
     );
   }
-}
-
-void _showCreatePostSheet(BuildContext context, WidgetRef ref) {
-  final titleCtrl = TextEditingController();
-  final contentCtrl = TextEditingController();
-  final imageUrlCtrl = TextEditingController();
-  String selectedType = 'GENERAL';
-  bool isSubmitting = false;
-
-  showModalBottomSheet(
-    context: context,
-    isScrollControlled: true,
-    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-    builder: (ctx) => StatefulBuilder(
-      builder: (ctx, setState) => Padding(
-        padding: EdgeInsets.only(
-          left: 24,
-          right: 24,
-          top: 24,
-          bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
-        ),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text('Create New Post', style: Theme.of(ctx).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
-              const SizedBox(height: 16),
-              CustomTextField(controller: titleCtrl, label: 'Post Title'),
-              const SizedBox(height: 12),
-              CustomTextField(controller: contentCtrl, label: 'What is on your mind?'),
-              const SizedBox(height: 12),
-              CustomTextField(controller: imageUrlCtrl, label: 'Image URL (Optional)'),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                initialValue: selectedType,
-                decoration: const InputDecoration(labelText: 'Post Scope / Category'),
-                items: const [
-                  DropdownMenuItem(value: 'GENERAL', child: Text('General Post')),
-                  DropdownMenuItem(value: 'ANNOUNCEMENT', child: Text('Announcement')),
-                  DropdownMenuItem(value: 'ACADEMIC', child: Text('Academic Discussion')),
-                  DropdownMenuItem(value: 'EVENT_PROMO', child: Text('Event Promotion')),
-                ],
-                onChanged: (val) {
-                  if (val != null) setState(() => selectedType = val);
-                },
-              ),
-              const SizedBox(height: 20),
-              CustomButton(
-                label: isSubmitting ? 'Publishing...' : 'Publish Post',
-                isLoading: isSubmitting,
-                onPressed: isSubmitting
-                    ? null
-                    : () async {
-                        if (titleCtrl.text.trim().isEmpty || contentCtrl.text.trim().isEmpty) {
-                          ScaffoldMessenger.of(ctx).showSnackBar(
-                            const SnackBar(content: Text('Please enter both title and content.')),
-                          );
-                          return;
-                        }
-                        setState(() => isSubmitting = true);
-                        try {
-                          await ref.read(feedControllerProvider.notifier).createPost(
-                                title: titleCtrl.text.trim(),
-                                content: contentCtrl.text.trim(),
-                                type: selectedType,
-                                attachments: imageUrlCtrl.text.trim().isNotEmpty
-                                    ? [
-                                        {
-                                          'fileName': 'attachment.jpg',
-                                          'fileUrl': imageUrlCtrl.text.trim().startsWith('http')
-                                              ? imageUrlCtrl.text.trim()
-                                              : 'https://${imageUrlCtrl.text.trim()}',
-                                          'fileType': 'image/jpeg',
-                                        }
-                                      ]
-                                    : null,
-                              );
-                          if (ctx.mounted) Navigator.pop(ctx);
-                        } catch (_) {
-                          if (ctx.mounted) {
-                            setState(() => isSubmitting = false);
-                            ScaffoldMessenger.of(ctx).showSnackBar(
-                              const SnackBar(content: Text('Failed to publish post. Try again.')),
-                            );
-                          }
-                        }
-                      },
-              ),
-            ],
-          ),
-        ),
-      ),
-    ),
-  );
-}
-
-void _showCommentsSheet(BuildContext context, WidgetRef ref, String postId) {
-  final commentCtrl = TextEditingController();
-
-  showModalBottomSheet(
-    context: context,
-    isScrollControlled: true,
-    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-    builder: (ctx) => FutureBuilder(
-      future: ref.read(feedRepositoryProvider).getComments(postId),
-      builder: (ctx, snapshot) {
-        final result = snapshot.data;
-        final comments = result != null
-            ? result.when(success: (data) => data, failure: (_) => <PostCommentItem>[])
-            : <PostCommentItem>[];
-
-        return Padding(
-          padding: EdgeInsets.only(
-            left: 20,
-            right: 20,
-            top: 20,
-            bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text('Comments', style: Theme.of(ctx).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
-              const SizedBox(height: 12),
-              SizedBox(
-                height: 220,
-                child: comments.isEmpty
-                    ? const Center(child: Text('No comments yet.'))
-                    : ListView.builder(
-                        itemCount: comments.length,
-                        itemBuilder: (ctx, i) => ListTile(
-                          title: Text(comments[i].author.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                          subtitle: Text(comments[i].content),
-                        ),
-                      ),
-              ),
-              Row(
-                children: [
-                  Expanded(
-                    child: CustomTextField(controller: commentCtrl, label: 'Add a comment...'),
-                  ),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    icon: const Icon(Icons.send, color: Colors.blue),
-                    onPressed: () {
-                      if (commentCtrl.text.trim().isNotEmpty) {
-                        ref.read(feedControllerProvider.notifier).addComment(postId, commentCtrl.text.trim());
-                        Navigator.pop(ctx);
-                      }
-                    },
-                  ),
-                ],
-              ),
-            ],
-          ),
-        );
-      },
-    ),
-  );
 }

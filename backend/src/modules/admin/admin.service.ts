@@ -161,27 +161,6 @@ export class AdminService {
   }
 
   async getAuditReports(collegeId: string) {
-    try {
-      return await this.adminRepository.getAuditLogs(collegeId);
-    } catch (_) {
-      return [
-        {
-          id: 'log_1',
-          timestamp: new Date(Date.now() - 1800000),
-          actorName: 'Dr. Sarah Connor',
-          action: 'APPROVED_CLUB',
-          category: 'Clubs',
-          details: 'Approved GDSC Tech Club application.',
-        },
-        {
-          id: 'log_2',
-          timestamp: new Date(Date.now() - 3600000 * 5),
-          actorName: 'Placement Cell',
-          action: 'CREATED_DRIVE',
-          category: 'Placement',
-          details: 'Posted TechCorp Systems SDE-1 Drive (18 LPA).',
-        },
-      ];
-    }
+    return await this.adminRepository.getAuditLogs(collegeId);
   }
 }

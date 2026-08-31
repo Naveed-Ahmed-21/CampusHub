@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_client.dart';
 import '../domain/club_models.dart';
+import '../../feed/domain/models/post_item.dart';
 
 class ClubsRepository {
   final Dio _dio;
@@ -113,14 +114,14 @@ class ClubsRepository {
     );
   }
 
-  Future<List<ClubPost>> getClubFeed(String clubId) async {
+  Future<List<PostItem>> getClubFeed(String clubId) async {
     final response = await _dio.get('/api/v1/clubs/$clubId/feed');
     final data = response.data['data'];
     final List list = data is Map ? (data['posts'] ?? []) : (data ?? []);
-    return list.map((json) => ClubPost.fromJson(json)).toList();
+    return list.map((json) => PostItem.fromJson(json)).toList();
   }
 
-  Future<ClubPost> createClubPost(String clubId, String title, String content) async {
+  Future<PostItem> createClubPost(String clubId, String title, String content) async {
     final response = await _dio.post(
       '/api/v1/clubs/$clubId/feed',
       data: {
@@ -128,7 +129,7 @@ class ClubsRepository {
         'content': content,
       },
     );
-    return ClubPost.fromJson(response.data['data']);
+    return PostItem.fromJson(response.data['data']);
   }
 
   Future<List<ClubEvent>> getClubEvents(String clubId) async {

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { ChatRoomType } from '@prisma/client';
+import { ALLOWED_REACTIONS } from './chat.types';
 
 export const createDirectChatSchema = z.object({
   body: z.object({
@@ -12,9 +13,16 @@ export const sendMessageSchema = z.object({
     roomId: z.string().min(1, 'Room ID is required'),
     message: z.string().optional().default(''),
     media_url: z.string().optional().nullable(),
-    media_type: z.enum(['IMAGE', 'DOCUMENT', 'AUDIO']).optional().nullable(),
+    media_type: z.enum(['IMAGE', 'DOCUMENT', 'AUDIO', 'VIDEO']).optional().nullable(),
     file_name: z.string().optional().nullable(),
     file_size: z.number().optional().nullable(),
+    reply_to_message_id: z.string().optional().nullable(),
+  }),
+});
+
+export const addReactionSchema = z.object({
+  body: z.object({
+    emoji: z.enum(ALLOWED_REACTIONS as unknown as [string, ...string[]]),
   }),
 });
 

@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/events_repository.dart';
 import '../providers/events_provider.dart';
+import '../../../../core/services/media_picker_service.dart';
+import '../../../../core/services/media_upload_service.dart';
+import '../../../../shared/widgets/selected_media_preview_widget.dart';
 
 class CreateEventDialog extends ConsumerStatefulWidget {
   const CreateEventDialog({super.key});
@@ -15,7 +18,6 @@ class _CreateEventDialogState extends ConsumerState<CreateEventDialog> {
   final _titleController = TextEditingController();
   final _descController = TextEditingController();
   final _venueController = TextEditingController();
-  final _bannerController = TextEditingController();
   final _capacityController = TextEditingController();
 
   String _scope = 'COLLEGE';
@@ -23,15 +25,30 @@ class _CreateEventDialogState extends ConsumerState<CreateEventDialog> {
   final DateTime _startTime = DateTime.now().add(const Duration(days: 1));
   final DateTime _endTime = DateTime.now().add(const Duration(days: 1, hours: 3));
   bool _isSubmitting = false;
+  SelectedMediaFile? _bannerFile;
 
   @override
   void dispose() {
     _titleController.dispose();
     _descController.dispose();
     _venueController.dispose();
-    _bannerController.dispose();
     _capacityController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickBanner() async {
+    final file = await MediaPickerService.showMediaPickerSheet(
+      context,
+      title: 'Select Event Banner / Poster',
+      enableCamera: true,
+      enableGallery: true,
+      enableVideoCamera: false,
+      enableVideoGallery: false,
+      enableDocuments: false,
+    );
+    if (file != null && mounted) {
+      setState(() => _bannerFile = file);
+    }
   }
 
   Future<void> _submit() async {
@@ -39,6 +56,14 @@ class _CreateEventDialogState extends ConsumerState<CreateEventDialog> {
 
     setState(() => _isSubmitting = true);
     try {
+      String? uploadedBannerUrl;
+
+      if (_bannerFile != null) {
+        final uploadService = ref.read(mediaUploadServiceProvider);
+        final uploadResult = await uploadService.uploadSelectedFile(_bannerFile!);
+        uploadedBannerUrl = uploadResult.url;
+      }
+
       final repo = ref.read(eventsRepositoryProvider);
       await repo.createEvent(
         title: _titleController.text.trim(),
@@ -48,7 +73,7 @@ class _CreateEventDialogState extends ConsumerState<CreateEventDialog> {
         endTime: _endTime.toUtc().toIso8601String(),
         description: _descController.text.trim().isEmpty ? null : _descController.text.trim(),
         venue: _venueController.text.trim().isEmpty ? null : _venueController.text.trim(),
-        bannerUrl: _bannerController.text.trim().isEmpty ? null : _bannerController.text.trim(),
+        bannerUrl: uploadedBannerUrl,
         maxCapacity: _capacityController.text.trim().isEmpty ? null : int.tryParse(_capacityController.text.trim()),
       );
 
@@ -72,6 +97,8 @@ class _CreateEventDialogState extends ConsumerState<CreateEventDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: SingleChildScrollView(
@@ -85,11 +112,49 @@ class _CreateEventDialogState extends ConsumerState<CreateEventDialog> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Create Event', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const Text('Create Campus Event', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.of(context).pop()),
                 ],
               ),
               const SizedBox(height: 12),
+
+              // Event Banner Picker
+              if (_bannerFile != null) ...[
+                SelectedMediaPreviewWidget(
+                  file: _bannerFile!,
+                  onRemove: () => setState(() => _bannerFile = null),
+                ),
+              ] else ...[
+                InkWell(
+                  onTap: _pickBanner,
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    height: 110,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.4)),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.add_photo_alternate, color: theme.colorScheme.primary, size: 32),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Add Event Banner / Poster from Device',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                            color: theme.colorScheme.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 16),
 
               DropdownButtonFormField<String>(
                 initialValue: _scope,
@@ -151,7 +216,13 @@ class _CreateEventDialogState extends ConsumerState<CreateEventDialog> {
                   const SizedBox(width: 12),
                   ElevatedButton(
                     onPressed: _isSubmitting ? null : _submit,
-                    child: _isSubmitting ? const CircularProgressIndicator() : const Text('Create Event'),
+                    child: _isSubmitting
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text('Create Event'),
                   ),
                 ],
               ),

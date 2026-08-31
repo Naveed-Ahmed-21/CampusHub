@@ -42,7 +42,10 @@ enum PostType {
 enum ClubRole {
   MEMBER
   LEAD
+  ASSISTANT_ADMIN
   FACULTY_ADVISOR
+  TECHNICAL_LEADER
+  EVENT_LEADER
 }
 
 enum ClubStatus {
@@ -113,6 +116,8 @@ model College {
   companies       Company[]
   chat_rooms      ChatRoom[]
   media_assets    MediaAsset[]
+  subjects        Subject[]
+  stories         Story[]
 
   @@map("colleges")
 }
@@ -131,6 +136,7 @@ model Department {
   posts       Post[]
   chat_room   ChatRoom?
   events      Event[]
+  subjects    Subject[]
 
   @@unique([college_id, code])
   @@index([college_id])
@@ -142,6 +148,7 @@ model User {
   college_id     String        @db.Uuid
   department_id  String?       @db.Uuid
   email          String        @unique @db.VarChar(255)
+  username       String?       @unique @db.VarChar(100)
   password_hash  String        @db.Text
   first_name     String        @db.VarChar(100)
   last_name      String        @db.VarChar(100)
@@ -163,6 +170,7 @@ model User {
   posts                 Post[]
   post_comments         PostComment[]
   post_likes            PostLike[]
+  post_comment_likes    PostCommentLike[]
   saved_posts           SavedPost[]
   following             UserFollow[]           @relation("Following")
   followers             UserFollow[]           @relation("Followers")
@@ -175,6 +183,8 @@ model User {
   sent_messages         ChatMessage[]          @relation("SentMessages")
   chat_participants     ChatParticipant[]
   chat_read_receipts    ChatReadReceipt[]
+  chat_message_reactions ChatMessageReaction[]
+  chat_message_deletions ChatMessageDeletion[]
   applications          PlacementApplication[]
   portfolio             Portfolio?
   notifications         Notification[]
@@ -184,6 +194,14 @@ model User {
   weekly_goals          WeeklyGoal[]
   project_submissions   UserMiniProjectSubmission[]
   media_assets          MediaAsset[]
+  faculty_subjects      Subject[]                   @relation("FacultySubjects")
+  uploaded_resources    SubjectResource[]
+  subject_announcements SubjectAnnouncement[]
+  subject_enrollments   SubjectEnrollment[]
+  mentored_students     StudentMentorship[]         @relation("FacultyMentor")
+  student_mentors       StudentMentorship[]         @relation("StudentMentee")
+  stories               Story[]
+  story_views           StoryView[]
 
   @@index([college_id])
   @@index([department_id])
@@ -286,19 +304,39 @@ model PostAttachment {
 }
 
 model PostComment {
-  id         String   @id @default(uuid()) @db.Uuid
-  post_id    String   @db.Uuid
-  author_id  String   @db.Uuid
-  content    String   @db.Text
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  id         String            @id @default(uuid()) @db.Uuid
+  post_id    String            @db.Uuid
+  author_id  String            @db.Uuid
+  parent_id  String?           @db.Uuid
+  content    String            @db.Text
+  created_at DateTime          @default(now())
+  updated_at DateTime          @updatedAt
 
-  post       Post     @relation(fields: [post_id], references: [id], onDelete: Cascade)
-  author     User     @relation(fields: [author_id], references: [id], onDelete: Cascade)
+  post       Post              @relation(fields: [post_id], references: [id], onDelete: Cascade)
+  author     User              @relation(fields: [author_id], references: [id], onDelete: Cascade)
+  parent     PostComment?      @relation("CommentReplies", fields: [parent_id], references: [id], onDelete: Cascade)
+  replies    PostComment[]     @relation("CommentReplies")
+  likes      PostCommentLike[]
 
   @@index([post_id])
   @@index([author_id])
+  @@index([parent_id])
   @@map("post_comments")
+}
+
+model PostCommentLike {
+  id         String      @id @default(uuid()) @db.Uuid
+  comment_id String      @db.Uuid
+  user_id    String      @db.Uuid
+  created_at DateTime    @default(now())
+
+  comment    PostComment @relation(fields: [comment_id], references: [id], onDelete: Cascade)
+  user       User        @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([comment_id, user_id])
+  @@index([comment_id])
+  @@index([user_id])
+  @@map("post_comment_likes")
 }
 
 model PostLike {
@@ -326,6 +364,41 @@ model SavedPost {
   @@unique([post_id, user_id])
   @@index([user_id])
   @@map("saved_posts")
+}
+
+model Story {
+  id         String      @id @default(uuid()) @db.Uuid
+  college_id String      @db.Uuid
+  user_id    String      @db.Uuid
+  media_url  String      @db.Text
+  media_type String      @default("IMAGE") @db.VarChar(50)
+  caption    String?     @db.Text
+  duration   Int         @default(5)
+  expires_at DateTime
+  created_at DateTime    @default(now())
+
+  college    College     @relation(fields: [college_id], references: [id], onDelete: Cascade)
+  user       User        @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  views      StoryView[]
+
+  @@index([college_id])
+  @@index([user_id])
+  @@index([expires_at])
+  @@map("stories")
+}
+
+model StoryView {
+  id        String   @id @default(uuid()) @db.Uuid
+  story_id  String   @db.Uuid
+  user_id   String   @db.Uuid
+  viewed_at DateTime @default(now())
+
+  story     Story    @relation(fields: [story_id], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([story_id, user_id])
+  @@index([user_id])
+  @@map("story_views")
 }
 
 // ==========================================
@@ -466,7 +539,11 @@ model ChatRoom {
   club_id         String?           @unique @db.Uuid
   department_id   String?           @unique @db.Uuid
   name            String?           @db.VarChar(150)
+  description     String?           @db.Text
+  avatar_url      String?           @db.Text
   type            ChatRoomType      @default(DIRECT)
+  is_private      Boolean           @default(false)
+  created_by_id   String?           @db.Uuid
   last_message_at DateTime?
   created_at      DateTime          @default(now())
   updated_at      DateTime          @updatedAt
@@ -478,6 +555,8 @@ model ChatRoom {
   messages     ChatMessage[]
 
   @@index([college_id])
+  @@index([type])
+  @@index([is_private])
   @@map("chat_rooms")
 }
 
@@ -485,6 +564,8 @@ model ChatParticipant {
   id           String    @id @default(uuid()) @db.Uuid
   room_id      String    @db.Uuid
   user_id      String    @db.Uuid
+  role         String    @default("MEMBER") @db.VarChar(50) // ADMIN, MEMBER
+  status       String    @default("ACTIVE") @db.VarChar(50) // ACTIVE, INVITED, REMOVED
   last_read_at DateTime?
   joined_at    DateTime  @default(now())
 
@@ -493,26 +574,35 @@ model ChatParticipant {
 
   @@unique([room_id, user_id])
   @@index([user_id])
+  @@index([room_id])
   @@map("chat_participants")
 }
 
 model ChatMessage {
-  id         String   @id @default(uuid()) @db.Uuid
-  sender_id  String   @db.Uuid
-  room_id    String   @db.Uuid
-  message    String   @db.Text
-  media_url  String?  @db.Text
-  media_type String?  @db.VarChar(50) // IMAGE, DOCUMENT, AUDIO
-  file_name  String?  @db.VarChar(255)
-  file_size  Int?
-  created_at DateTime @default(now())
+  id                      String                @id @default(uuid()) @db.Uuid
+  sender_id               String                @db.Uuid
+  room_id                 String                @db.Uuid
+  message                 String                @db.Text
+  media_url               String?               @db.Text
+  media_type              String?               @db.VarChar(50) // IMAGE, DOCUMENT, AUDIO
+  file_name               String?               @db.VarChar(255)
+  file_size               Int?
+  reply_to_message_id     String?               @db.Uuid
+  is_deleted_for_everyone Boolean               @default(false)
+  deleted_at              DateTime?
+  created_at              DateTime              @default(now())
 
-  sender        User              @relation("SentMessages", fields: [sender_id], references: [id], onDelete: Cascade)
-  room          ChatRoom          @relation(fields: [room_id], references: [id], onDelete: Cascade)
-  read_receipts ChatReadReceipt[]
+  sender           User                  @relation("SentMessages", fields: [sender_id], references: [id], onDelete: Cascade)
+  room             ChatRoom              @relation(fields: [room_id], references: [id], onDelete: Cascade)
+  reply_to_message ChatMessage?          @relation("MessageReplies", fields: [reply_to_message_id], references: [id], onDelete: SetNull)
+  replies          ChatMessage[]         @relation("MessageReplies")
+  read_receipts    ChatReadReceipt[]
+  reactions        ChatMessageReaction[]
+  deletions        ChatMessageDeletion[]
 
   @@index([room_id])
   @@index([sender_id])
+  @@index([reply_to_message_id])
   @@index([created_at])
   @@map("chat_messages")
 }
@@ -529,6 +619,37 @@ model ChatReadReceipt {
   @@unique([message_id, user_id])
   @@index([user_id])
   @@map("chat_read_receipts")
+}
+
+model ChatMessageReaction {
+  id         String   @id @default(uuid()) @db.Uuid
+  message_id String   @db.Uuid
+  user_id    String   @db.Uuid
+  emoji      String   @db.VarChar(10)
+  created_at DateTime @default(now())
+
+  message ChatMessage @relation(fields: [message_id], references: [id], onDelete: Cascade)
+  user    User        @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([message_id, user_id, emoji])
+  @@index([message_id])
+  @@index([user_id])
+  @@map("chat_message_reactions")
+}
+
+model ChatMessageDeletion {
+  id         String   @id @default(uuid()) @db.Uuid
+  message_id String   @db.Uuid
+  user_id    String   @db.Uuid
+  created_at DateTime @default(now())
+
+  message ChatMessage @relation(fields: [message_id], references: [id], onDelete: Cascade)
+  user    User        @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([message_id, user_id])
+  @@index([message_id])
+  @@index([user_id])
+  @@map("chat_message_deletions")
 }
 
 // ==========================================
@@ -951,4 +1072,92 @@ model MediaAsset {
   @@index([user_id])
   @@index([category])
   @@map("media_assets")
+}
+
+model Subject {
+  id            String   @id @default(uuid()) @db.Uuid
+  college_id    String   @db.Uuid
+  department_id String?  @db.Uuid
+  faculty_id    String   @db.Uuid
+  code          String   @db.VarChar(50)
+  name          String   @db.VarChar(255)
+  semester      String   @db.VarChar(50)
+  section       String   @default("A") @db.VarChar(20)
+  credits       Int      @default(3)
+  description   String?  @db.Text
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  college       College               @relation(fields: [college_id], references: [id], onDelete: Cascade)
+  department    Department?           @relation(fields: [department_id], references: [id], onDelete: SetNull)
+  faculty       User                  @relation("FacultySubjects", fields: [faculty_id], references: [id], onDelete: Cascade)
+  resources     SubjectResource[]
+  announcements SubjectAnnouncement[]
+  enrollments   SubjectEnrollment[]
+
+  @@unique([college_id, code, semester, section])
+  @@index([faculty_id])
+  @@index([department_id])
+  @@map("subjects")
+}
+
+model SubjectResource {
+  id             String   @id @default(uuid()) @db.Uuid
+  subject_id     String   @db.Uuid
+  uploaded_by_id String   @db.Uuid
+  title          String   @db.VarChar(255)
+  description    String?  @db.Text
+  file_url       String   @db.Text
+  file_type      String   @db.VarChar(100)
+  created_at     DateTime @default(now())
+
+  subject        Subject  @relation(fields: [subject_id], references: [id], onDelete: Cascade)
+  uploaded_by    User     @relation(fields: [uploaded_by_id], references: [id], onDelete: Cascade)
+
+  @@index([subject_id])
+  @@map("subject_resources")
+}
+
+model SubjectAnnouncement {
+  id         String   @id @default(uuid()) @db.Uuid
+  subject_id String   @db.Uuid
+  faculty_id String   @db.Uuid
+  title      String   @db.VarChar(255)
+  content    String   @db.Text
+  created_at DateTime @default(now())
+
+  subject    Subject  @relation(fields: [subject_id], references: [id], onDelete: Cascade)
+  faculty    User     @relation(fields: [faculty_id], references: [id], onDelete: Cascade)
+
+  @@index([subject_id])
+  @@map("subject_announcements")
+}
+
+model SubjectEnrollment {
+  id          String   @id @default(uuid()) @db.Uuid
+  subject_id  String   @db.Uuid
+  student_id  String   @db.Uuid
+  enrolled_at DateTime @default(now())
+
+  subject     Subject  @relation(fields: [subject_id], references: [id], onDelete: Cascade)
+  student     User     @relation(fields: [student_id], references: [id], onDelete: Cascade)
+
+  @@unique([subject_id, student_id])
+  @@index([student_id])
+  @@map("subject_enrollments")
+}
+
+model StudentMentorship {
+  id          String   @id @default(uuid()) @db.Uuid
+  faculty_id  String   @db.Uuid
+  student_id  String   @db.Uuid
+  assigned_at DateTime @default(now())
+  notes       String?  @db.Text
+
+  faculty     User     @relation("FacultyMentor", fields: [faculty_id], references: [id], onDelete: Cascade)
+  student     User     @relation("StudentMentee", fields: [student_id], references: [id], onDelete: Cascade)
+
+  @@unique([faculty_id, student_id])
+  @@index([student_id])
+  @@map("student_mentorships")
 }

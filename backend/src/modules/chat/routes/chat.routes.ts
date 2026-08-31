@@ -7,6 +7,7 @@ import { validateRequest } from '../../../shared/middlewares/validate.middleware
 import {
   createDirectChatSchema,
   sendMessageSchema,
+  addReactionSchema,
   markReadSchema,
   queryRoomsSchema,
 } from '../chat.validation';
@@ -24,11 +25,18 @@ chatRouter.get('/users', chatController.searchUsers);
 
 // Rooms
 chatRouter.get('/rooms', validateRequest(queryRoomsSchema), chatController.getUserRooms);
+chatRouter.get('/groups/public', chatController.getPublicGroups);
+chatRouter.get('/rooms/:roomId', chatController.getRoomDetails);
 chatRouter.post('/direct', validateRequest(createDirectChatSchema), chatController.createDirectChat);
 chatRouter.post('/group', chatController.createGroupChat);
 chatRouter.get('/department', chatController.getDepartmentChat);
+chatRouter.get('/rooms/club/:clubId', chatController.getClubChat);
 
-// Room Members
+// Room Members & Joining
+chatRouter.patch('/rooms/:roomId/avatar', chatController.updateGroupAvatar);
+chatRouter.put('/rooms/:roomId/avatar', chatController.updateGroupAvatar);
+chatRouter.post('/rooms/:roomId/join', chatController.joinGroup);
+chatRouter.post('/rooms/:roomId/leave', chatController.leaveGroup);
 chatRouter.post('/rooms/:roomId/members', chatController.addRoomMember);
 chatRouter.delete('/rooms/:roomId/members/:userId', chatController.removeRoomMember);
 
@@ -36,5 +44,11 @@ chatRouter.delete('/rooms/:roomId/members/:userId', chatController.removeRoomMem
 chatRouter.get('/rooms/:roomId/messages', chatController.getRoomMessages);
 chatRouter.post('/messages', validateRequest(sendMessageSchema), chatController.sendMessage);
 chatRouter.post('/read', validateRequest(markReadSchema), chatController.markRead);
+
+// Message Reactions & Deletions
+chatRouter.post('/messages/:messageId/reactions', validateRequest(addReactionSchema), chatController.addReaction);
+chatRouter.delete('/messages/:messageId/reactions/:emoji', chatController.removeReaction);
+chatRouter.delete('/messages/:messageId/for-me', chatController.deleteMessageForMe);
+chatRouter.delete('/messages/:messageId/for-everyone', chatController.deleteMessageForEveryone);
 
 export default chatRouter;

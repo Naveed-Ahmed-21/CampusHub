@@ -1,5 +1,6 @@
 plugins {
     id("com.android.application")
+    id("org.jetbrains.kotlin.android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
@@ -42,4 +43,18 @@ kotlin {
 
 flutter {
     source = "../.."
+}
+
+tasks.register("adbReversePort") {
+    doLast {
+        try {
+            ProcessBuilder("adb", "reverse", "tcp:5000", "tcp:5000").start()
+        } catch (e: Exception) {
+            // Ignore if adb is not available or fails
+        }
+    }
+}
+
+tasks.matching { it.name.startsWith("assemble") || it.name.startsWith("install") }.configureEach {
+    dependsOn("adbReversePort")
 }

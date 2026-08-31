@@ -26,8 +26,8 @@ class FeedFilterTabsWidget extends StatelessWidget {
     FeedTabOption(label: 'For You', type: 'MY_FEED'),
     FeedTabOption(label: 'Following', type: 'FOLLOWING'),
     FeedTabOption(label: 'My Department', type: 'DEPARTMENT', dotColor: Colors.purple),
+    FeedTabOption(label: 'Cross Department', type: 'CROSS_DEPARTMENT', dotColor: Colors.orange),
     FeedTabOption(label: 'Related', type: 'CLUB', dotColor: Colors.green),
-    FeedTabOption(label: 'Cross-Dept', type: 'CROSS_DEPARTMENT'),
   ];
 
   @override

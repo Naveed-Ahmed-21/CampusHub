@@ -61,7 +61,7 @@ ORM
 
 Storage
 
-- Cloudinary
+- ImageKit
 
 Notifications
 
@@ -94,7 +94,7 @@ cd CampusHub
 ## Backend
 
 ```bash
-cd backend/api
+cd backend
 npm install
 ```
 
@@ -108,14 +108,14 @@ Example
 
 ```env
 DATABASE_URL=
-JWT_SECRET=
+JWT_ACCESS_SECRET=
 JWT_REFRESH_SECRET=
 
-PORT=3000
+PORT=5000
 
-CLOUDINARY_NAME=
-CLOUDINARY_KEY=
-CLOUDINARY_SECRET=
+IMAGEKIT_PUBLIC_KEY=
+IMAGEKIT_PRIVATE_KEY=
+IMAGEKIT_URL_ENDPOINT=
 
 FIREBASE_SERVER_KEY=
 ```
@@ -147,7 +147,7 @@ npm run dev
 Backend URL
 
 ```
-http://localhost:3000
+http://localhost:5000
 ```
 
 ---
@@ -157,7 +157,7 @@ http://localhost:3000
 Move to app
 
 ```bash
-cd apps/mobile_app
+cd apps/campus_hub_app
 ```
 
 Install packages
@@ -351,7 +351,7 @@ Backend
 ```env
 DATABASE_URL=
 
-JWT_SECRET=
+JWT_ACCESS_SECRET=
 
 JWT_REFRESH_SECRET=
 
@@ -359,11 +359,11 @@ PORT=
 
 NODE_ENV=
 
-CLOUDINARY_NAME=
+IMAGEKIT_PUBLIC_KEY=
 
-CLOUDINARY_KEY=
+IMAGEKIT_PRIVATE_KEY=
 
-CLOUDINARY_SECRET=
+IMAGEKIT_URL_ENDPOINT=
 
 FIREBASE_SERVER_KEY=
 ```
@@ -473,7 +473,7 @@ Keep backups for 30 days.
 
 Uploads
 
-Cloudinary backups enabled.
+ImageKit media storage enabled.
 
 Configuration
 
@@ -549,7 +549,7 @@ Before release
           ┌───────┴────────┐
           │                │
           ▼                ▼
-      PostgreSQL      Cloudinary
+      PostgreSQL      ImageKit
           │
           ▼
        Prisma ORM
@@ -584,7 +584,7 @@ Push Notifications
 
 ## Storage
 
-- Cloudinary
+- ImageKit
 
 ---
 

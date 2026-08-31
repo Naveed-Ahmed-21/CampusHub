@@ -1,11 +1,23 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import '../../../../core/services/media_picker_service.dart';
+import '../../../../core/services/media_upload_service.dart';
+import '../../../../core/services/media_storage_service.dart';
+import '../../../../core/services/file_open_service.dart';
+import '../../../../shared/widgets/selected_media_preview_widget.dart';
+import '../../../../shared/widgets/user_picker_bottom_sheet.dart';
 import '../../data/clubs_repository.dart';
 import '../../domain/club_models.dart';
 import '../providers/club_provider.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
-import '../../../chat/presentation/widgets/message_status_icon.dart';
-import '../../../../core/services/imagekit_media_service.dart';
+import '../../../chat/presentation/views/chat_room_view.dart';
+import '../../../feed/presentation/widgets/create_post_sheet.dart';
+import '../../../feed/presentation/widgets/feed_post_card_widget.dart';
+import '../../../feed/presentation/widgets/comments_sheet.dart';
+import '../../../../core/constants/api_endpoints.dart';
+import '../../../../shared/widgets/full_screen_image_viewer.dart';
 
 String formatDateTime(DateTime dt) {
   return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
@@ -27,7 +39,6 @@ class ClubDetailView extends ConsumerStatefulWidget {
 class _ClubDetailViewState extends ConsumerState<ClubDetailView>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  final _chatController = TextEditingController();
   bool _isActionLoading = false;
 
   @override
@@ -39,7 +50,6 @@ class _ClubDetailViewState extends ConsumerState<ClubDetailView>
   @override
   void dispose() {
     _tabController.dispose();
-    _chatController.dispose();
     super.dispose();
   }
 
@@ -99,59 +109,14 @@ class _ClubDetailViewState extends ConsumerState<ClubDetailView>
   }
 
   // Dialog to create a Feed Post
-  void _showCreatePostDialog() {
-    final titleCtrl = TextEditingController();
-    final contentCtrl = TextEditingController();
-
-    showDialog(
+  void _showCreatePostSheet(Club? club) {
+    showModalBottomSheet(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('New Club Announcement'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: titleCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Title',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: contentCtrl,
-              maxLines: 3,
-              decoration: const InputDecoration(
-                labelText: 'Content',
-                border: OutlineInputBorder(),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (titleCtrl.text.trim().isEmpty || contentCtrl.text.trim().isEmpty) return;
-              Navigator.of(ctx).pop();
-              try {
-                final repo = ref.read(clubsRepositoryProvider);
-                await repo.createClubPost(widget.clubId, titleCtrl.text.trim(), contentCtrl.text.trim());
-                ref.invalidate(clubFeedProvider(widget.clubId));
-              } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Error creating post: $e')),
-                  );
-                }
-              }
-            },
-            child: const Text('Post'),
-          ),
-        ],
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => CreatePostSheet(
+        clubId: widget.clubId,
+        clubName: club?.name,
       ),
     );
   }
@@ -236,104 +201,148 @@ class _ClubDetailViewState extends ConsumerState<ClubDetailView>
   // Dialog to Upload Resource
   void _showCreateResourceDialog() {
     final titleCtrl = TextEditingController();
-    final urlCtrl = TextEditingController();
-    final nameCtrl = TextEditingController();
+    SelectedMediaFile? selectedFile;
+    bool isUploading = false;
+    double? uploadProgress;
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Upload Club Resource'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: titleCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Resource Title',
-                border: OutlineInputBorder(),
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModalState) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: const Text('Upload Club Resource', style: TextStyle(fontWeight: FontWeight.bold)),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextField(
+                    controller: titleCtrl,
+                    enabled: !isUploading,
+                    decoration: const InputDecoration(
+                      labelText: 'Resource Title',
+                      hintText: 'e.g. Workshop Guide / Assignment Sheet',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  if (selectedFile == null) ...[
+                    OutlinedButton.icon(
+                      onPressed: isUploading
+                          ? null
+                          : () async {
+                              final files = await MediaPickerService.pickDocuments(
+                                allowedExtensions: ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'txt', 'zip'],
+                                allowMultiple: false,
+                              );
+                              if (files.isNotEmpty) {
+                                setModalState(() {
+                                  selectedFile = files.first;
+                                  if (titleCtrl.text.trim().isEmpty) {
+                                    titleCtrl.text = selectedFile!.name.split('.').first;
+                                  }
+                                });
+                              }
+                            },
+                      icon: const Icon(Icons.upload_file),
+                      label: const Text('Select File from Device'),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      ),
+                    ),
+                  ] else ...[
+                    SelectedMediaPreviewWidget(
+                      file: selectedFile!,
+                      isUploading: isUploading,
+                      uploadProgress: uploadProgress,
+                      onRemove: isUploading
+                          ? null
+                          : () => setModalState(() => selectedFile = null),
+                    ),
+                  ],
+                ],
               ),
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: urlCtrl,
-              decoration: const InputDecoration(
-                labelText: 'File URL / Link',
-                border: OutlineInputBorder(),
+            actions: [
+              TextButton(
+                onPressed: isUploading ? null : () => Navigator.of(ctx).pop(),
+                child: const Text('Cancel'),
               ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: nameCtrl,
-              decoration: const InputDecoration(
-                labelText: 'File Name',
-                hintText: 'e.g. Workshop_Guide.pdf',
-                border: OutlineInputBorder(),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (titleCtrl.text.trim().isEmpty || urlCtrl.text.trim().isEmpty) return;
-              Navigator.of(ctx).pop();
-              try {
-                final fileUrl = urlCtrl.text.trim();
-                final fileName = nameCtrl.text.trim().isEmpty ? 'document.pdf' : nameCtrl.text.trim();
+              ElevatedButton.icon(
+                icon: isUploading
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Icon(Icons.cloud_upload, size: 16),
+                label: Text(isUploading ? 'Uploading...' : 'Upload'),
+                onPressed: isUploading || selectedFile == null
+                    ? null
+                    : () async {
+                        if (titleCtrl.text.trim().isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Please enter a title for the resource')),
+                          );
+                          return;
+                        }
 
-                try {
-                  final mediaService = ref.read(imageKitMediaServiceProvider);
-                  await mediaService.saveUrlMetadata(
-                    url: fileUrl,
-                    category: MediaCategory.clubResource,
-                    fileName: fileName,
-                  );
-                } catch (_) {}
+                        setModalState(() {
+                          isUploading = true;
+                          uploadProgress = 0.0;
+                        });
 
-                final repo = ref.read(clubsRepositoryProvider);
-                await repo.createClubResource(
-                  clubId: widget.clubId,
-                  title: titleCtrl.text.trim(),
-                  fileUrl: fileUrl,
-                  fileName: fileName,
-                  fileType: 'PDF',
-                );
-                ref.invalidate(clubResourcesProvider(widget.clubId));
-              } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Error uploading resource: $e')),
-                  );
-                }
-              }
-            },
-            child: const Text('Upload'),
-          ),
-        ],
+                        try {
+                          final uploadService = ref.read(mediaUploadServiceProvider);
+                          final uploadResult = await uploadService.uploadSelectedFile(
+                            selectedFile!,
+                            onProgress: (sent, total) {
+                              if (total > 0) {
+                                setModalState(() => uploadProgress = sent / total);
+                              }
+                            },
+                          );
+
+                          final repo = ref.read(clubsRepositoryProvider);
+                          await repo.createClubResource(
+                            clubId: widget.clubId,
+                            title: titleCtrl.text.trim(),
+                            fileUrl: uploadResult.url,
+                            fileName: uploadResult.fileName,
+                            fileType: selectedFile!.mimeType,
+                          );
+
+                          if (ctx.mounted) Navigator.of(ctx).pop();
+                          ref.invalidate(clubResourcesProvider(widget.clubId));
+
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Resource uploaded successfully!'),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          setModalState(() => isUploading = false);
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Error uploading resource: $e'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        }
+                      },
+              ),
+            ],
+          );
+        },
       ),
     );
-  }
-
-  Future<void> _sendChatMessage() async {
-    final text = _chatController.text.trim();
-    if (text.isEmpty) return;
-
-    _chatController.clear();
-    try {
-      final repo = ref.read(clubsRepositoryProvider);
-      await repo.sendChatMessage(widget.clubId, text);
-      ref.invalidate(clubChatMessagesProvider(widget.clubId));
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to send message: $e')),
-        );
-      }
-    }
   }
 
   @override
@@ -347,6 +356,7 @@ class _ClubDetailViewState extends ConsumerState<ClubDetailView>
       ),
       body: clubAsync.when(
         data: (club) {
+          final theme = Theme.of(context);
           final currentUser = ref.watch(authControllerProvider).asData?.value;
           final isMember = membersAsync.valueOrNull?.any((m) => m.userId == currentUser?.id) ?? false;
 
@@ -361,16 +371,38 @@ class _ClubDetailViewState extends ConsumerState<ClubDetailView>
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          CircleAvatar(
-                            radius: 36,
-                            backgroundColor: Colors.blue.shade100,
-                            backgroundImage: club.logoUrl != null ? NetworkImage(club.logoUrl!) : null,
-                            child: club.logoUrl == null
-                                ? Text(
-                                    club.name.substring(0, 1).toUpperCase(),
-                                    style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
-                                  )
-                                : null,
+                          GestureDetector(
+                            onTap: () {
+                              if (club.logoUrl != null && club.logoUrl!.isNotEmpty) {
+                                FullScreenImageViewer.openSingle(
+                                  context,
+                                  imageUrl: club.logoUrl!,
+                                  heroTag: 'club_logo_${club.id}',
+                                  title: club.name,
+                                  subtitle: club.category,
+                                );
+                              }
+                            },
+                            child: Hero(
+                              tag: 'club_logo_${club.id}',
+                              child: CircleAvatar(
+                                radius: 36,
+                                backgroundColor: theme.colorScheme.primaryContainer,
+                                backgroundImage: club.logoUrl != null
+                                    ? NetworkImage(ApiEndpoints.resolveUrl(club.logoUrl!))
+                                    : null,
+                                child: club.logoUrl == null
+                                    ? Text(
+                                        club.name.substring(0, 1).toUpperCase(),
+                                        style: TextStyle(
+                                          fontSize: 32,
+                                          fontWeight: FontWeight.bold,
+                                          color: theme.colorScheme.onPrimaryContainer,
+                                        ),
+                                      )
+                                    : null,
+                              ),
+                            ),
                           ),
                           const SizedBox(width: 16),
                           Expanded(
@@ -384,17 +416,45 @@ class _ClubDetailViewState extends ConsumerState<ClubDetailView>
                                 const SizedBox(height: 4),
                                 Wrap(
                                   spacing: 6,
+                                  runSpacing: 4,
                                   children: [
-                                    Chip(
-                                      label: Text(club.category, style: const TextStyle(fontSize: 11)),
-                                      visualDensity: VisualDensity.compact,
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: theme.colorScheme.surfaceContainerHighest,
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        club.category,
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                          color: theme.colorScheme.onSurfaceVariant,
+                                        ),
+                                      ),
                                     ),
                                     if (club.isCrossDepartment)
-                                      Chip(
-                                        avatar: const Icon(Icons.public, size: 14),
-                                        label: const Text('Cross-Dept', style: TextStyle(fontSize: 11)),
-                                        backgroundColor: Colors.teal.withValues(alpha: 0.1),
-                                        visualDensity: VisualDensity.compact,
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: Colors.teal.withValues(alpha: 0.12),
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                        child: const Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(Icons.public, size: 12, color: Colors.teal),
+                                            SizedBox(width: 3),
+                                            Text(
+                                              'Cross-Dept',
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w600,
+                                                color: Colors.teal,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                       ),
                                   ],
                                 ),
@@ -407,7 +467,7 @@ class _ClubDetailViewState extends ConsumerState<ClubDetailView>
                         const SizedBox(height: 12),
                         Text(
                           club.description!,
-                          style: TextStyle(color: Colors.grey.shade800, fontSize: 14),
+                          style: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 14),
                         ),
                       ],
                       const SizedBox(height: 16),
@@ -416,22 +476,31 @@ class _ClubDetailViewState extends ConsumerState<ClubDetailView>
                         children: [
                           Row(
                             children: [
-                              const Icon(Icons.people_outline, size: 20, color: Colors.grey),
-                              const SizedBox(width: 4),
-                              Text('${club.memberCount} Members'),
+                              Icon(Icons.people_outline, size: 20, color: theme.colorScheme.outline),
+                              const SizedBox(width: 6),
+                              Text(
+                                '${club.memberCount} Members',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: theme.colorScheme.onSurface,
+                                ),
+                              ),
                             ],
                           ),
-                          ElevatedButton.icon(
-                            icon: Icon(isMember ? Icons.exit_to_app : Icons.person_add),
-                            label: Text(isMember ? 'Leave Club' : 'Join Club'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: isMember ? Colors.red.shade400 : Colors.blue,
-                              foregroundColor: Colors.white,
-                            ),
-                            onPressed: _isActionLoading
-                                ? null
-                                : (isMember ? _leaveClub : _joinClub),
-                          ),
+                          isMember
+                              ? OutlinedButton.icon(
+                                  icon: Icon(Icons.exit_to_app, size: 16, color: theme.colorScheme.error),
+                                  label: Text('Leave Club', style: TextStyle(color: theme.colorScheme.error)),
+                                  style: OutlinedButton.styleFrom(
+                                    side: BorderSide(color: theme.colorScheme.error.withValues(alpha: 0.5)),
+                                  ),
+                                  onPressed: _isActionLoading ? null : _leaveClub,
+                                )
+                              : FilledButton.icon(
+                                  icon: const Icon(Icons.person_add, size: 16),
+                                  label: const Text('Join Club'),
+                                  onPressed: _isActionLoading ? null : _joinClub,
+                                ),
                         ],
                       ),
                     ],
@@ -444,8 +513,9 @@ class _ClubDetailViewState extends ConsumerState<ClubDetailView>
                   TabBar(
                     controller: _tabController,
                     isScrollable: true,
-                    labelColor: Theme.of(context).primaryColor,
-                    unselectedLabelColor: Colors.grey,
+                    labelColor: theme.colorScheme.primary,
+                    unselectedLabelColor: theme.colorScheme.outline,
+                    indicatorColor: theme.colorScheme.primary,
                     tabs: const [
                       Tab(icon: Icon(Icons.dynamic_feed), text: 'Feed'),
                       Tab(icon: Icon(Icons.people), text: 'Members'),
@@ -461,7 +531,7 @@ class _ClubDetailViewState extends ConsumerState<ClubDetailView>
               controller: _tabController,
               children: [
                 // 1. Club Feed Tab
-                _buildFeedTab(),
+                _buildFeedTab(club),
 
                 // 2. Club Members Tab
                 _buildMembersTab(club),
@@ -485,61 +555,61 @@ class _ClubDetailViewState extends ConsumerState<ClubDetailView>
   }
 
   // 1. Feed Tab
-  Widget _buildFeedTab() {
+  Widget _buildFeedTab(Club club) {
     final feedAsync = ref.watch(clubFeedProvider(widget.clubId));
+    final theme = Theme.of(context);
 
     return Scaffold(
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showCreatePostDialog,
+        heroTag: null,
+        onPressed: () => _showCreatePostSheet(club),
         icon: const Icon(Icons.add_comment),
-        label: const Text('Post'),
+        label: const Text('Post to Club'),
       ),
       body: feedAsync.when(
         data: (posts) {
           if (posts.isEmpty) {
-            return const Center(child: Text('No announcements or feed posts yet!'));
-          }
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: posts.length,
-            itemBuilder: (ctx, idx) {
-              final post = posts[idx];
-              return Card(
-                margin: const EdgeInsets.only(bottom: 12),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          CircleAvatar(
-                            child: Text(post.authorName.isNotEmpty ? post.authorName[0] : 'U'),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(post.authorName, style: const TextStyle(fontWeight: FontWeight.bold)),
-                                Text(
-                                  formatDateTime(post.createdAt),
-                                  style: const TextStyle(fontSize: 12, color: Colors.grey),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Text(post.title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 6),
-                      Text(post.content),
-                    ],
+            return RefreshIndicator(
+              onRefresh: () async => ref.invalidate(clubFeedProvider(widget.clubId)),
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(32.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const SizedBox(height: 48),
+                        Icon(Icons.dynamic_feed_outlined, size: 56, color: theme.colorScheme.outline),
+                        const SizedBox(height: 12),
+                        const Text('No announcements or feed posts yet!'),
+                        const SizedBox(height: 16),
+                        FilledButton.icon(
+                          onPressed: () => _showCreatePostSheet(club),
+                          icon: const Icon(Icons.add),
+                          label: const Text('Create First Club Post'),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              );
-            },
+                ],
+              ),
+            );
+          }
+          return RefreshIndicator(
+            onRefresh: () async => ref.invalidate(clubFeedProvider(widget.clubId)),
+            child: ListView.builder(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              itemCount: posts.length,
+              itemBuilder: (ctx, idx) {
+                final post = posts[idx];
+                return FeedPostCardWidget(
+                  post: post,
+                  onOpenComments: () => PostCommentsSheet.show(context, post.id),
+                  onPostDeleted: () => ref.invalidate(clubFeedProvider(widget.clubId)),
+                );
+              },
+            ),
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -548,81 +618,218 @@ class _ClubDetailViewState extends ConsumerState<ClubDetailView>
     );
   }
 
-  // Dialog to Add Member
-  void _showAddMemberDialog() {
-    final emailOrIdCtrl = TextEditingController();
-    String selectedRole = 'MEMBER';
-
-    showDialog(
+  void _openAddMemberSheet(Set<String> existingMemberIds) {
+    UserPickerBottomSheet.show(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          title: const Text('Add Member to Club'),
-          content: Column(
+      mode: UserPickerMode.addClubMember,
+      clubId: widget.clubId,
+      excludedUserIds: existingMemberIds,
+    );
+  }
+
+  Map<String, dynamic> _getRoleInfo(String role, bool isCreator) {
+    if (isCreator || role == 'LEAD' || role == 'ADMIN') {
+      return {
+        'label': 'Club Lead',
+        'icon': Icons.workspace_premium,
+        'color': Colors.amber.shade800,
+      };
+    } else if (role == 'ASSISTANT_ADMIN') {
+      return {
+        'label': 'Assistant Admin',
+        'icon': Icons.shield_outlined,
+        'color': Colors.blue.shade700,
+      };
+    } else if (role == 'FACULTY_ADVISOR') {
+      return {
+        'label': 'Faculty Advisor',
+        'icon': Icons.school_outlined,
+        'color': Colors.teal.shade700,
+      };
+    } else if (role == 'TECHNICAL_LEADER') {
+      return {
+        'label': 'Technical Lead',
+        'icon': Icons.code_rounded,
+        'color': Colors.purple.shade700,
+      };
+    } else if (role == 'EVENT_LEADER') {
+      return {
+        'label': 'Event Lead',
+        'icon': Icons.event_available,
+        'color': Colors.deepOrange.shade700,
+      };
+    } else {
+      return {
+        'label': 'Member',
+        'icon': Icons.person_outline,
+        'color': Colors.grey.shade700,
+      };
+    }
+  }
+
+  void _showChangeMemberRoleSheet(Club club, ClubMember member) {
+    final theme = Theme.of(context);
+    final isTechClub = club.category.toUpperCase().contains('TECH') ||
+        club.name.toUpperCase().contains('CODING') ||
+        club.name.toUpperCase().contains('DEV') ||
+        club.name.toUpperCase().contains('ROBOTIC');
+
+    final roleOptions = [
+      {
+        'role': 'MEMBER',
+        'title': 'Member',
+        'subtitle': 'Standard club member with feed & resources access',
+        'icon': Icons.person_outline,
+        'color': Colors.grey.shade700,
+      },
+      {
+        'role': 'ASSISTANT_ADMIN',
+        'title': 'Assistant Admin',
+        'subtitle': 'Co-manages club activities, announcements & members',
+        'icon': Icons.shield_outlined,
+        'color': Colors.blue.shade700,
+      },
+      {
+        'role': 'FACULTY_ADVISOR',
+        'title': 'Faculty Advisor',
+        'subtitle': 'Faculty / Staff mentor overseeing the club',
+        'icon': Icons.school_outlined,
+        'color': Colors.teal.shade700,
+      },
+      if (isTechClub)
+        {
+          'role': 'TECHNICAL_LEADER',
+          'title': 'Technical Leader',
+          'subtitle': 'Leads technical workshops, hackathons & code projects',
+          'icon': Icons.code_rounded,
+          'color': Colors.purple.shade700,
+        },
+      {
+        'role': 'EVENT_LEADER',
+        'title': 'Event Leader',
+        'subtitle': 'Organizes & manages club events and meetups',
+        'icon': Icons.event_available,
+        'color': Colors.deepOrange.shade700,
+      },
+      {
+        'role': 'LEAD',
+        'title': 'Club Lead / Admin',
+        'subtitle': 'Primary club administrator and coordinator',
+        'icon': Icons.workspace_premium,
+        'color': Colors.amber.shade800,
+      },
+    ];
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Column(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              TextField(
-                controller: emailOrIdCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'User Email or User ID',
-                  hintText: 'e.g. student@campushub.edu',
-                  border: OutlineInputBorder(),
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
               ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                initialValue: selectedRole,
-                decoration: const InputDecoration(
-                  labelText: 'Member Role',
-                  border: OutlineInputBorder(),
+              const SizedBox(height: 14),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 20,
+                      backgroundColor: theme.colorScheme.primaryContainer,
+                      child: Text(
+                        member.firstName.isNotEmpty ? member.firstName[0].toUpperCase() : 'M',
+                        style: TextStyle(fontWeight: FontWeight.bold, color: theme.colorScheme.primary),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(member.fullName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                          Text('Change club role in ${club.name}', style: TextStyle(fontSize: 12, color: theme.colorScheme.outline)),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                items: const [
-                  DropdownMenuItem(value: 'MEMBER', child: Text('Regular Member')),
-                  DropdownMenuItem(value: 'LEAD', child: Text('Club Lead / Admin')),
-                  DropdownMenuItem(value: 'FACULTY_ADVISOR', child: Text('Faculty Advisor')),
-                ],
-                onChanged: (val) {
-                  if (val != null) setDialogState(() => selectedRole = val);
-                },
               ),
+              const SizedBox(height: 12),
+              const Divider(height: 1),
+              const SizedBox(height: 8),
+              ...roleOptions.map((opt) {
+                final roleCode = opt['role'] as String;
+                final isCurrent = member.role == roleCode;
+
+                return ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: (opt['color'] as Color).withValues(alpha: 0.12),
+                    child: Icon(opt['icon'] as IconData, color: opt['color'] as Color, size: 22),
+                  ),
+                  title: Row(
+                    children: [
+                      Text(opt['title'] as String, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                      if (isCurrent) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            'CURRENT',
+                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: theme.colorScheme.primary),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  subtitle: Text(opt['subtitle'] as String, style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant)),
+                  trailing: isCurrent ? Icon(Icons.check_circle, color: theme.colorScheme.primary) : null,
+                  onTap: () async {
+                    Navigator.pop(ctx);
+                    if (isCurrent) return;
+
+                    try {
+                      final repo = ref.read(clubsRepositoryProvider);
+                      await repo.updateMemberRole(club.id, member.userId, roleCode);
+                      ref.invalidate(clubMembersProvider(club.id));
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Updated ${member.fullName}\'s role to ${opt['title']}'),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
+                      }
+                    } catch (e) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Failed to update role: $e'), backgroundColor: Colors.red),
+                        );
+                      }
+                    }
+                  },
+                );
+              }),
             ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                final input = emailOrIdCtrl.text.trim();
-                if (input.isEmpty) return;
-                Navigator.of(ctx).pop();
-                try {
-                  final repo = ref.read(clubsRepositoryProvider);
-                  await repo.addMember(widget.clubId, input, role: selectedRole);
-                  ref.invalidate(clubMembersProvider(widget.clubId));
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Member added successfully!'),
-                        backgroundColor: Colors.green,
-                      ),
-                    );
-                  }
-                } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Failed to add member: $e'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                }
-              },
-              child: const Text('Add Member'),
-            ),
-          ],
         ),
       ),
     );
@@ -630,82 +837,186 @@ class _ClubDetailViewState extends ConsumerState<ClubDetailView>
 
   // 2. Members Tab
   Widget _buildMembersTab(Club club) {
+    final theme = Theme.of(context);
     final membersAsync = ref.watch(clubMembersProvider(widget.clubId));
+    final currentUser = ref.watch(authControllerProvider).asData?.value;
 
-    return Scaffold(
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showAddMemberDialog,
-        icon: const Icon(Icons.person_add),
-        label: const Text('Add Member'),
-      ),
-      body: membersAsync.when(
-        data: (members) {
-          if (members.isEmpty) {
-            return const Center(child: Text('No members found.'));
-          }
-          return ListView.separated(
-            padding: const EdgeInsets.all(16),
-            itemCount: members.length,
-            separatorBuilder: (ctx, idx) => const Divider(),
-            itemBuilder: (ctx, idx) {
-              final member = members[idx];
-              final isLeadOrCreator = member.role == 'LEAD' ||
-                  member.role == 'ADMIN' ||
-                  member.userId == club.createdById;
+    return membersAsync.when(
+      data: (members) {
+        final existingMemberIds = members.map((m) => m.userId).toSet();
+        final currentMember = members.where((m) => m.userId == currentUser?.id).firstOrNull;
+        final isCreator = club.createdById == currentUser?.id;
+        final isLeadOrAdvisor = currentMember?.role == 'LEAD' || currentMember?.role == 'FACULTY_ADVISOR' || currentMember?.role == 'ASSISTANT_ADMIN';
+        final isCollegeAdmin = currentUser?.role == 'ADMIN' || currentUser?.role == 'COLLEGE_ADMIN' || currentUser?.role == 'SUPER_ADMIN';
+        final canManageMembers = isCreator || isLeadOrAdvisor || isCollegeAdmin;
 
-              final roleText = isLeadOrCreator
-                  ? 'Club Lead / Admin'
-                  : (member.role == 'FACULTY_ADVISOR' ? 'Faculty Advisor' : 'Member');
-
-              return ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: isLeadOrCreator ? Colors.amber.shade100 : Colors.blue.shade50,
-                  child: Text(
-                    member.firstName.isNotEmpty ? member.firstName[0] : 'M',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: isLeadOrCreator ? Colors.amber.shade900 : Colors.blue.shade800,
+        return Scaffold(
+          floatingActionButton: canManageMembers
+              ? FloatingActionButton.extended(
+                  heroTag: null,
+                  onPressed: () => _openAddMemberSheet(existingMemberIds),
+                  icon: const Icon(Icons.person_add),
+                  label: const Text('Add Member'),
+                )
+              : null,
+          body: members.isEmpty
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(32.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.people_outline, size: 56, color: theme.colorScheme.outline),
+                        const SizedBox(height: 12),
+                        Text(
+                          'No members in this club yet',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: theme.colorScheme.onSurface,
+                          ),
+                        ),
+                        if (canManageMembers) ...[
+                          const SizedBox(height: 16),
+                          FilledButton.icon(
+                            onPressed: () => _openAddMemberSheet(existingMemberIds),
+                            icon: const Icon(Icons.person_add),
+                            label: const Text('Add First Member'),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
+                )
+              : ListView.separated(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: members.length,
+                  separatorBuilder: (ctx, idx) => const SizedBox(height: 8),
+                  itemBuilder: (ctx, idx) {
+                    final member = members[idx];
+                    final isLeadOrCreator = member.role == 'LEAD' ||
+                        member.role == 'ADMIN' ||
+                        member.userId == club.createdById;
+
+                    final roleInfo = _getRoleInfo(member.role, isLeadOrCreator);
+
+                    return Card(
+                      elevation: 0,
+                      color: theme.colorScheme.surfaceContainerLow,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        side: BorderSide(
+                          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+                        ),
+                      ),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(14),
+                        onTap: () => context.push('/profile/${member.userId}'),
+                        onLongPress: canManageMembers ? () => _showChangeMemberRoleSheet(club, member) : null,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          child: Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 22,
+                                backgroundColor: isLeadOrCreator
+                                    ? theme.colorScheme.primaryContainer
+                                    : theme.colorScheme.surfaceContainerHighest,
+                                child: Text(
+                                  member.firstName.isNotEmpty ? member.firstName[0].toUpperCase() : 'M',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: isLeadOrCreator
+                                        ? theme.colorScheme.primary
+                                        : theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Flexible(
+                                          child: Text(
+                                            member.fullName,
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 14,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      member.departmentName ?? member.email,
+                                      style: TextStyle(
+                                        color: theme.colorScheme.onSurfaceVariant,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: (roleInfo['color'] as Color).withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: (roleInfo['color'] as Color).withValues(alpha: 0.3)),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(roleInfo['icon'] as IconData, size: 13, color: roleInfo['color'] as Color),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      roleInfo['label'] as String,
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                        color: roleInfo['color'] as Color,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              if (canManageMembers) ...[
+                                const SizedBox(width: 4),
+                                IconButton(
+                                  icon: const Icon(Icons.more_vert, size: 18),
+                                  tooltip: 'Change Role',
+                                  onPressed: () => _showChangeMemberRoleSheet(club, member),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
                 ),
-                title: Row(
-                  children: [
-                    Text(member.fullName, style: const TextStyle(fontWeight: FontWeight.bold)),
-                    if (isLeadOrCreator) ...[
-                      const SizedBox(width: 6),
-                      const Icon(Icons.star, size: 16, color: Colors.amber),
-                    ],
-                  ],
-                ),
-                subtitle: Text(member.departmentName ?? member.email),
-                trailing: Chip(
-                  avatar: isLeadOrCreator ? const Icon(Icons.workspace_premium, size: 14, color: Colors.amber) : null,
-                  label: Text(
-                    roleText,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: isLeadOrCreator ? FontWeight.bold : FontWeight.normal,
-                      color: isLeadOrCreator ? Colors.amber.shade900 : Colors.black87,
-                    ),
-                  ),
-                  backgroundColor: isLeadOrCreator ? Colors.amber.shade100 : Colors.grey.shade200,
-                ),
-              );
-            },
-          );
-        },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => Center(child: Text('Error loading members: $err')),
-      ),
+        );
+      },
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (err, stack) => Center(child: Text('Error loading members: $err')),
     );
   }
 
   // 3. Events Tab
   Widget _buildEventsTab() {
     final eventsAsync = ref.watch(clubEventsProvider(widget.clubId));
+    final theme = Theme.of(context);
 
     return Scaffold(
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: null,
         onPressed: _showCreateEventDialog,
         icon: const Icon(Icons.event_available),
         label: const Text('Add Event'),
@@ -713,7 +1024,19 @@ class _ClubDetailViewState extends ConsumerState<ClubDetailView>
       body: eventsAsync.when(
         data: (events) {
           if (events.isEmpty) {
-            return const Center(child: Text('No club events scheduled yet.'));
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.event_busy_outlined, size: 56, color: theme.colorScheme.outline),
+                    const SizedBox(height: 12),
+                    const Text('No club events scheduled yet.'),
+                  ],
+                ),
+              ),
+            );
           }
           return ListView.builder(
             padding: const EdgeInsets.all(16),
@@ -722,19 +1045,41 @@ class _ClubDetailViewState extends ConsumerState<ClubDetailView>
               final ev = events[idx];
               return Card(
                 margin: const EdgeInsets.only(bottom: 12),
-                child: ListTile(
-                  title: Text(ev.title, style: const TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: Column(
+                elevation: 0,
+                color: theme.colorScheme.surfaceContainerLow,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  side: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5)),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (ev.venue != null) Text('Venue: ${ev.venue}'),
-                      Text('Starts: ${formatDateTime(ev.startTime)}'),
-                      if (ev.description != null) Text(ev.description!),
+                      Text(ev.title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 6),
+                      if (ev.venue != null && ev.venue!.isNotEmpty) ...[
+                        Row(
+                          children: [
+                            Icon(Icons.location_on_outlined, size: 14, color: theme.colorScheme.primary),
+                            const SizedBox(width: 4),
+                            Text(ev.venue!, style: TextStyle(fontSize: 12.5, color: theme.colorScheme.onSurfaceVariant)),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                      ],
+                      Row(
+                        children: [
+                          Icon(Icons.access_time, size: 14, color: theme.colorScheme.primary),
+                          const SizedBox(width: 4),
+                          Text(formatDateTime(ev.startTime), style: TextStyle(fontSize: 12.5, color: theme.colorScheme.onSurfaceVariant)),
+                        ],
+                      ),
+                      if (ev.description != null && ev.description!.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Text(ev.description!, style: TextStyle(fontSize: 13, color: theme.colorScheme.onSurface)),
+                      ],
                     ],
-                  ),
-                  trailing: ElevatedButton(
-                    onPressed: () {},
-                    child: const Text('Register'),
                   ),
                 ),
               );
@@ -750,9 +1095,12 @@ class _ClubDetailViewState extends ConsumerState<ClubDetailView>
   // 4. Resources Tab
   Widget _buildResourcesTab() {
     final resourcesAsync = ref.watch(clubResourcesProvider(widget.clubId));
+    final theme = Theme.of(context);
+    final currentUserId = ref.watch(authControllerProvider).asData?.value?.id ?? '';
 
     return Scaffold(
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: null,
         onPressed: _showCreateResourceDialog,
         icon: const Icon(Icons.upload_file),
         label: const Text('Upload'),
@@ -760,28 +1108,28 @@ class _ClubDetailViewState extends ConsumerState<ClubDetailView>
       body: resourcesAsync.when(
         data: (resources) {
           if (resources.isEmpty) {
-            return const Center(child: Text('No resources shared yet.'));
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.folder_open_outlined, size: 56, color: theme.colorScheme.outline),
+                    const SizedBox(height: 12),
+                    const Text('No resources shared yet.'),
+                  ],
+                ),
+              ),
+            );
           }
           return ListView.builder(
             padding: const EdgeInsets.all(16),
             itemCount: resources.length,
             itemBuilder: (ctx, idx) {
               final res = resources[idx];
-              return Card(
-                margin: const EdgeInsets.only(bottom: 12),
-                child: ListTile(
-                  leading: const Icon(Icons.insert_drive_file, size: 36, color: Colors.blue),
-                  title: Text(res.title, style: const TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: Text('By ${res.uploaderName} • ${res.fileName}'),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.download),
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Downloading ${res.fileName}...')),
-                      );
-                    },
-                  ),
-                ),
+              return _ClubResourceTile(
+                resource: res,
+                currentUserId: currentUserId,
               );
             },
           );
@@ -794,6 +1142,7 @@ class _ClubDetailViewState extends ConsumerState<ClubDetailView>
 
   // 5. Chat Tab
   Widget _buildChatTab(bool isMember) {
+    final theme = Theme.of(context);
     if (!isMember) {
       return Center(
         child: Padding(
@@ -801,17 +1150,17 @@ class _ClubDetailViewState extends ConsumerState<ClubDetailView>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.lock_outline, size: 64, color: Colors.grey),
+              Icon(Icons.lock_outline, size: 64, color: theme.colorScheme.outline),
               const SizedBox(height: 16),
               const Text(
                 'Members-Only Group Chat',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
-              const Text(
+              Text(
                 'Join this club to view and participate in official group chat discussions.',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey),
+                style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
               ),
               const SizedBox(height: 20),
               ElevatedButton.icon(
@@ -825,136 +1174,37 @@ class _ClubDetailViewState extends ConsumerState<ClubDetailView>
       );
     }
 
-    final currentUser = ref.watch(authControllerProvider).asData?.value;
-    final chatAsync = ref.watch(clubChatMessagesProvider(widget.clubId));
+    final roomAsync = ref.watch(clubChatRoomProvider(widget.clubId));
 
-    return Column(
-      children: [
-        Expanded(
-          child: chatAsync.when(
-            data: (messages) {
-              if (messages.isEmpty) {
-                return const Center(child: Text('Start the conversation in club chat!'));
-              }
-              return ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: messages.length,
-                itemBuilder: (ctx, idx) {
-                  final msg = messages[idx];
-                  final isMe = (currentUser != null && msg.senderId == currentUser.id) ||
-                      (currentUser != null && msg.senderName.contains(currentUser.firstName));
-
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Align(
-                      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        if (!isMe) ...[
-                          CircleAvatar(
-                            radius: 16,
-                            backgroundColor: Colors.blue.shade100,
-                            child: Text(
-                              msg.senderName.isNotEmpty ? msg.senderName[0] : 'U',
-                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                        ],
-                        Flexible(
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                            decoration: BoxDecoration(
-                              color: isMe ? Colors.blue.shade600 : Colors.grey.shade200,
-                              borderRadius: BorderRadius.only(
-                                topLeft: const Radius.circular(16),
-                                topRight: const Radius.circular(16),
-                                bottomLeft: Radius.circular(isMe ? 16 : 4),
-                                bottomRight: Radius.circular(isMe ? 4 : 16),
-                              ),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-                              children: [
-                                if (!isMe)
-                                  Text(
-                                    msg.senderName,
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 11,
-                                      color: Colors.blue.shade900,
-                                    ),
-                                  ),
-                                if (!isMe) const SizedBox(height: 2),
-                                Text(
-                                  msg.message,
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: isMe ? Colors.white : Colors.black87,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      formatTime(msg.createdAt),
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        color: isMe ? Colors.white70 : Colors.grey.shade600,
-                                      ),
-                                    ),
-                                    if (isMe) ...[
-                                      const SizedBox(width: 4),
-                                      MessageStatusIcon(
-                                        status: msg.readByUserIdList.isNotEmpty
-                                            ? MessageDeliveryStatus.read
-                                            : MessageDeliveryStatus.delivered,
-                                      ),
-                                    ],
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  );
-                },
-              );
-            },
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (err, stack) => Center(child: Text('Error loading chat: $err')),
-          ),
-        ),
-        Container(
-          padding: const EdgeInsets.all(8.0),
-          color: Colors.grey.shade100,
-          child: Row(
+    return roomAsync.when(
+      data: (room) => ChatRoomView(
+        roomId: room.id,
+        isEmbedded: true,
+      ),
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (err, stack) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Expanded(
-                child: TextField(
-                  controller: _chatController,
-                  decoration: const InputDecoration(
-                    hintText: 'Type a message to club members...',
-                    border: OutlineInputBorder(),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  ),
-                ),
+              Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
+              const SizedBox(height: 12),
+              Text(
+                'Error loading club chat: $err',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: theme.colorScheme.error),
               ),
-              const SizedBox(width: 8),
-              IconButton(
-                icon: const Icon(Icons.send, color: Colors.blue),
-                onPressed: _sendChatMessage,
+              const SizedBox(height: 12),
+              ElevatedButton.icon(
+                onPressed: () => ref.invalidate(clubChatRoomProvider(widget.clubId)),
+                icon: const Icon(Icons.refresh),
+                label: const Text('Retry'),
               ),
             ],
           ),
         ),
-      ],
+      ),
     );
   }
 }
@@ -972,7 +1222,7 @@ class _SliverTabBarDelegate extends SliverPersistentHeaderDelegate {
   @override
   Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
     return Container(
-      color: Theme.of(context).scaffoldBackgroundColor,
+      color: Theme.of(context).colorScheme.surface,
       child: _tabBar,
     );
   }
@@ -980,5 +1230,259 @@ class _SliverTabBarDelegate extends SliverPersistentHeaderDelegate {
   @override
   bool shouldRebuild(_SliverTabBarDelegate oldDelegate) {
     return false;
+  }
+}
+
+class _ClubResourceTile extends ConsumerStatefulWidget {
+  final ClubResource resource;
+  final String currentUserId;
+
+  const _ClubResourceTile({
+    required this.resource,
+    required this.currentUserId,
+  });
+
+  @override
+  ConsumerState<_ClubResourceTile> createState() => _ClubResourceTileState();
+}
+
+class _ClubResourceTileState extends ConsumerState<_ClubResourceTile> {
+  bool _isDownloading = false;
+  double _progress = 0.0;
+  bool _isDownloaded = false;
+  String? _localPath;
+
+  bool get _isUploader =>
+      widget.resource.uploadedById.isNotEmpty &&
+      widget.resource.uploadedById == widget.currentUserId;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkDownloadedState();
+  }
+
+  void _checkDownloadedState() {
+    final storage = ref.read(mediaStorageServiceProvider);
+    final cacheKey = 'club_res_${widget.resource.id}';
+    final downloaded = storage.isMessageMediaDownloaded(cacheKey);
+    if (downloaded) {
+      final path = storage.getDownloadedPathForMessage(cacheKey);
+      if (path != null && File(path).existsSync()) {
+        _isDownloaded = true;
+        _localPath = path;
+      }
+    }
+  }
+
+  Future<void> _handleDownload() async {
+    final res = widget.resource;
+    if (res.fileUrl.isEmpty) return;
+
+    setState(() {
+      _isDownloading = true;
+      _progress = 0.0;
+    });
+
+    try {
+      final storage = ref.read(mediaStorageServiceProvider);
+      final cacheKey = 'club_res_${res.id}';
+      final path = await storage.downloadAndSaveFile(
+        fileUrl: res.fileUrl,
+        messageId: cacheKey,
+        fileName: res.fileName,
+        onProgress: (p) {
+          if (mounted) setState(() => _progress = p);
+        },
+      );
+
+      if (mounted) {
+        if (path != null) {
+          setState(() {
+            _isDownloaded = true;
+            _localPath = path;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Saved "${res.fileName}" to CampusHub folder.'),
+              backgroundColor: Colors.green,
+              action: SnackBarAction(
+                label: 'Open',
+                textColor: Colors.white,
+                onPressed: () => FileOpenService.openLocalFile(path, context: context),
+              ),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Download failed: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isDownloading = false);
+    }
+  }
+
+  Future<void> _handleOpen() async {
+    final res = widget.resource;
+    final storage = ref.read(mediaStorageServiceProvider);
+    final cacheKey = 'club_res_${res.id}';
+
+    String? path = _localPath;
+    if (path == null || !File(path).existsSync()) {
+      if (storage.isMessageMediaDownloaded(cacheKey)) {
+        path = storage.getDownloadedPathForMessage(cacheKey);
+      }
+    }
+
+    if (path == null || !File(path).existsSync()) {
+      // If file not on disk yet (e.g. uploader on different device), fetch transparently
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Opening file...'), duration: Duration(seconds: 1)),
+        );
+      }
+      path = await storage.downloadAndSaveFile(
+        fileUrl: res.fileUrl,
+        messageId: cacheKey,
+        fileName: res.fileName,
+      );
+      if (mounted && path != null) {
+        setState(() {
+          _isDownloaded = true;
+          _localPath = path;
+        });
+      }
+    }
+
+    if (path != null && mounted) {
+      await FileOpenService.openLocalFile(path, context: context);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final res = widget.resource;
+    final docInfo = FileOpenService.getDocumentTypeInfo(res.fileName);
+    final canOpen = _isUploader || _isDownloaded;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 0,
+      color: theme.colorScheme.surfaceContainerLow,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5)),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: canOpen ? _handleOpen : _handleDownload,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: docInfo.color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(docInfo.icon, color: docInfo.color, size: 24),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      res.title,
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 3),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: docInfo.color.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            docInfo.typeLabel,
+                            style: TextStyle(
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.bold,
+                              color: docInfo.color,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            'By ${res.uploaderName.isNotEmpty ? res.uploaderName : 'Club Member'} • ${res.fileName}',
+                            style: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 11.5),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (res.description != null && res.description!.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        res.description!,
+                        style: TextStyle(fontSize: 12, color: theme.colorScheme.outline),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+
+              // Action Button: Open for Sender/Downloaded, Download for Receiver
+              if (_isDownloading)
+                SizedBox(
+                  width: 32,
+                  height: 32,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      CircularProgressIndicator(
+                        value: _progress > 0 ? _progress : null,
+                        strokeWidth: 3,
+                        color: theme.colorScheme.primary,
+                      ),
+                    ],
+                  ),
+                )
+              else if (canOpen)
+                FilledButton.tonalIcon(
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  onPressed: _handleOpen,
+                  icon: const Icon(Icons.open_in_new, size: 14),
+                  label: const Text('Open', style: TextStyle(fontSize: 12)),
+                )
+              else
+                IconButton.filledTonal(
+                  icon: const Icon(Icons.download_rounded, size: 18),
+                  tooltip: 'Download Resource',
+                  onPressed: _handleDownload,
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

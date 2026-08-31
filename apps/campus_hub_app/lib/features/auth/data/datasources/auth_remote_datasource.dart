@@ -1,9 +1,7 @@
 import 'package:dio/dio.dart';
-import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/network/api_client.dart';
 import '../../domain/models/auth_user.dart';
-
-part 'auth_remote_datasource.g.dart';
 
 class AuthRemoteDataSource {
   final Dio _dio;
@@ -50,8 +48,7 @@ class AuthRemoteDataSource {
   }
 }
 
-@Riverpod(keepAlive: true)
-AuthRemoteDataSource authRemoteDataSource(AuthRemoteDataSourceRef ref) {
+final authRemoteDataSourceProvider = Provider<AuthRemoteDataSource>((ref) {
   final dio = ref.watch(dioClientProvider);
   return AuthRemoteDataSource(dio);
-}
+});

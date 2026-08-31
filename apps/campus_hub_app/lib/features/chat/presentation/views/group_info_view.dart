@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/constants/api_endpoints.dart';
+import '../../../../core/services/media_picker_service.dart';
+import '../../../../core/services/media_upload_service.dart';
 import '../providers/chat_provider.dart';
 import '../../domain/chat_models.dart';
 import '../../data/chat_repository.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
 import 'chat_user_profile_view.dart';
+import '../../../../shared/widgets/full_screen_image_viewer.dart';
 
 class GroupInfoView extends ConsumerStatefulWidget {
   final String roomId;
@@ -18,11 +22,136 @@ class GroupInfoView extends ConsumerStatefulWidget {
 
 class _GroupInfoViewState extends ConsumerState<GroupInfoView> {
   final _addMemberController = TextEditingController();
+  bool _isUpdatingImage = false;
 
   @override
   void dispose() {
     _addMemberController.dispose();
     super.dispose();
+  }
+
+  void _changeGroupImage(ChatRoomModel room) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.camera_alt, color: Colors.blue),
+                title: const Text('Take Photo (Camera)'),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final file = await MediaPickerService.pickImageFromCamera();
+                  if (file != null && mounted) {
+                    _uploadAndSaveGroupImage(room, file);
+                  }
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library, color: Colors.purple),
+                title: const Text('Choose Image (Gallery)'),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final file = await MediaPickerService.pickImageFromGallery();
+                  if (file != null && mounted) {
+                    _uploadAndSaveGroupImage(room, file);
+                  }
+                },
+              ),
+              if (room.avatarUrl != null && room.avatarUrl!.isNotEmpty)
+                ListTile(
+                  leading: const Icon(Icons.delete_outline, color: Colors.red),
+                  title: const Text('Remove Group Image', style: TextStyle(color: Colors.red)),
+                  onTap: () async {
+                    Navigator.pop(ctx);
+                    _removeGroupImage(room);
+                  },
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _uploadAndSaveGroupImage(ChatRoomModel room, SelectedMediaFile file) async {
+    setState(() => _isUpdatingImage = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      messenger.showSnackBar(const SnackBar(content: Text('Uploading group image...')));
+      final uploadService = ref.read(mediaUploadServiceProvider);
+      final uploadResult = await uploadService.uploadSelectedFile(file);
+
+      final repo = ref.read(chatRepositoryProvider);
+      await repo.updateGroupAvatar(room.id, uploadResult.url);
+
+      try {
+        PaintingBinding.instance.imageCache.clear();
+        PaintingBinding.instance.imageCache.clearLiveImages();
+      } catch (_) {}
+
+      ref.invalidate(chatRoomDetailsProvider(room.id));
+      ref.invalidate(userChatRoomsProvider);
+      ref.invalidate(publicGroupsProvider(null));
+
+      if (mounted) {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Group image updated successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        messenger.showSnackBar(
+          SnackBar(content: Text('Failed to update group image: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isUpdatingImage = false);
+    }
+  }
+
+  Future<void> _removeGroupImage(ChatRoomModel room) async {
+    setState(() => _isUpdatingImage = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final repo = ref.read(chatRepositoryProvider);
+      await repo.updateGroupAvatar(room.id, null);
+
+      try {
+        PaintingBinding.instance.imageCache.clear();
+        PaintingBinding.instance.imageCache.clearLiveImages();
+      } catch (_) {}
+
+      ref.invalidate(chatRoomDetailsProvider(room.id));
+      ref.invalidate(userChatRoomsProvider);
+      ref.invalidate(publicGroupsProvider(null));
+
+      if (mounted) {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Group image removed'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        messenger.showSnackBar(
+          SnackBar(content: Text('Failed to remove group image: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isUpdatingImage = false);
+    }
   }
 
   void _showAddMemberDialog(ChatRoomModel room) {
@@ -134,7 +263,7 @@ class _GroupInfoViewState extends ConsumerState<GroupInfoView> {
 
   @override
   Widget build(BuildContext context) {
-    final roomsAsync = ref.watch(userChatRoomsProvider);
+    final roomAsync = ref.watch(chatRoomDetailsProvider(widget.roomId));
     final currentUser = ref.watch(authControllerProvider).asData?.value;
     final currentUserId = currentUser?.id ?? '';
     final theme = Theme.of(context);
@@ -142,18 +271,25 @@ class _GroupInfoViewState extends ConsumerState<GroupInfoView> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Group Info'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () => ref.invalidate(chatRoomDetailsProvider(widget.roomId)),
+          ),
+        ],
       ),
-      body: roomsAsync.when(
-        data: (rooms) {
-          final room = rooms.firstWhere(
-            (r) => r.id == widget.roomId,
-            orElse: () => ChatRoomModel(
-              id: widget.roomId,
-              collegeId: '',
-              type: 'GROUP',
-              name: 'Group Chat',
-            ),
-          );
+      body: roomAsync.when(
+        data: (room) {
+          final memberCount = room.memberCount > 0 ? room.memberCount : room.participants.length;
+          final onlineCount = room.onlineMemberCount > 0
+              ? room.onlineMemberCount
+              : room.participants.where((p) => p.isOnline).length;
+
+          final isCreator = room.createdById == currentUserId;
+          final userParticipant = room.participants.where((p) => p.id == currentUserId).firstOrNull;
+          final isAdmin = (userParticipant != null && userParticipant.role == 'ADMIN') || isCreator;
+          final isMember = userParticipant != null || isCreator;
+          final canEditGroupImage = room.isPrivate ? isAdmin : isMember;
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16),
@@ -166,21 +302,118 @@ class _GroupInfoViewState extends ConsumerState<GroupInfoView> {
                     padding: const EdgeInsets.all(24.0),
                     child: Column(
                       children: [
-                        CircleAvatar(
-                          radius: 50,
-                          backgroundColor: theme.colorScheme.primaryContainer,
-                          child: Icon(Icons.groups, size: 48, color: theme.colorScheme.primary),
+                        Stack(
+                          children: [
+                            GestureDetector(
+                              onTap: () {
+                                if (room.avatarUrl != null && room.avatarUrl!.isNotEmpty) {
+                                  FullScreenImageViewer.openSingle(
+                                    context,
+                                    imageUrl: room.avatarUrl!,
+                                    heroTag: 'group_avatar_${room.id}',
+                                    title: room.getDisplayName(currentUserId),
+                                    subtitle: room.description ?? 'Group Conversation',
+                                  );
+                                }
+                              },
+                              child: Hero(
+                                tag: 'group_avatar_${room.id}',
+                                child: CircleAvatar(
+                                  radius: 50,
+                                  backgroundColor: theme.colorScheme.primaryContainer,
+                                  backgroundImage: room.avatarUrl != null && room.avatarUrl!.isNotEmpty
+                                      ? NetworkImage(ApiEndpoints.resolveUrl(room.avatarUrl!))
+                                      : null,
+                                  child: room.avatarUrl == null || room.avatarUrl!.isEmpty
+                                      ? Icon(
+                                          room.isPrivate ? Icons.lock : Icons.groups,
+                                          size: 48,
+                                          color: theme.colorScheme.primary,
+                                        )
+                                      : null,
+                                ),
+                              ),
+                            ),
+                            if (canEditGroupImage)
+                              Positioned(
+                                bottom: 0,
+                                right: 0,
+                                child: CircleAvatar(
+                                  radius: 18,
+                                  backgroundColor: theme.colorScheme.primary,
+                                  child: IconButton(
+                                    icon: const Icon(Icons.camera_alt, size: 16, color: Colors.white),
+                                    onPressed: _isUpdatingImage ? null : () => _changeGroupImage(room),
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
+                        if (canEditGroupImage) ...[
+                          const SizedBox(height: 6),
+                          TextButton.icon(
+                            onPressed: _isUpdatingImage ? null : () => _changeGroupImage(room),
+                            icon: const Icon(Icons.edit, size: 14),
+                            label: Text(
+                              room.avatarUrl != null && room.avatarUrl!.isNotEmpty
+                                  ? 'Change Group Image'
+                                  : 'Add Group Image',
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                          ),
+                        ],
                         const SizedBox(height: 16),
                         Text(
                           room.name ?? 'Group Chat',
                           style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 4),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: (room.isPrivate ? Colors.orange : Colors.blue).withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    room.isPrivate ? Icons.lock : Icons.public,
+                                    size: 14,
+                                    color: room.isPrivate ? Colors.orange.shade800 : Colors.blue.shade800,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    room.isPrivate ? 'Private Group' : 'Public Group',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: room.isPrivate ? Colors.orange.shade800 : Colors.blue.shade800,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
                         Text(
-                          '${room.participants.length} members',
+                          onlineCount > 0
+                              ? '$memberCount members • $onlineCount online'
+                              : '$memberCount members',
                           style: const TextStyle(color: Colors.grey, fontSize: 13),
                         ),
+                        if (room.description != null && room.description!.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          Text(
+                            room.description!,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 13),
+                          ),
+                        ],
                         const SizedBox(height: 20),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -246,7 +479,7 @@ class _GroupInfoViewState extends ConsumerState<GroupInfoView> {
                         isMe ? '${member.fullName} (You)' : member.fullName,
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
-                      subtitle: Text(member.email),
+                      subtitle: Text(member.displayUsername),
                       trailing: isMe
                           ? const Chip(label: Text('You'), backgroundColor: Colors.amberAccent)
                           : const Icon(Icons.chevron_right, size: 20, color: Colors.grey),

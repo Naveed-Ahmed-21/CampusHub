@@ -1,29 +1,40 @@
-import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/datasources/admin_remote_datasource.dart';
 
-part 'admin_provider.g.dart';
-
-@riverpod
-Future<Map<String, dynamic>> adminMetrics(AdminMetricsRef ref) {
+final adminMetricsProvider = FutureProvider<Map<String, dynamic>>((ref) {
   return ref.watch(adminRemoteDataSourceProvider).getMetrics();
+});
+
+class AdminUsersFilter {
+  final String? role;
+  final String? search;
+
+  const AdminUsersFilter({this.role, this.search});
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AdminUsersFilter && role == other.role && search == other.search;
+
+  @override
+  int get hashCode => role.hashCode ^ search.hashCode;
 }
 
-@riverpod
-Future<List<dynamic>> adminUsers(AdminUsersRef ref, {String? role, String? search}) {
-  return ref.watch(adminRemoteDataSourceProvider).getUsers(role: role, search: search);
-}
+final adminUsersProvider = FutureProvider.family<List<dynamic>, AdminUsersFilter?>((ref, filter) {
+  return ref.watch(adminRemoteDataSourceProvider).getUsers(
+        role: filter?.role,
+        search: filter?.search,
+      );
+});
 
-@riverpod
-Future<List<dynamic>> adminDepartments(AdminDepartmentsRef ref) {
+final adminDepartmentsProvider = FutureProvider<List<dynamic>>((ref) {
   return ref.watch(adminRemoteDataSourceProvider).getDepartments();
-}
+});
 
-@riverpod
-Future<Map<String, dynamic>> adminAnalytics(AdminAnalyticsRef ref) {
+final adminAnalyticsProvider = FutureProvider<Map<String, dynamic>>((ref) {
   return ref.watch(adminRemoteDataSourceProvider).getAnalytics();
-}
+});
 
-@riverpod
-Future<List<dynamic>> adminAuditReports(AdminAuditReportsRef ref) {
+final adminAuditReportsProvider = FutureProvider<List<dynamic>>((ref) {
   return ref.watch(adminRemoteDataSourceProvider).getAuditReports();
-}
+});

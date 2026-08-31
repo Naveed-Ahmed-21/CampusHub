@@ -9,14 +9,23 @@ export class PostsController {
 
   getFeed = asyncHandler(async (req: Request, res: Response) => {
     const user = req.user!;
-    const feedType = (req.query.feedType as FeedType) || FeedType.DEPARTMENT;
+    const feedType = (req.query.feedType || req.query.feed_type || req.query.type || FeedType.DEPARTMENT) as FeedType;
     const page = parseInt(req.query.page as string, 10) || 1;
     const limit = parseInt(req.query.limit as string, 10) || 10;
+    const authorId = (req.query.authorId || req.query.author_id) as string | undefined;
+    const clubId = (req.query.clubId || req.query.club_id) as string | undefined;
+    const departmentIdFilter = (req.query.departmentId || req.query.department_id) as string | undefined;
+    const search = req.query.search as string | undefined;
 
     const posts = await this.postsService.getFeed({
       userId: user.userId,
       collegeId: user.collegeId,
+      departmentId: user.departmentId,
       feedType,
+      authorId,
+      clubId,
+      departmentIdFilter,
+      search,
       page,
       limit,
     });
@@ -44,13 +53,24 @@ export class PostsController {
 
   addComment = asyncHandler(async (req: Request, res: Response) => {
     const postId = req.params.postId;
-    const comment = await this.postsService.addComment(postId, req.user!.userId, req.body.content);
+    const comment = await this.postsService.addComment(
+      postId,
+      req.user!.userId,
+      req.body.content,
+      req.body.parentCommentId
+    );
     res.status(201).json({ success: true, data: comment });
+  });
+
+  toggleCommentLike = asyncHandler(async (req: Request, res: Response) => {
+    const commentId = req.params.commentId;
+    const result = await this.postsService.toggleCommentLike(commentId, req.user!.userId);
+    res.status(200).json({ success: true, data: result });
   });
 
   getComments = asyncHandler(async (req: Request, res: Response) => {
     const postId = req.params.postId;
-    const comments = await this.postsService.getComments(postId);
+    const comments = await this.postsService.getComments(postId, req.user?.userId);
     res.status(200).json({ success: true, data: comments });
   });
 
@@ -65,5 +85,18 @@ export class PostsController {
 
     await this.postsService.deletePost(postId);
     res.status(200).json({ success: true, message: 'Post deleted successfully' });
+  });
+
+  updatePost = asyncHandler(async (req: Request, res: Response) => {
+    const postId = req.params.postId;
+    const user = req.user!;
+
+    const isAuthorOrAdmin = await this.postsService.checkOwnershipOrAdmin(postId, user.userId, user.role);
+    if (!isAuthorOrAdmin) {
+      throw new ForbiddenError('You do not have permission to perform this action');
+    }
+
+    const post = await this.postsService.updatePost(postId, req.body);
+    res.status(200).json({ success: true, data: post });
   });
 }

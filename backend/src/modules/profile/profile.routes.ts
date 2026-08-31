@@ -15,6 +15,17 @@ export const profileRouter = Router();
 profileRouter.use(authenticate);
 
 profileRouter.get('/', profileController.getProfile);
+profileRouter.get('/followers', profileController.getFollowers);
+profileRouter.get('/following', profileController.getFollowing);
+profileRouter.get('/user/:userId/followers', profileController.getFollowers);
+profileRouter.get('/user/:userId/following', profileController.getFollowing);
+profileRouter.get('/:userId/followers', profileController.getFollowers);
+profileRouter.get('/:userId/following', profileController.getFollowing);
+profileRouter.get('/user/:userId', profileController.getUserProfileById);
+profileRouter.get('/:userId', profileController.getUserProfileById);
+profileRouter.post('/follow/:targetUserId', profileController.toggleFollow);
+profileRouter.post('/user/:userId/follow', profileController.toggleFollow);
+profileRouter.post('/:userId/follow', profileController.toggleFollow);
 profileRouter.patch('/', validateRequest(updateProfileSchema), profileController.updateProfile);
 profileRouter.post('/avatar', profileController.uploadAvatar);
 profileRouter.post('/resume', profileController.uploadResume);

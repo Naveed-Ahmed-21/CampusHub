@@ -112,6 +112,7 @@ class _EventsListViewState extends ConsumerState<EventsListView> with SingleTick
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: null,
         onPressed: _showCreateEventDialog,
         icon: const Icon(Icons.add),
         label: const Text('Create Event'),

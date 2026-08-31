@@ -84,7 +84,10 @@ async function main() {
 
   const student = await prisma.user.upsert({
     where: { email: 'student@campushub.edu' },
-    update: {},
+    update: {
+      password_hash: hashedPassword,
+      status: UserStatus.ACTIVE,
+    },
     create: {
       college_id: college.id,
       department_id: deptCse.id,
@@ -100,7 +103,10 @@ async function main() {
 
   const faculty = await prisma.user.upsert({
     where: { email: 'faculty@campushub.edu' },
-    update: {},
+    update: {
+      password_hash: hashedPassword,
+      status: UserStatus.ACTIVE,
+    },
     create: {
       college_id: college.id,
       department_id: deptCse.id,
@@ -115,7 +121,10 @@ async function main() {
 
   const placementOfficer = await prisma.user.upsert({
     where: { email: 'placement@campushub.edu' },
-    update: {},
+    update: {
+      password_hash: hashedPassword,
+      status: UserStatus.ACTIVE,
+    },
     create: {
       college_id: college.id,
       department_id: deptIt.id,
@@ -130,7 +139,10 @@ async function main() {
 
   const admin = await prisma.user.upsert({
     where: { email: 'admin@campushub.edu' },
-    update: {},
+    update: {
+      password_hash: hashedPassword,
+      status: UserStatus.ACTIVE,
+    },
     create: {
       college_id: college.id,
       department_id: deptCse.id,

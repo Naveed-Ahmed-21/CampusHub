@@ -12,10 +12,28 @@ This project follows:
 # [Unreleased]
 
 ## Added
+- Docker End-to-End Orchestration
+- Advanced ChatX Protocol
 
-- Initial project documentation
-- Product Vision
-- Product Requirements Document (PRD)
+---
+
+# [1.1.0] - 2026-08-16 - Faculty V1 Experience
+
+## Added
+### Backend
+- Dedicated Faculty module with Prisma models: `Subject`, `SubjectResource`, `SubjectAnnouncement`, `SubjectEnrollment`, `StudentMentorship`
+- Faculty dashboard aggregation (`/api/v1/faculty/dashboard`), assigned subjects management, ImageKit study material uploads, academic announcements publishing, today class timetable, and student mentorship roster
+- Role-based access control (RBAC) protecting endpoints with `requireAuth()` and `requireRole('FACULTY', ...)`
+- Comprehensive unit and integration test suite with 10 passing tests
+
+### Flutter Frontend (`apps/campus_hub_app`)
+- Dedicated Faculty experience combining Academic Workspace + Campus Social Stream + Communication
+- `FacultyHomeView` with welcome header, today's schedule card, quick actions bar, KPI metrics, and embedded department feeds
+- `FacultyTeachingView` with 3 tabs: My Subjects grid, Timetable, and Student Mentoring roster
+- `SubjectDetailView` with 4 tabs: Course Overview & Syllabus, ImageKit Study Materials with uploader dialog, Announcements publisher, and Enrolled Students
+- `FacultyCampusView` with department/cross-department feeds, events, QR attendance scanner dialog, and club advisor integration
+- `FacultyProfileView` displaying designation, academic publications, research interests, office hours, and settings
+- GoRouter adaptive role navigation and route guards for `isFaculty`
 - User Flows
 - Database Design
 - API Specification

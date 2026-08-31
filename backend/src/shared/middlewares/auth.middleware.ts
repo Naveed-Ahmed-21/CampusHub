@@ -13,12 +13,8 @@ declare global {
   }
 }
 
-/**
- * Authentication Middleware: Answers "Who is this user?"
- * Verifies JWT Access Token from Authorization: Bearer header.
- */
-export const requireAuth = () => {
-  return (req: Request, res: Response, next: NextFunction): void => {
+export const requireAuth = (arg1?: any, arg2?: any, arg3?: any): any => {
+  const middleware = (req: Request, res: Response, next: NextFunction): void => {
     const authHeader = req.headers.authorization;
 
     if (authHeader && authHeader.startsWith('Bearer ')) {
@@ -27,36 +23,20 @@ export const requireAuth = () => {
         const payload = verifyAccessToken(token);
         req.user = payload;
         return next();
-      } catch {
-        if (process.env.NODE_ENV === 'development') {
-          req.user = {
-            sub: '47ff6b35-dc06-4dc3-a62a-346cb73be31f',
-            userId: '47ff6b35-dc06-4dc3-a62a-346cb73be31f',
-            collegeId: '7b910a52-f576-45ca-a2e6-2b9a840426b5',
-            departmentId: 'ef9b6927-88ac-41a9-8b5f-c64093d3e00d',
-            role: Role.STUDENT,
-            email: 'student@campushub.edu',
-          };
-          return next();
-        }
-        throw new UnauthorizedError('Authentication required');
+      } catch (err) {
+        throw new UnauthorizedError('Invalid or expired access token');
       }
-    }
-
-    if (process.env.NODE_ENV === 'development') {
-      req.user = {
-        sub: '47ff6b35-dc06-4dc3-a62a-346cb73be31f',
-        userId: '47ff6b35-dc06-4dc3-a62a-346cb73be31f',
-        collegeId: '7b910a52-f576-45ca-a2e6-2b9a840426b5',
-        departmentId: 'ef9b6927-88ac-41a9-8b5f-c64093d3e00d',
-        role: Role.STUDENT,
-        email: 'student@campushub.edu',
-      };
-      return next();
     }
 
     throw new UnauthorizedError('Authentication required');
   };
+
+  // If called directly as middleware: requireAuth(req, res, next)
+  if (arg1 && arg2 && typeof arg3 === 'function') {
+    return middleware(arg1, arg2, arg3);
+  }
+
+  return middleware;
 };
 
 export const authenticate = requireAuth();

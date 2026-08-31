@@ -1,6 +1,9 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/services/media_picker_service.dart';
+import '../../../../core/services/media_upload_service.dart';
 import '../providers/chat_provider.dart';
 import '../../domain/chat_models.dart';
 import '../../data/chat_repository.dart';
@@ -14,15 +17,19 @@ class CreateGroupView extends ConsumerStatefulWidget {
 
 class _CreateGroupViewState extends ConsumerState<CreateGroupView> {
   final _nameController = TextEditingController();
+  final _descController = TextEditingController();
   final _searchController = TextEditingController();
   final List<ChatParticipantUser> _selectedUsers = [];
+  SelectedMediaFile? _selectedGroupImage;
   String _searchQuery = '';
   int _currentStep = 0; // 0: Select Members, 1: Group Details
+  bool _isPrivate = false;
   bool _isLoading = false;
 
   @override
   void dispose() {
     _nameController.dispose();
+    _descController.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -37,8 +44,59 @@ class _CreateGroupViewState extends ConsumerState<CreateGroupView> {
     });
   }
 
+  void _showImageSourcePicker() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.camera_alt, color: Colors.blue),
+                title: const Text('Take Photo (Camera)'),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final file = await MediaPickerService.pickImageFromCamera();
+                  if (file != null && mounted) {
+                    setState(() => _selectedGroupImage = file);
+                  }
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library, color: Colors.purple),
+                title: const Text('Choose Image (Gallery)'),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final file = await MediaPickerService.pickImageFromGallery();
+                  if (file != null && mounted) {
+                    setState(() => _selectedGroupImage = file);
+                  }
+                },
+              ),
+              if (_selectedGroupImage != null)
+                ListTile(
+                  leading: const Icon(Icons.delete_outline, color: Colors.red),
+                  title: const Text('Remove Image', style: TextStyle(color: Colors.red)),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    setState(() => _selectedGroupImage = null);
+                  },
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _createGroup() async {
     final name = _nameController.text.trim();
+    final desc = _descController.text.trim();
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter a group name')),
@@ -49,16 +107,33 @@ class _CreateGroupViewState extends ConsumerState<CreateGroupView> {
     setState(() => _isLoading = true);
 
     try {
+      String? uploadedAvatarUrl;
+      if (_selectedGroupImage != null) {
+        final uploadService = ref.read(mediaUploadServiceProvider);
+        final uploadResult = await uploadService.uploadSelectedFile(_selectedGroupImage!);
+        uploadedAvatarUrl = uploadResult.url;
+      }
+
       final repo = ref.read(chatRepositoryProvider);
       final memberIds = _selectedUsers.map((u) => u.id).toList();
-      final room = await repo.createGroupChat(name: name, memberIds: memberIds);
+      final room = await repo.createGroupChat(
+        name: name,
+        description: desc.isNotEmpty ? desc : null,
+        avatarUrl: uploadedAvatarUrl,
+        isPrivate: _isPrivate,
+        memberIds: memberIds,
+      );
 
       ref.invalidate(userChatRoomsProvider);
+      ref.invalidate(publicGroupsProvider(null));
 
       if (mounted) {
         context.pushReplacement('/chat/room/${room.id}');
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Group "$name" created!'), backgroundColor: Colors.green),
+          SnackBar(
+            content: Text('${_isPrivate ? "Private" : "Public"} group "$name" created!'),
+            backgroundColor: Colors.green,
+          ),
         );
       }
     } catch (e) {
@@ -79,15 +154,14 @@ class _CreateGroupViewState extends ConsumerState<CreateGroupView> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(_currentStep == 0 ? 'Select Group Members' : 'New Group Info'),
+        title: Text(_currentStep == 0 ? 'Select Group Members' : 'Create Group'),
       ),
       floatingActionButton: _currentStep == 0
           ? FloatingActionButton.extended(
-              onPressed: _selectedUsers.isEmpty
-                  ? null
-                  : () => setState(() => _currentStep = 1),
+              heroTag: null,
+              onPressed: () => setState(() => _currentStep = 1),
               icon: const Icon(Icons.arrow_forward),
-              label: Text('Next (${_selectedUsers.length})'),
+              label: Text(_selectedUsers.isEmpty ? 'Skip & Configure' : 'Next (${_selectedUsers.length})'),
             )
           : null,
       body: _currentStep == 0
@@ -126,9 +200,9 @@ class _CreateGroupViewState extends ConsumerState<CreateGroupView> {
                           padding: const EdgeInsets.only(right: 8.0),
                           child: Chip(
                             avatar: CircleAvatar(
-                              child: Text(user.firstName[0].toUpperCase()),
+                              child: Text(user.firstName.isNotEmpty ? user.firstName[0].toUpperCase() : 'U'),
                             ),
-                            label: Text(user.firstName),
+                            label: Text(user.fullName),
                             onDeleted: () => _toggleSelectUser(user),
                           ),
                         );
@@ -155,14 +229,17 @@ class _CreateGroupViewState extends ConsumerState<CreateGroupView> {
                           return ListTile(
                             onTap: () => _toggleSelectUser(user),
                             leading: CircleAvatar(
-                              backgroundColor: Colors.blue.shade100,
+                              backgroundColor: theme.colorScheme.primaryContainer,
                               child: Text(
                                 user.firstName.isNotEmpty ? user.firstName[0].toUpperCase() : 'U',
                                 style: const TextStyle(fontWeight: FontWeight.bold),
                               ),
                             ),
                             title: Text(user.fullName, style: const TextStyle(fontWeight: FontWeight.bold)),
-                            subtitle: Text(user.email),
+                            subtitle: Text(
+                              user.displayUsername,
+                              style: TextStyle(color: theme.colorScheme.primary, fontSize: 12.5),
+                            ),
                             trailing: Checkbox(
                               value: isSelected,
                               onChanged: (_) => _toggleSelectUser(user),
@@ -177,34 +254,141 @@ class _CreateGroupViewState extends ConsumerState<CreateGroupView> {
                 ),
               ],
             )
-          : Padding(
+          : SingleChildScrollView(
               padding: const EdgeInsets.all(20.0),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  CircleAvatar(
-                    radius: 50,
-                    backgroundColor: theme.colorScheme.primaryContainer,
-                    child: Icon(Icons.groups, size: 48, color: theme.colorScheme.primary),
+                  Center(
+                    child: Stack(
+                      children: [
+                        CircleAvatar(
+                          radius: 46,
+                          backgroundColor: theme.colorScheme.primaryContainer,
+                          backgroundImage: _selectedGroupImage != null
+                              ? (_selectedGroupImage!.bytes != null
+                                  ? MemoryImage(_selectedGroupImage!.bytes!) as ImageProvider
+                                  : (_selectedGroupImage!.path != null
+                                      ? FileImage(File(_selectedGroupImage!.path!)) as ImageProvider
+                                      : null))
+                              : null,
+                          child: _selectedGroupImage == null
+                              ? Icon(
+                                  _isPrivate ? Icons.lock_outline : Icons.groups,
+                                  size: 42,
+                                  color: theme.colorScheme.primary,
+                                )
+                              : null,
+                        ),
+                        Positioned(
+                          bottom: 0,
+                          right: 0,
+                          child: CircleAvatar(
+                            radius: 16,
+                            backgroundColor: theme.colorScheme.primary,
+                            child: IconButton(
+                              icon: const Icon(Icons.camera_alt, size: 14, color: Colors.white),
+                              onPressed: _showImageSourcePicker,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 6),
+                  Center(
+                    child: TextButton.icon(
+                      onPressed: _showImageSourcePicker,
+                      icon: const Icon(Icons.add_photo_alternate, size: 16),
+                      label: Text(
+                        _selectedGroupImage != null ? 'Change Group Image' : 'Add Group Image (Optional)',
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
                   TextField(
                     controller: _nameController,
                     autofocus: true,
                     decoration: const InputDecoration(
-                      labelText: 'Group Name',
-                      hintText: 'e.g. AI Research Group',
+                      labelText: 'Group Name *',
+                      hintText: 'e.g. Flutter Study Circle',
                       prefixIcon: Icon(Icons.group),
                       border: OutlineInputBorder(),
                     ),
                   ),
                   const SizedBox(height: 16),
-                  Text(
-                    'Members: ${_selectedUsers.map((u) => u.fullName).join(", ")}',
-                    style: const TextStyle(color: Colors.grey, fontSize: 13),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
+
+                  TextField(
+                    controller: _descController,
+                    maxLines: 3,
+                    decoration: const InputDecoration(
+                      labelText: 'Group Description (Optional)',
+                      hintText: 'What is this group about?',
+                      prefixIcon: Icon(Icons.description_outlined),
+                      border: OutlineInputBorder(),
+                    ),
                   ),
-                  const Spacer(),
+                  const SizedBox(height: 24),
+
+                  Text(
+                    'Group Type',
+                    style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+
+                  Card(
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: BorderSide(
+                        color: !_isPrivate ? theme.colorScheme.primary : theme.colorScheme.outlineVariant,
+                        width: !_isPrivate ? 1.5 : 1,
+                      ),
+                    ),
+                    child: ListTile(
+                      onTap: () => setState(() => _isPrivate = false),
+                      leading: const Icon(Icons.public, color: Colors.blue),
+                      title: const Text('Public Group', style: TextStyle(fontWeight: FontWeight.bold)),
+                      subtitle: const Text('Anyone on campus can discover and join this group freely.'),
+                      trailing: Icon(
+                        !_isPrivate ? Icons.radio_button_checked : Icons.radio_button_off,
+                        color: !_isPrivate ? theme.colorScheme.primary : Colors.grey,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+
+                  Card(
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: BorderSide(
+                        color: _isPrivate ? theme.colorScheme.primary : theme.colorScheme.outlineVariant,
+                        width: _isPrivate ? 1.5 : 1,
+                      ),
+                    ),
+                    child: ListTile(
+                      onTap: () => setState(() => _isPrivate = true),
+                      leading: const Icon(Icons.lock, color: Colors.orange),
+                      title: const Text('Private Group', style: TextStyle(fontWeight: FontWeight.bold)),
+                      subtitle: const Text('Only admins can add or invite members. Hidden from public discovery.'),
+                      trailing: Icon(
+                        _isPrivate ? Icons.radio_button_checked : Icons.radio_button_off,
+                        color: _isPrivate ? theme.colorScheme.primary : Colors.grey,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  if (_selectedUsers.isNotEmpty)
+                    Text(
+                      'Initial Members (${_selectedUsers.length}): ${_selectedUsers.map((u) => u.fullName).join(", ")}',
+                      style: TextStyle(color: theme.colorScheme.outline, fontSize: 13),
+                    ),
+                  const SizedBox(height: 28),
+
                   Row(
                     children: [
                       Expanded(
@@ -215,10 +399,10 @@ class _CreateGroupViewState extends ConsumerState<CreateGroupView> {
                       ),
                       const SizedBox(width: 16),
                       Expanded(
-                        child: ElevatedButton(
+                        child: FilledButton(
                           onPressed: _isLoading ? null : _createGroup,
                           child: _isLoading
-                              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                               : const Text('Create Group'),
                         ),
                       ),

@@ -119,6 +119,42 @@ describe('RBAC Security & Authorization Test Suite', () => {
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
     });
+
+    it('STUDENT accessing Faculty dashboard returns 403 Forbidden', async () => {
+      const res = await request(app)
+        .get('/api/v1/faculty/dashboard')
+        .set('Authorization', `Bearer ${studentToken}`);
+
+      expect(res.status).toBe(403);
+      expect(res.body.success).toBe(false);
+    });
+
+    it('PLACEMENT_OFFICER accessing Faculty dashboard returns 403 Forbidden', async () => {
+      const res = await request(app)
+        .get('/api/v1/faculty/dashboard')
+        .set('Authorization', `Bearer ${placementOfficerToken}`);
+
+      expect(res.status).toBe(403);
+      expect(res.body.success).toBe(false);
+    });
+
+    it('FACULTY accessing Faculty dashboard succeeds with 200', async () => {
+      const res = await request(app)
+        .get('/api/v1/faculty/dashboard')
+        .set('Authorization', `Bearer ${facultyToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+    });
+
+    it('ADMIN accessing Faculty dashboard succeeds with 200 oversight', async () => {
+      const res = await request(app)
+        .get('/api/v1/faculty/dashboard')
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+    });
   });
 
   describe('3. Resource Ownership Security Checks', () => {

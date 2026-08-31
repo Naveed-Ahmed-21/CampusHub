@@ -91,7 +91,7 @@ The system follows these principles:
                          │
         ┌────────────────┴────────────────┐
         │                                 │
-   Cloudinary                        Firebase
+    ImageKit                         Firebase
  (Images / Files)              Push Notifications
 ```
 
@@ -233,13 +233,15 @@ Used for
 
 ---
 
-## Cloudinary
+## ImageKit
 
 Used for
 
 - Profile Images
 - Post Images
 - Club Logos
+- Chat Documents & Media
+- Resumes & Certificates
 
 ---
 
@@ -350,7 +352,7 @@ Store in Database
 
 ↓
 
-Upload Media (Cloudinary)
+Upload Media (ImageKit)
 
 ↓
 
@@ -480,7 +482,7 @@ Authorization
 
 Passwords
 
-- bcrypt hashing
+- Argon2id hashing
 
 Transport
 
@@ -599,7 +601,7 @@ Media
 
 ↓
 
-Cloudinary
+ImageKit
 
 Notifications
 
@@ -775,7 +777,7 @@ Each college is isolated through the `campus` entity while sharing the same plat
 
 ✔ Firebase Cloud Messaging
 
-✔ Cloudinary media storage
+✔ ImageKit media storage
 
 ✔ REST API
 
