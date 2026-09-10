@@ -15,6 +15,7 @@ describe('PostsService', () => {
       addComment: jest.fn(),
       getComments: jest.fn(),
       toggleSave: jest.fn(),
+      findPostById: jest.fn().mockResolvedValue(null),
     } as unknown as jest.Mocked<PostsRepository>;
 
     postsService = new PostsService(postsRepository);

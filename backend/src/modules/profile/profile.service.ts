@@ -1,9 +1,18 @@
 import { ProfileRepository } from './profile.repository';
 import { NotFoundError } from '../../shared/errors/AppError';
 import { UpdateProfileDTO, AddSkillDTO, AddProjectDTO, ProfileResponseDTO } from './profile.types';
+import { NotificationsRepository } from '../notifications/notifications.repository';
+import { NotificationsService } from '../notifications/notifications.service';
 
 export class ProfileService {
-  constructor(private readonly profileRepo: ProfileRepository) {}
+  private readonly notificationsService: NotificationsService;
+
+  constructor(
+    private readonly profileRepo: ProfileRepository,
+    notificationsService?: NotificationsService,
+  ) {
+    this.notificationsService = notificationsService ?? new NotificationsService(new NotificationsRepository());
+  }
 
   async getProfile(userId: string, currentUserId?: string): Promise<ProfileResponseDTO> {
     const user = await this.profileRepo.getProfileByUserId(userId);
@@ -49,6 +58,14 @@ export class ProfileService {
         projectUrl: p.project_url,
         repoUrl: p.repo_url,
       })),
+      clubs: ((user as any).club_members || []).map((cm: any) => ({
+        id: cm.id,
+        clubId: cm.club?.id ?? cm.club_id,
+        name: cm.club?.name ?? 'Club',
+        category: cm.club?.category ?? 'General',
+        logoUrl: cm.club?.logo_url,
+        role: cm.role,
+      })),
     };
   }
 
@@ -61,7 +78,22 @@ export class ProfileService {
   }
 
   async toggleFollow(followerId: string, followingId: string) {
-    return this.profileRepo.toggleFollow(followerId, followingId);
+    const result = await this.profileRepo.toggleFollow(followerId, followingId);
+    if (result && result.isFollowing) {
+      try {
+        const follower = await this.profileRepo.getProfileByUserId(followerId);
+        const name = follower ? `${follower.first_name} ${follower.last_name}`.trim() : 'Someone';
+        await this.notificationsService.sendNotification({
+          user_id: followingId,
+          title: 'New Follower',
+          body: `${name} started following your campus profile`,
+          type: 'SYSTEM',
+          category: 'Social',
+          deep_link: `/profile`,
+        });
+      } catch (_) {}
+    }
+    return result;
   }
 
   async updateProfile(userId: string, dto: UpdateProfileDTO): Promise<ProfileResponseDTO> {

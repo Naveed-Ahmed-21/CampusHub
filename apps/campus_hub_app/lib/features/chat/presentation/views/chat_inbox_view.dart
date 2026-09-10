@@ -227,8 +227,8 @@ class _ChatInboxViewState extends ConsumerState<ChatInboxView>
             controller: _tabController,
             children: [
               _buildRoomsList(activeRooms),
-              _buildRoomsList(directRooms, emptyText: 'No direct messages yet.\nTap "+ New Message" above to start a conversation!'),
-              _buildRoomsList(groupRooms, emptyText: 'No joined groups yet.\nExplore campus groups to join discussions!'),
+              _buildRoomsList(directRooms, emptyText: 'No direct conversations yet.\nTap "+ New Message" above to start a conversation!'),
+              _buildRoomsList(groupRooms, emptyText: 'No joined groups yet.\nVisit Clubs or Explore to join campus communities!'),
               _buildExploreGroupsTab(),
             ],
           );
@@ -292,10 +292,22 @@ class _ChatInboxViewState extends ConsumerState<ChatInboxView>
                       style: TextStyle(color: theme.colorScheme.outline, fontSize: 14.5),
                     ),
                     const SizedBox(height: 18),
-                    FilledButton.tonalIcon(
-                      onPressed: _openNewMessageAction,
-                      icon: const Icon(Icons.edit_square, size: 16),
-                      label: const Text('Start a Conversation'),
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      alignment: WrapAlignment.center,
+                      children: [
+                        FilledButton.tonalIcon(
+                          onPressed: _openNewMessageAction,
+                          icon: const Icon(Icons.edit_square, size: 16),
+                          label: const Text('Start a Conversation'),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: () => context.go('/search'),
+                          icon: const Icon(Icons.explore_outlined, size: 16),
+                          label: const Text('Explore Campus'),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -479,18 +491,18 @@ class _ChatInboxViewState extends ConsumerState<ChatInboxView>
 
   Widget _buildExploreGroupsTab() {
     final theme = Theme.of(context);
-    final groupsAsync = ref.watch(publicGroupsProvider(_exploreSearchQuery));
+    final groupsAsync = ref.watch(publicGroupsProvider(_exploreSearchQuery.isEmpty ? null : _exploreSearchQuery));
 
     return Column(
       children: [
-        // Search Input Bar
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
           child: TextField(
             controller: _exploreSearchController,
             decoration: InputDecoration(
-              hintText: 'Search public groups by name or topic...',
-              prefixIcon: const Icon(Icons.search),
+              hintText: 'Search public campus groups & study squads...',
+              hintStyle: const TextStyle(fontSize: 13.5),
+              prefixIcon: const Icon(Icons.search, size: 20),
               suffixIcon: _exploreSearchQuery.isNotEmpty
                   ? IconButton(
                       icon: const Icon(Icons.clear),
@@ -513,7 +525,6 @@ class _ChatInboxViewState extends ConsumerState<ChatInboxView>
             },
           ),
         ),
-
         Expanded(
           child: groupsAsync.when(
             data: (groups) {
@@ -548,7 +559,6 @@ class _ChatInboxViewState extends ConsumerState<ChatInboxView>
                 separatorBuilder: (_, __) => const SizedBox(height: 8),
                 itemBuilder: (context, index) {
                   final group = groups[index];
-
                   return Card(
                     elevation: 0,
                     color: theme.colorScheme.surfaceContainer,
@@ -619,7 +629,6 @@ class _ChatInboxViewState extends ConsumerState<ChatInboxView>
                                       await repo.joinGroup(group.id);
                                       ref.read(userChatRoomsProvider.notifier).refresh();
                                       ref.invalidate(publicGroupsProvider(null));
-
                                       if (context.mounted) {
                                         ScaffoldMessenger.of(context).showSnackBar(
                                           SnackBar(

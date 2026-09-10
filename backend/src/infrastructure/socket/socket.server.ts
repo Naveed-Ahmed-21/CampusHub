@@ -4,8 +4,12 @@ import { env } from '../../config/env.config';
 import { verifyAccessToken } from '../../shared/utils/jwt.util';
 import { logger } from '../logger/logger';
 import { ChatRepository } from '../../modules/chat/chat.repository';
+import { NotificationsRepository } from '../../modules/notifications/notifications.repository';
+import { NotificationsService } from '../../modules/notifications/notifications.service';
 
 const chatRepository = new ChatRepository();
+const notificationsRepo = new NotificationsRepository();
+const notificationsService = new NotificationsService(notificationsRepo);
 
 export class SocketServer {
   private static instance: SocketServer;
@@ -119,6 +123,29 @@ export class SocketServer {
 
           // Emit to all users in the room
           this.io.to(`room:${data.roomId}`).emit('new_message', message);
+
+          // Dispatch notification to room participants
+          try {
+            const room = await chatRepository.findRoomById(data.roomId);
+            if (room && room.participants) {
+              const sender = (message as any)?.sender;
+              const senderName = sender ? `${sender.first_name || ''} ${sender.last_name || ''}`.trim() : 'Someone';
+              for (const p of room.participants) {
+                if (p.user_id !== user.userId) {
+                  notificationsService
+                    .sendNotification({
+                      user_id: p.user_id,
+                      title: room.type === 'DIRECT' ? senderName : (room.name || 'Chat Group'),
+                      body: data.message ? (data.message.length > 80 ? data.message.slice(0, 77) + '...' : data.message) : 'Sent a file',
+                      type: 'CHAT_MESSAGE',
+                      category: 'Chat',
+                      deep_link: `/chat/room/${data.roomId}`,
+                    })
+                    .catch(() => {});
+                }
+              }
+            }
+          } catch (_) {}
         } catch (err) {
           logger.error(err, 'Error handling socket send_message');
           socket.emit('error', { message: 'Failed to send message' });

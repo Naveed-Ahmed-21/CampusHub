@@ -13,7 +13,7 @@ export const sendMessageSchema = z.object({
     roomId: z.string().min(1, 'Room ID is required'),
     message: z.string().optional().default(''),
     media_url: z.string().optional().nullable(),
-    media_type: z.enum(['IMAGE', 'DOCUMENT', 'AUDIO', 'VIDEO']).optional().nullable(),
+    media_type: z.enum(['IMAGE', 'DOCUMENT', 'AUDIO', 'VIDEO', 'POST']).optional().nullable(),
     file_name: z.string().optional().nullable(),
     file_size: z.number().optional().nullable(),
     reply_to_message_id: z.string().optional().nullable(),

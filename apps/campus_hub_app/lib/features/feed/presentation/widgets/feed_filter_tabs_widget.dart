@@ -23,11 +23,10 @@ class FeedFilterTabsWidget extends StatelessWidget {
   });
 
   static const List<FeedTabOption> tabs = [
-    FeedTabOption(label: 'For You', type: 'MY_FEED'),
-    FeedTabOption(label: 'Following', type: 'FOLLOWING'),
-    FeedTabOption(label: 'My Department', type: 'DEPARTMENT', dotColor: Colors.purple),
-    FeedTabOption(label: 'Cross Department', type: 'CROSS_DEPARTMENT', dotColor: Colors.orange),
-    FeedTabOption(label: 'Related', type: 'CLUB', dotColor: Colors.green),
+    FeedTabOption(label: 'For You', type: 'forYou'),
+    FeedTabOption(label: 'Following', type: 'following', dotColor: Colors.blue),
+    FeedTabOption(label: 'My Department', type: 'myDepartment', dotColor: Colors.purple),
+    FeedTabOption(label: 'Related', type: 'related', dotColor: Colors.green),
   ];
 
   @override
@@ -38,7 +37,7 @@ class FeedFilterTabsWidget extends StatelessWidget {
       height: 44,
       margin: const EdgeInsets.symmetric(vertical: 4),
       decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: Colors.grey.shade200, width: 1)),
+        border: Border(bottom: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3), width: 1)),
       ),
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
@@ -65,7 +64,7 @@ class FeedFilterTabsWidget extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                      color: isSelected ? theme.colorScheme.primary : Colors.grey.shade700,
+                      color: isSelected ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
                   if (tab.dotColor != null) ...[

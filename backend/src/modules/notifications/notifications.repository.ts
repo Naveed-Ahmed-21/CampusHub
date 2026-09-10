@@ -27,6 +27,17 @@ export class NotificationsRepository {
     });
   }
 
+  async unregisterFcmToken(userId: string, fcmToken?: string) {
+    if (fcmToken) {
+      return prisma.notificationToken.deleteMany({
+        where: { user_id: userId, fcm_token: fcmToken },
+      });
+    }
+    return prisma.notificationToken.deleteMany({
+      where: { user_id: userId },
+    });
+  }
+
   async createNotification(dto: SendNotificationDto) {
     return prisma.notification.create({
       data: {

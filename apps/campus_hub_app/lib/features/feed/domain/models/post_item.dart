@@ -181,6 +181,10 @@ class PostItem {
     this.clubCategory,
   });
 
+  String get authorName => author.name;
+  String? get authorAvatarUrl => author.avatarUrl;
+  String get authorRole => author.role;
+
   factory PostItem.fromJson(Map<String, dynamic> json) {
     final rawAttachments = json['attachments'] as List<dynamic>? ?? [];
     final deptId = json['departmentId'] as String? ?? json['department_id'] as String?;

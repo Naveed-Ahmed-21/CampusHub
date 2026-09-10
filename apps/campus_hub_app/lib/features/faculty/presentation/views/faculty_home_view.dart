@@ -1,16 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/constants/api_endpoints.dart';
 import '../../../../shared/responsive/responsive_layout.dart';
 import '../../../../shared/widgets/async_value_widget.dart';
 import '../../../feed/presentation/controllers/feed_controller.dart';
 import '../../../feed/presentation/widgets/feed_post_card_widget.dart';
+import '../../../feed/presentation/widgets/comments_sheet.dart';
 import '../controllers/faculty_controller.dart';
 import '../widgets/faculty_quick_actions_bar.dart';
 import '../widgets/faculty_schedule_card.dart';
 
 class FacultyHomeView extends ConsumerWidget {
   const FacultyHomeView({super.key});
+
+  String _getGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Good Morning';
+    if (hour < 17) return 'Good Afternoon';
+    return 'Good Evening';
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -20,11 +29,18 @@ class FacultyHomeView extends ConsumerWidget {
       appBar: AppBar(
         title: Row(
           children: [
-            const Icon(Icons.school, color: Colors.blue),
-            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: Colors.blue.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.school, color: Colors.blue, size: 20),
+            ),
+            const SizedBox(width: 10),
             const Text(
               'CampusHub Faculty',
-              style: TextStyle(fontWeight: FontWeight.bold),
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
             ),
           ],
         ),
@@ -60,6 +76,8 @@ class FacultyHomeView extends ConsumerWidget {
     AsyncValue dashboardAsync, {
     required bool isDesktop,
   }) {
+    final theme = Theme.of(context);
+
     return AsyncValueWidget(
       value: dashboardAsync,
       data: (dashboard) {
@@ -88,20 +106,28 @@ class FacultyHomeView extends ConsumerWidget {
                   _buildKpiGrid(context, dashboard.stats),
                   const SizedBox(height: 20),
 
-                  // Section Header: Department & Campus Feed
+                  // Section Header: Department & Campus Feed (Responsive: no overflow)
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        'Academic & Department Stream',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
+                      Expanded(
+                        child: Text(
+                          'Academic & Department Stream',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
+                      const SizedBox(width: 8),
                       TextButton.icon(
                         onPressed: () => context.go('/faculty/campus'),
                         icon: const Icon(Icons.hub, size: 16),
-                        label: const Text('Campus Ecosystem'),
+                        label: const Text('Campus Hub'),
+                        style: TextButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        ),
                       ),
                     ],
                   ),
@@ -135,7 +161,7 @@ class FacultyHomeView extends ConsumerWidget {
                             final post = posts[index];
                             return FeedPostCardWidget(
                               post: post,
-                              onOpenComments: () {},
+                              onOpenComments: () => PostCommentsSheet.show(context, post.id),
                             );
                           },
                           childCount: posts.length > 5 ? 5 : posts.length,
@@ -173,6 +199,7 @@ class FacultyHomeView extends ConsumerWidget {
   Widget _buildWelcomeCard(BuildContext context, dynamic faculty) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final greeting = _getGreeting();
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -198,10 +225,13 @@ class FacultyHomeView extends ConsumerWidget {
           CircleAvatar(
             radius: 28,
             backgroundColor: Colors.white24,
-            backgroundImage: faculty.avatarUrl != null
-                ? NetworkImage(faculty.avatarUrl!)
+            backgroundImage: faculty.avatarUrl != null && faculty.avatarUrl!.isNotEmpty
+                ? NetworkImage(ApiEndpoints.resolveUrl(faculty.avatarUrl!))
                 : null,
-            child: faculty.avatarUrl == null
+            onBackgroundImageError: faculty.avatarUrl != null && faculty.avatarUrl!.isNotEmpty
+                ? (_, __) {}
+                : null,
+            child: faculty.avatarUrl == null || faculty.avatarUrl!.isEmpty
                 ? const Icon(Icons.person, color: Colors.white, size: 32)
                 : null,
           ),
@@ -211,7 +241,7 @@ class FacultyHomeView extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Welcome back, ${faculty.name}',
+                  '$greeting, ${faculty.name}',
                   style: theme.textTheme.titleMedium?.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
@@ -235,38 +265,42 @@ class FacultyHomeView extends ConsumerWidget {
   }
 
   Widget _buildKpiGrid(BuildContext context, dynamic stats) {
-    return Row(
-      children: [
-        Expanded(
-          child: _KpiTile(
-            title: 'Subjects Handled',
-            value: '${stats.totalSubjects}',
-            icon: Icons.menu_book,
-            color: Colors.blue,
-            onTap: () => context.go('/teaching'),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _KpiTile(
-            title: 'Assigned Mentees',
-            value: '${stats.totalMentees}',
-            icon: Icons.school,
-            color: Colors.teal,
-            onTap: () => context.go('/teaching'),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _KpiTile(
-            title: 'Today Classes',
-            value: '${stats.todayClassesCount}',
-            icon: Icons.access_time_filled,
-            color: Colors.orange,
-            onTap: () => context.go('/teaching'),
-          ),
-        ),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Row(
+          children: [
+            Expanded(
+              child: _KpiTile(
+                title: 'My Subjects',
+                value: '${stats.totalSubjects}',
+                icon: Icons.menu_book,
+                color: Colors.blue,
+                onTap: () => context.go('/teaching'),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _KpiTile(
+                title: 'Mentees',
+                value: '${stats.totalMentees}',
+                icon: Icons.school,
+                color: Colors.teal,
+                onTap: () => context.go('/teaching'),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _KpiTile(
+                title: 'Classes Today',
+                value: '${stats.todayClassesCount}',
+                icon: Icons.access_time_filled,
+                color: Colors.orange,
+                onTap: () => context.go('/teaching'),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -294,7 +328,7 @@ class _KpiTile extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(14),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
         decoration: BoxDecoration(
           color: theme.cardColor,
           borderRadius: BorderRadius.circular(14),

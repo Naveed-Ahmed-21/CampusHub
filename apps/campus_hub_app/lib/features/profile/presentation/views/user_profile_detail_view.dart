@@ -14,6 +14,7 @@ import '../../domain/models/user_profile.dart';
 import '../../data/repositories/profile_repository_impl.dart';
 import '../controllers/profile_controller.dart';
 import 'user_follows_view.dart';
+import '../../../clubs/presentation/views/club_detail_view.dart';
 import '../../../../shared/widgets/full_screen_image_viewer.dart';
 
 class UserProfileDetailView extends ConsumerStatefulWidget {
@@ -618,24 +619,122 @@ class _UserAboutPortfolioTab extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        if (profile.skills.isNotEmpty) ...[
-          Text('Technical Skills', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
+        // Resume / CV Card
+        if (profile.resumeUrl != null && profile.resumeUrl!.isNotEmpty) ...[
+          Text('Resume & CV', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: profile.skills.map((s) {
-              return Chip(
-                label: Text(s.proficiency != null && s.proficiency!.isNotEmpty ? '${s.skillName} • ${s.proficiency}' : s.skillName, style: const TextStyle(fontSize: 12.5)),
-                backgroundColor: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.7),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                side: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3)),
-              );
-            }).toList(),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surfaceContainer,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.35)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.redAccent.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.picture_as_pdf, color: Colors.redAccent, size: 28),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${profile.firstName}\'s Resume',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'PDF Document • Portfolio Resume',
+                        style: TextStyle(fontSize: 12, color: theme.colorScheme.outline),
+                      ),
+                    ],
+                  ),
+                ),
+                FilledButton.tonalIcon(
+                  onPressed: () async {
+                    try {
+                      final storage = ref.read(mediaStorageServiceProvider);
+                      final cacheKey = 'user_resume_${profile.id}';
+                      String? localPath = storage.isMessageMediaDownloaded(cacheKey)
+                          ? storage.getDownloadedPathForMessage(cacheKey)
+                          : null;
+                      if (localPath == null || !File(localPath).existsSync()) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Downloading resume...'), duration: Duration(seconds: 1)),
+                        );
+                        localPath = await storage.downloadAndSaveFile(
+                          fileUrl: profile.resumeUrl!,
+                          messageId: cacheKey,
+                          fileName: '${profile.firstName}_Resume.pdf',
+                        );
+                      }
+                      if (localPath != null && context.mounted) {
+                        await FileOpenService.openLocalFile(localPath, context: context);
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Could not open resume: $e'), backgroundColor: Colors.red),
+                        );
+                      }
+                    }
+                  },
+                  icon: const Icon(Icons.open_in_new, size: 14),
+                  label: const Text('View', style: TextStyle(fontSize: 12)),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 20),
         ],
 
+        // Clubs & Organizations
+        if (profile.clubs.isNotEmpty) ...[
+          Text('Clubs & Organizations', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          ...profile.clubs.map((club) {
+            return Card(
+              margin: const EdgeInsets.only(bottom: 10),
+              elevation: 0,
+              color: theme.colorScheme.surfaceContainer,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+                side: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3)),
+              ),
+              child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (ctx) => ClubDetailView(clubId: club.clubId)),
+                  );
+                },
+                leading: CircleAvatar(
+                  radius: 20,
+                  backgroundColor: theme.colorScheme.primaryContainer,
+                  backgroundImage: club.logoUrl != null && club.logoUrl!.isNotEmpty
+                      ? NetworkImage(ApiEndpoints.resolveUrl(club.logoUrl!))
+                      : null,
+                  child: club.logoUrl == null || club.logoUrl!.isEmpty
+                      ? Icon(Icons.groups, size: 20, color: theme.colorScheme.primary)
+                      : null,
+                ),
+                title: Text(club.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                subtitle: Text('${club.role} • ${club.category}', style: TextStyle(fontSize: 12, color: theme.colorScheme.outline)),
+                trailing: const Icon(Icons.chevron_right, size: 18),
+              ),
+            );
+          }),
+          const SizedBox(height: 20),
+        ],
+
+        // Featured Projects
         if (profile.projects.isNotEmpty) ...[
           Text('Featured Projects', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
@@ -696,48 +795,29 @@ class _UserAboutPortfolioTab extends ConsumerWidget {
           const SizedBox(height: 20),
         ],
 
-        if (profile.githubUrl != null || profile.linkedinUrl != null || profile.websiteUrl != null || profile.resumeUrl != null) ...[
-          Text('Links & Documents', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
+        // Technical Skills
+        if (profile.skills.isNotEmpty) ...[
+          Text('Technical Skills', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
-          if (profile.resumeUrl != null && profile.resumeUrl!.isNotEmpty)
-            ListTile(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              tileColor: theme.colorScheme.surfaceContainer,
-              leading: const Icon(Icons.picture_as_pdf, color: Colors.redAccent),
-              title: Text('${profile.firstName}\'s Resume / CV', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-              subtitle: const Text('Tap to view and open resume document', style: TextStyle(fontSize: 12)),
-              trailing: FilledButton.tonalIcon(
-                onPressed: () async {
-                  try {
-                    final storage = ref.read(mediaStorageServiceProvider);
-                    final cacheKey = 'user_resume_${profile.id}';
-                    String? localPath = storage.isMessageMediaDownloaded(cacheKey) ? storage.getDownloadedPathForMessage(cacheKey) : null;
-                    if (localPath == null || !File(localPath).existsSync()) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Downloading resume...'), duration: Duration(seconds: 1)),
-                      );
-                      localPath = await storage.downloadAndSaveFile(
-                        fileUrl: profile.resumeUrl!,
-                        messageId: cacheKey,
-                        fileName: '${profile.firstName}_Resume.pdf',
-                      );
-                    }
-                    if (localPath != null && context.mounted) {
-                      await FileOpenService.openLocalFile(localPath, context: context);
-                    }
-                  } catch (e) {
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Could not open resume: $e'), backgroundColor: Colors.red),
-                      );
-                    }
-                  }
-                },
-                icon: const Icon(Icons.open_in_new, size: 14),
-                label: const Text('View', style: TextStyle(fontSize: 12)),
-              ),
-            ),
-          const SizedBox(height: 6),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: profile.skills.map((s) {
+              return Chip(
+                label: Text(s.proficiency != null && s.proficiency!.isNotEmpty ? '${s.skillName} • ${s.proficiency}' : s.skillName, style: const TextStyle(fontSize: 12.5)),
+                backgroundColor: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.7),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                side: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3)),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 20),
+        ],
+
+        // Social & Web Links
+        if (profile.githubUrl != null || profile.linkedinUrl != null || profile.websiteUrl != null) ...[
+          Text('Social & Web Links', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
           if (profile.githubUrl != null && profile.githubUrl!.isNotEmpty)
             ListTile(
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -793,7 +873,7 @@ class _UserAboutPortfolioTab extends ConsumerWidget {
             ),
         ],
 
-        if (profile.skills.isEmpty && profile.projects.isEmpty && profile.bio == null && profile.resumeUrl == null)
+        if (profile.skills.isEmpty && profile.projects.isEmpty && profile.clubs.isEmpty && profile.bio == null && profile.resumeUrl == null)
           Center(
             child: Padding(
               padding: const EdgeInsets.all(32),

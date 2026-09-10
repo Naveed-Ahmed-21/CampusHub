@@ -12,6 +12,15 @@ export class ChatRepository {
           status: 'ACTIVE',
         },
       },
+      AND: [
+        {
+          OR: [
+            { type: { not: ChatRoomType.DIRECT } },
+            { last_message_at: { not: null } },
+            { messages: { some: {} } },
+          ],
+        },
+      ],
     };
 
     if (type) {
@@ -20,25 +29,27 @@ export class ChatRepository {
 
     if (search && search.trim().length > 0) {
       const q = search.trim();
-      whereConditions.OR = [
-        { name: { contains: q, mode: 'insensitive' } },
-        { club: { name: { contains: q, mode: 'insensitive' } } },
-        { department: { name: { contains: q, mode: 'insensitive' } } },
-        {
-          participants: {
-            some: {
-              user: {
-                OR: [
-                  { first_name: { contains: q, mode: 'insensitive' } },
-                  { last_name: { contains: q, mode: 'insensitive' } },
-                  { email: { contains: q, mode: 'insensitive' } },
-                  { username: { contains: q, mode: 'insensitive' } },
-                ],
+      whereConditions.AND.push({
+        OR: [
+          { name: { contains: q, mode: 'insensitive' } },
+          { club: { name: { contains: q, mode: 'insensitive' } } },
+          { department: { name: { contains: q, mode: 'insensitive' } } },
+          {
+            participants: {
+              some: {
+                user: {
+                  OR: [
+                    { first_name: { contains: q, mode: 'insensitive' } },
+                    { last_name: { contains: q, mode: 'insensitive' } },
+                    { email: { contains: q, mode: 'insensitive' } },
+                    { username: { contains: q, mode: 'insensitive' } },
+                  ],
+                },
               },
             },
           },
-        },
-      ];
+        ],
+      });
     }
 
     const rooms = await prisma.chatRoom.findMany({

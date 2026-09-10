@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/notifications_provider.dart';
-import '../../data/notifications_repository.dart';
 import '../../domain/notification_models.dart';
 
 class NotificationsView extends ConsumerStatefulWidget {
@@ -18,7 +17,7 @@ class _NotificationsViewState extends ConsumerState<NotificationsView> with Sing
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this);
+    _tabController = TabController(length: 6, vsync: this);
   }
 
   @override
@@ -29,9 +28,7 @@ class _NotificationsViewState extends ConsumerState<NotificationsView> with Sing
 
   Future<void> _handleNotificationTap(NotificationModel notification) async {
     if (!notification.isRead) {
-      final repo = ref.read(notificationsRepositoryProvider);
-      await repo.markAsRead(notification.id);
-      ref.invalidate(notificationsListProvider);
+      await ref.read(notificationsNotifierProvider.notifier).markAsRead(notification.id);
     }
 
     if (mounted && notification.deepLink != null && notification.deepLink!.isNotEmpty) {
@@ -41,9 +38,7 @@ class _NotificationsViewState extends ConsumerState<NotificationsView> with Sing
 
   Future<void> _markAllRead() async {
     try {
-      final repo = ref.read(notificationsRepositoryProvider);
-      await repo.markAllAsRead();
-      ref.invalidate(notificationsListProvider);
+      await ref.read(notificationsNotifierProvider.notifier).markAllAsRead();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -78,13 +73,15 @@ class _NotificationsViewState extends ConsumerState<NotificationsView> with Sing
             Tab(text: 'Placements'),
             Tab(text: 'Events'),
             Tab(text: 'Chat'),
+            Tab(text: 'Activity'),
             Tab(text: 'Announcements'),
           ],
         ),
       ),
       body: notificationsAsync.when(
         data: (data) {
-          final List<NotificationModel> allNotifications = data['notifications'] ?? [];
+          final List<NotificationModel> allNotifications =
+              (data['notifications'] as List<dynamic>?)?.cast<NotificationModel>() ?? [];
 
           return TabBarView(
             controller: _tabController,
@@ -93,7 +90,8 @@ class _NotificationsViewState extends ConsumerState<NotificationsView> with Sing
               _buildNotificationList(allNotifications.where((n) => n.type == 'PLACEMENT_UPDATE').toList()),
               _buildNotificationList(allNotifications.where((n) => n.type == 'EVENT_REMINDER').toList()),
               _buildNotificationList(allNotifications.where((n) => n.type == 'CHAT_MESSAGE').toList()),
-              _buildNotificationList(allNotifications.where((n) => n.type == 'ANNOUNCEMENT').toList()),
+              _buildNotificationList(allNotifications.where((n) => n.type == 'LIKE' || n.type == 'COMMENT').toList()),
+              _buildNotificationList(allNotifications.where((n) => n.type == 'ANNOUNCEMENT' || n.type == 'SYSTEM').toList()),
             ],
           );
         },
@@ -109,7 +107,7 @@ class _NotificationsViewState extends ConsumerState<NotificationsView> with Sing
                 const Text('Could not load notifications', style: TextStyle(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 12),
                 ElevatedButton.icon(
-                  onPressed: () => ref.invalidate(notificationsListProvider),
+                  onPressed: () => ref.read(notificationsNotifierProvider.notifier).loadNotifications(),
                   icon: const Icon(Icons.refresh),
                   label: const Text('Retry Connection'),
                 ),
@@ -195,6 +193,10 @@ class _NotificationsViewState extends ConsumerState<NotificationsView> with Sing
         return Icons.chat_bubble;
       case 'ANNOUNCEMENT':
         return Icons.campaign;
+      case 'LIKE':
+        return Icons.favorite;
+      case 'COMMENT':
+        return Icons.comment;
       default:
         return Icons.notifications;
     }
@@ -210,6 +212,10 @@ class _NotificationsViewState extends ConsumerState<NotificationsView> with Sing
         return Colors.blue;
       case 'ANNOUNCEMENT':
         return Colors.orange;
+      case 'LIKE':
+        return Colors.pink;
+      case 'COMMENT':
+        return Colors.deepPurple;
       default:
         return Colors.teal;
     }

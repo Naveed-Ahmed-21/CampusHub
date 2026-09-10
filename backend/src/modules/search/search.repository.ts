@@ -17,6 +17,7 @@ export class SearchRepository {
       roll_number: true,
       role: true,
       department: { select: { id: true, name: true, code: true } },
+      portfolio: { select: { bio: true } },
     };
 
     if (currentUserId) {
@@ -83,6 +84,7 @@ export class SearchRepository {
           rollNumber: u.roll_number,
           role: u.role,
           department: u.department ? { id: u.department.id, name: u.department.name, code: u.department.code } : null,
+          bio: u.portfolio?.bio || null,
           isFollowing: false,
         };
       });
@@ -146,6 +148,7 @@ export class SearchRepository {
         rollNumber: u.roll_number,
         role: u.role,
         department: u.department ? { id: u.department.id, name: u.department.name, code: u.department.code } : null,
+        bio: u.portfolio?.bio || null,
         isFollowing: Array.isArray(u.followers) && u.followers.length > 0,
       };
     });

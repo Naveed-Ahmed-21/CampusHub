@@ -22,6 +22,17 @@ class NotificationsRepository {
     }
   }
 
+  Future<void> unregisterFcmToken([String? fcmToken]) async {
+    try {
+      await _dio.delete(
+        '/api/v1/notifications/device-token',
+        data: fcmToken != null ? {'fcm_token': fcmToken} : null,
+      );
+    } catch (_) {
+      // Non-blocking fallback
+    }
+  }
+
   Future<Map<String, dynamic>> getUserNotifications({String? type, bool? isRead}) async {
     final query = <String, dynamic>{};
     if (type != null && type.isNotEmpty) query['type'] = type;

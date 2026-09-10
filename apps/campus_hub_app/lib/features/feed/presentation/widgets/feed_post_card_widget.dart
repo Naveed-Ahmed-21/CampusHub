@@ -7,6 +7,7 @@ import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../domain/models/post_item.dart';
 import '../controllers/feed_controller.dart';
 import 'post_attachment_renderer.dart';
+import 'share_post_sheet.dart';
 
 class FeedPostCardWidget extends ConsumerStatefulWidget {
   final PostItem post;
@@ -529,13 +530,10 @@ class _FeedPostCardWidgetState extends ConsumerState<FeedPostCardWidget> {
               // 5. Share Post
               ListTile(
                 leading: const Icon(Icons.share_outlined, color: Colors.teal),
-                title: const Text('Share Post Link'),
+                title: const Text('Share Post to Chats & Groups'),
                 onTap: () {
                   Navigator.of(ctx).pop();
-                  Clipboard.setData(ClipboardData(text: '${ApiEndpoints.baseUrl}/api/v1/posts/${post.id}'));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Post link copied to clipboard!')),
-                  );
+                  SharePostSheet.show(context, post);
                 },
               ),
             ],
@@ -791,12 +789,7 @@ class _FeedPostCardWidgetState extends ConsumerState<FeedPostCardWidget> {
                     // Share Button
                     IconButton(
                       icon: Icon(Icons.share_outlined, color: theme.colorScheme.onSurfaceVariant, size: 21),
-                      onPressed: () {
-                        Clipboard.setData(ClipboardData(text: '${ApiEndpoints.baseUrl}/api/v1/posts/${post.id}'));
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Post link copied to clipboard!')),
-                        );
-                      },
+                      onPressed: () => SharePostSheet.show(context, post),
                     ),
                   ],
                 ),

@@ -124,61 +124,66 @@ class _FeedViewState extends ConsumerState<FeedView> with AutomaticKeepAliveClie
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 48.0),
               child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      activeFeedType == 'FOLLOWING' ? Icons.people_outline : Icons.dynamic_feed,
-                      size: 64,
-                      color: Colors.grey.shade400,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      activeFeedType == 'FOLLOWING'
-                          ? 'You are not following anyone yet.'
-                          : 'No campus posts found in this feed yet.',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).colorScheme.onSurface,
+                child: Builder(
+                  builder: (ctx) {
+                    final isFollowingTab = activeFeedType.toLowerCase() == 'following';
+                    return Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          isFollowingTab ? Icons.people_outline : Icons.dynamic_feed,
+                          size: 64,
+                          color: Colors.grey.shade400,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          isFollowingTab
+                              ? 'You are not following anyone yet.'
+                              : 'No campus posts found in this feed yet.',
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context).colorScheme.onSurface,
+                              ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          isFollowingTab
+                              ? 'Follow people from your campus to see their posts here.'
+                              : 'Be the first to share an update with your campus community!',
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                color: Colors.grey,
+                              ),
+                        ),
+                        const SizedBox(height: 18),
+                        if (isFollowingTab) ...[
+                          Wrap(
+                            alignment: WrapAlignment.center,
+                            spacing: 10,
+                            runSpacing: 10,
+                            children: [
+                              FilledButton.icon(
+                                onPressed: () => context.push('/search'),
+                                icon: const Icon(Icons.person_search, size: 18),
+                                label: const Text('Discover People to Follow'),
+                              ),
+                              OutlinedButton.icon(
+                                onPressed: () => _onSelectTab('forYou'),
+                                icon: const Icon(Icons.dynamic_feed, size: 18),
+                                label: const Text('Explore For You Feed'),
+                              ),
+                            ],
                           ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      activeFeedType == 'FOLLOWING'
-                          ? 'Follow people from your campus to see their posts here.'
-                          : 'Be the first to share an update with your campus community!',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Colors.grey,
+                        ] else
+                          ElevatedButton.icon(
+                            onPressed: () => _openCreatePost(context),
+                            icon: const Icon(Icons.add),
+                            label: const Text('Create the first post'),
                           ),
-                    ),
-                    const SizedBox(height: 18),
-                    if (activeFeedType == 'FOLLOWING') ...[
-                      Wrap(
-                        alignment: WrapAlignment.center,
-                        spacing: 10,
-                        runSpacing: 10,
-                        children: [
-                          FilledButton.icon(
-                            onPressed: () => context.push('/search'),
-                            icon: const Icon(Icons.person_search, size: 18),
-                            label: const Text('Discover People to Follow'),
-                          ),
-                          OutlinedButton.icon(
-                            onPressed: () => _onSelectTab('MY_FEED'),
-                            icon: const Icon(Icons.dynamic_feed, size: 18),
-                            label: const Text('Explore For You Feed'),
-                          ),
-                        ],
-                      ),
-                    ] else
-                      ElevatedButton.icon(
-                        onPressed: () => _openCreatePost(context),
-                        icon: const Icon(Icons.add),
-                        label: const Text('Create the first post'),
-                      ),
-                  ],
+                      ],
+                    );
+                  },
                 ),
               ),
             ),

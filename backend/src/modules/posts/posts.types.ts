@@ -6,11 +6,15 @@ export type AddCommentDTO = z.infer<typeof addCommentSchema>['body'];
 export type QueryPostsDTO = z.infer<typeof queryPostsSchema>['query'];
 
 export enum FeedType {
+  FOR_YOU = 'forYou',
+  MY_DEPARTMENT = 'myDepartment',
+  RELATED = 'related',
+  FOLLOWING = 'following',
   MY_FEED = 'MY_FEED',
   DEPARTMENT = 'DEPARTMENT',
   CROSS_DEPARTMENT = 'CROSS_DEPARTMENT',
   CLUB = 'CLUB',
-  FOLLOWING = 'FOLLOWING',
+  FOLLOWING_UPPER = 'FOLLOWING',
   MY_POSTS = 'MY_POSTS',
   SAVED = 'SAVED',
   AUTHOR = 'AUTHOR',

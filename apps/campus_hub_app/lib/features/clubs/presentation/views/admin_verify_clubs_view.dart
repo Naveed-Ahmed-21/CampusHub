@@ -67,6 +67,7 @@ class AdminVerifyClubsView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
     final pendingAsync = ref.watch(pendingClubsProvider);
 
     return Scaffold(
@@ -128,7 +129,7 @@ class AdminVerifyClubsView extends ConsumerWidget {
                         const SizedBox(height: 8),
                         Text(
                           club.description!,
-                          style: const TextStyle(color: Colors.black87),
+                          style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
                         ),
                       ],
                       const SizedBox(height: 12),

@@ -6,6 +6,8 @@ import '../../../core/constants/api_endpoints.dart';
 import '../../../core/storage/secure_storage_service.dart';
 import '../domain/chat_models.dart';
 
+import '../../notifications/domain/notification_models.dart';
+
 class SocketChatService {
   io.Socket? _socket;
   final SecureStorageService _storage;
@@ -16,6 +18,7 @@ class SocketChatService {
   final _readReceiptStreamController = StreamController<Map<String, dynamic>>.broadcast();
   final _reactionStreamController = StreamController<Map<String, dynamic>>.broadcast();
   final _deletedMessageStreamController = StreamController<Map<String, dynamic>>.broadcast();
+  final _notificationStreamController = StreamController<NotificationModel>.broadcast();
 
   Stream<ChatMessageModel> get onNewMessage => _messageStreamController.stream;
   Stream<Map<String, dynamic>> get onTypingChange => _typingStreamController.stream;
@@ -23,6 +26,7 @@ class SocketChatService {
   Stream<Map<String, dynamic>> get onMessagesRead => _readReceiptStreamController.stream;
   Stream<Map<String, dynamic>> get onReactionUpdated => _reactionStreamController.stream;
   Stream<Map<String, dynamic>> get onMessageDeleted => _deletedMessageStreamController.stream;
+  Stream<NotificationModel> get onNewNotification => _notificationStreamController.stream;
 
   SocketChatService(this._storage);
 
@@ -84,6 +88,16 @@ class SocketChatService {
     _socket!.on('messages_read', (data) {
       if (data != null && data is Map<String, dynamic>) {
         _readReceiptStreamController.add(data);
+      }
+    });
+
+    _socket!.on('new_notification', (data) {
+      if (data != null && data is Map<String, dynamic>) {
+        try {
+          _notificationStreamController.add(NotificationModel.fromJson(data));
+        } catch (e) {
+          debugPrint('⚠️ Error parsing incoming notification: $e');
+        }
       }
     });
 
@@ -165,6 +179,7 @@ class SocketChatService {
     _readReceiptStreamController.close();
     _reactionStreamController.close();
     _deletedMessageStreamController.close();
+    _notificationStreamController.close();
   }
 }
 

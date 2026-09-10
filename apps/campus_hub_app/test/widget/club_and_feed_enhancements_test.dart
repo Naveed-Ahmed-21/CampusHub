@@ -8,14 +8,14 @@ import 'package:campus_hub_app/features/clubs/presentation/providers/club_provid
 
 void main() {
   group('Feed Filter Tabs Widget Tests', () {
-    testWidgets('displays Cross Department tab and triggers selection', (tester) async {
+    testWidgets('displays For You, My Department, Related tabs and triggers selection', (tester) async {
       String selectedTab = '';
 
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
             body: FeedFilterTabsWidget(
-              activeFeedType: 'MY_FEED',
+              activeFeedType: 'forYou',
               onSelectTab: (type) {
                 selectedTab = type;
               },
@@ -25,15 +25,14 @@ void main() {
       );
 
       expect(find.text('For You'), findsOneWidget);
-      expect(find.text('Following'), findsOneWidget);
       expect(find.text('My Department'), findsOneWidget);
-      expect(find.text('Cross Department'), findsOneWidget);
       expect(find.text('Related'), findsOneWidget);
+      expect(find.text('Cross Department'), findsNothing);
 
-      await tester.tap(find.text('Cross Department'));
+      await tester.tap(find.text('Related'));
       await tester.pump();
 
-      expect(selectedTab, 'CROSS_DEPARTMENT');
+      expect(selectedTab, 'related');
     });
   });
 
@@ -58,7 +57,7 @@ void main() {
   });
 
   group('Clubs List View Tests', () {
-    testWidgets('renders Department Only filter switch and search field', (tester) async {
+    testWidgets('renders All Clubs and My Department tabs and search field', (tester) async {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
@@ -71,8 +70,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Department Only'), findsOneWidget);
-      expect(find.byType(Switch), findsOneWidget);
+      expect(find.text('All Clubs'), findsOneWidget);
+      expect(find.text('My Department'), findsOneWidget);
       expect(find.byType(TextField), findsOneWidget);
     });
   });

@@ -139,10 +139,10 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('CampusHub Faculty'), findsOneWidget);
-      expect(find.text('Welcome back, Dr. Sarah Connor'), findsOneWidget);
+      expect(find.textContaining('Dr. Sarah Connor'), findsOneWidget);
       expect(find.text('Quick Actions'), findsOneWidget);
-      expect(find.text('Subjects Handled'), findsOneWidget);
-      expect(find.text('Assigned Mentees'), findsOneWidget);
+      expect(find.text('My Subjects'), findsOneWidget);
+      expect(find.text('Mentees'), findsOneWidget);
     });
 
     testWidgets('FacultyTeachingView renders teaching hub tabs and subject card', (WidgetTester tester) async {

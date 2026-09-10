@@ -15,18 +15,26 @@ class FacultyQuickActionsBar extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              'Quick Actions',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
+            Expanded(
+              child: Text(
+                'Quick Actions',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
+            const SizedBox(width: 8),
             TextButton.icon(
               onPressed: () => context.go('/teaching'),
               icon: const Icon(Icons.school, size: 16),
               label: const Text('Teaching Hub'),
+              style: TextButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              ),
             ),
           ],
         ),

@@ -27,4 +27,12 @@ export interface ProfileResponseDTO {
   isFollowing?: boolean;
   skills: Array<{ id: string; skillName: string; proficiency?: string | null }>;
   projects: Array<{ id: string; title: string; description?: string | null; projectUrl?: string | null; repoUrl?: string | null }>;
+  clubs?: Array<{
+    id: string;
+    clubId: string;
+    name: string;
+    category: string;
+    logoUrl?: string | null;
+    role: string;
+  }>;
 }

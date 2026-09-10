@@ -30,6 +30,9 @@ import '../features/faculty/presentation/views/faculty_profile_view.dart';
 import '../features/portfolio/presentation/views/portfolio_view.dart';
 import '../features/profile/presentation/views/user_profile_detail_view.dart';
 import '../features/profile/presentation/views/user_follows_view.dart';
+import '../features/settings/presentation/views/settings_view.dart';
+import '../features/settings/presentation/views/help_support_view.dart';
+import '../features/settings/presentation/views/about_view.dart';
 import '../shared/responsive/main_scaffold.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -143,6 +146,21 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => SubjectDetailView(
           subjectId: state.pathParameters['subjectId']!,
         ),
+      ),
+      GoRoute(
+        path: '/settings',
+        name: 'settings',
+        builder: (context, state) => const SettingsView(),
+      ),
+      GoRoute(
+        path: '/help',
+        name: 'help-support',
+        builder: (context, state) => const HelpSupportView(),
+      ),
+      GoRoute(
+        path: '/about',
+        name: 'about',
+        builder: (context, state) => const AboutView(),
       ),
 
       // 3. Main Persistent Tab Navigation Shell (Stateful IndexedStack)

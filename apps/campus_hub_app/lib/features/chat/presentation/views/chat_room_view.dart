@@ -13,6 +13,7 @@ import '../widgets/message_action_sheet.dart';
 import '../widgets/chat_image_attachment_widget.dart';
 import '../widgets/chat_document_attachment_widget.dart';
 import '../widgets/chat_video_attachment_widget.dart';
+import '../widgets/chat_post_attachment_widget.dart';
 import '../widgets/swipe_to_reply_wrapper.dart';
 import '../../../../core/services/media_picker_service.dart';
 import '../../../../core/services/media_upload_service.dart';
@@ -809,8 +810,17 @@ class _ChatRoomViewState extends ConsumerState<ChatRoomView> with WidgetsBinding
                       const SizedBox(height: 6),
                     ],
 
+                    // Shared Post Attachment Card
+                    if (msg.mediaType == 'POST') ...[
+                      ChatPostAttachmentWidget(
+                        message: msg,
+                        isMe: isMe,
+                      ),
+                      const SizedBox(height: 6),
+                    ],
+
                     // Document / File Attachment Card with Native Open Support
-                    if (msg.mediaType == 'DOCUMENT' || msg.fileName != null && msg.mediaType != 'IMAGE' && msg.mediaType != 'VIDEO') ...[
+                    if (msg.mediaType == 'DOCUMENT' || (msg.fileName != null && msg.mediaType != 'IMAGE' && msg.mediaType != 'VIDEO' && msg.mediaType != 'POST')) ...[
                       ChatDocumentAttachmentWidget(
                         message: msg,
                         isMe: isMe,
@@ -819,7 +829,7 @@ class _ChatRoomViewState extends ConsumerState<ChatRoomView> with WidgetsBinding
                     ],
 
                     // Text Content
-                    if (msg.message.isNotEmpty)
+                    if (msg.message.isNotEmpty && msg.mediaType != 'POST')
                       Text(
                         msg.message,
                         style: TextStyle(fontSize: 14.5, color: textColor, height: 1.3),

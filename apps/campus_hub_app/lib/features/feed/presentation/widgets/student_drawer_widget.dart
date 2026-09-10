@@ -73,7 +73,7 @@ class StudentDrawerWidget extends ConsumerWidget {
             InkWell(
               onTap: () {
                 Navigator.pop(context);
-                context.push('/profile');
+                context.go('/profile');
               },
               child: Container(
                 padding: const EdgeInsets.all(16.0),
@@ -129,7 +129,7 @@ class StudentDrawerWidget extends ConsumerWidget {
                     isSelected: currentRoute == '/profile',
                     onTap: () {
                       Navigator.pop(context);
-                      context.push('/profile');
+                      context.go('/profile');
                     },
                   ),
                   _buildMenuItem(
@@ -138,7 +138,7 @@ class StudentDrawerWidget extends ConsumerWidget {
                     label: 'My Posts',
                     onTap: () {
                       Navigator.pop(context);
-                      context.push('/profile');
+                      context.go('/profile');
                     },
                   ),
                   _buildMenuItem(
@@ -147,7 +147,7 @@ class StudentDrawerWidget extends ConsumerWidget {
                     label: 'Saved Posts',
                     onTap: () {
                       Navigator.pop(context);
-                      context.push('/profile');
+                      context.go('/profile');
                     },
                   ),
                   _buildMenuItem(
@@ -232,6 +232,7 @@ class StudentDrawerWidget extends ConsumerWidget {
                     label: 'Settings',
                     onTap: () {
                       Navigator.pop(context);
+                      context.push('/settings');
                     },
                   ),
                   _buildMenuItem(

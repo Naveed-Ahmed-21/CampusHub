@@ -7,7 +7,7 @@ import '../../../clubs/presentation/providers/club_provider.dart';
 
 class ActiveFeedType extends Notifier<String> {
   @override
-  String build() => 'DEPARTMENT';
+  String build() => 'forYou';
 
   void setFeedType(String type) => state = type;
 }

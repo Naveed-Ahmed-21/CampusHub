@@ -19,9 +19,23 @@ class CareerRepository {
     return list.map((json) => CareerRoadmapModel.fromJson(json)).toList();
   }
 
+  Future<List<UserRoadmapItemModel>> getUserRoadmaps() async {
+    final response = await _dio.get('/api/v1/career/user-roadmaps');
+    final List list = response.data['data'] ?? [];
+    return list.map((json) => UserRoadmapItemModel.fromJson(json)).toList();
+  }
+
   Future<CareerRoadmapModel> getRoadmapDetails(String id) async {
     final response = await _dio.get('/api/v1/career/roadmaps/$id');
     return CareerRoadmapModel.fromJson(response.data['data']);
+  }
+
+  Future<DuplicateCheckResultModel> checkDuplicate(String targetRole) async {
+    final response = await _dio.post(
+      '/api/v1/career/check-duplicate',
+      data: {'target_role': targetRole},
+    );
+    return DuplicateCheckResultModel.fromJson(response.data['data']);
   }
 
   Future<Map<String, dynamic>> getUserProgress() async {
@@ -39,21 +53,180 @@ class CareerRepository {
     );
   }
 
+  Future<void> setActiveRoadmap(String roadmapId) async {
+    await _dio.post('/api/v1/career/roadmaps/$roadmapId/activate');
+  }
+
+  Future<void> updateRoadmap(String roadmapId, {String? status, String? title}) async {
+    await _dio.patch(
+      '/api/v1/career/roadmaps/$roadmapId',
+      data: {
+        if (status != null) 'status': status,
+        if (title != null) 'title': title,
+      },
+    );
+  }
+
+  Future<void> deleteRoadmap(String roadmapId) async {
+    await _dio.delete('/api/v1/career/roadmaps/$roadmapId');
+  }
+
+  Future<DailyLearningPlanModel?> getDailyPlan({String? roadmapId}) async {
+    final response = await _dio.get(
+      '/api/v1/career/daily-plan',
+      queryParameters: roadmapId != null ? {'roadmap_id': roadmapId} : null,
+    );
+    final data = response.data['data'];
+    if (data == null) return null;
+    return DailyLearningPlanModel.fromJson(data);
+  }
+
+  Future<void> toggleDailyTask(String roadmapId, String taskId, bool isCompleted) async {
+    await _dio.post(
+      '/api/v1/career/roadmaps/$roadmapId/daily-task',
+      data: {
+        'task_id': taskId,
+        'is_completed': isCompleted,
+      },
+    );
+  }
+
+  Future<Map<String, dynamic>> adaptRoadmap(String roadmapId, {String? feedbackNote}) async {
+    final response = await _dio.post(
+      '/api/v1/career/roadmaps/$roadmapId/adapt',
+      data: {
+        if (feedbackNote != null) 'feedback_note': feedbackNote,
+      },
+    );
+    return response.data['data'] ?? {};
+  }
+
+  Future<AskAiResponseModel> askAiAboutRoadmap(String roadmapId, String prompt, {int? currentPhase}) async {
+    final response = await _dio.post(
+      '/api/v1/career/roadmaps/ask-ai',
+      data: {
+        'roadmap_id': roadmapId,
+        'prompt': prompt,
+        if (currentPhase != null) 'current_phase': currentPhase,
+      },
+    );
+    return AskAiResponseModel.fromJson(response.data['data']);
+  }
+
+  Future<SkillGapAnalysisModel> getSkillGapAnalysis(String roadmapId) async {
+    final response = await _dio.get('/api/v1/career/roadmaps/$roadmapId/skill-gap');
+    return SkillGapAnalysisModel.fromJson(response.data['data']);
+  }
+
+  Future<List<SkillMapNodeModel>> getSkillMap(String roadmapId) async {
+    final response = await _dio.get('/api/v1/career/roadmaps/$roadmapId/skill-map');
+    final List list = response.data['data'] ?? [];
+    return list.map((json) => SkillMapNodeModel.fromJson(json)).toList();
+  }
+
+  Future<WeeklyReviewModel> getWeeklyReview({String? roadmapId}) async {
+    final response = await _dio.get(
+      '/api/v1/career/weekly-review',
+      queryParameters: roadmapId != null ? {'roadmap_id': roadmapId} : null,
+    );
+    return WeeklyReviewModel.fromJson(response.data['data']);
+  }
+
+  Future<JobReadinessModel> getJobReadiness({String? roadmapId}) async {
+    final response = await _dio.get(
+      '/api/v1/career/job-readiness',
+      queryParameters: roadmapId != null ? {'roadmap_id': roadmapId} : null,
+    );
+    return JobReadinessModel.fromJson(response.data['data']);
+  }
+
+  Future<List<InterviewQuestionModel>> getInterviewPrep({String? roadmapId}) async {
+    final response = await _dio.get(
+      '/api/v1/career/interview-prep',
+      queryParameters: roadmapId != null ? {'roadmap_id': roadmapId} : null,
+    );
+    final List list = response.data['data'] ?? [];
+    return list.map((json) => InterviewQuestionModel.fromJson(json)).toList();
+  }
+
+  Future<void> exportProjectToPortfolio(
+    String roadmapId,
+    String title,
+    List<String> techStack, {
+    String? description,
+    String? projectUrl,
+    String? repoUrl,
+  }) async {
+    await _dio.post(
+      '/api/v1/career/export-portfolio',
+      data: {
+        'roadmap_id': roadmapId,
+        'title': title,
+        'tech_stack': techStack,
+        if (description != null) 'description': description,
+        if (projectUrl != null) 'project_url': projectUrl,
+        if (repoUrl != null) 'repo_url': repoUrl,
+      },
+    );
+  }
+
+  Future<void> askFacultyMentor(String roadmapId, String message, {String? facultyId}) async {
+    await _dio.post(
+      '/api/v1/career/ask-mentor',
+      data: {
+        'roadmap_id': roadmapId,
+        'message': message,
+        if (facultyId != null) 'faculty_id': facultyId,
+      },
+    );
+  }
+
   Future<List<WeeklyGoalModel>> getWeeklyGoals() async {
     final response = await _dio.get('/api/v1/career/goals');
     final List list = response.data['data'] ?? [];
     return list.map((json) => WeeklyGoalModel.fromJson(json)).toList();
   }
 
-  Future<WeeklyGoalModel> createWeeklyGoal(String title, {String? targetDate}) async {
+  Future<WeeklyGoalModel> createWeeklyGoal(String title, {String? targetDate, String? category}) async {
+    final effectiveTitle = category != null && category.isNotEmpty && category != 'Custom'
+        ? '[$category] $title'
+        : title;
     final response = await _dio.post(
       '/api/v1/career/goals',
       data: {
-        'title': title,
-        'target_date': targetDate,
+        'title': effectiveTitle,
+        if (targetDate != null) 'target_date': targetDate,
+        if (category != null) 'category': category,
       },
     );
     return WeeklyGoalModel.fromJson(response.data['data']);
+  }
+
+  Future<WeeklyGoalModel> updateWeeklyGoal(
+    String goalId, {
+    String? title,
+    String? targetDate,
+    String? category,
+    bool? isCompleted,
+  }) async {
+    final effectiveTitle = title != null
+        ? (category != null && category.isNotEmpty && category != 'Custom' ? '[$category] $title' : title)
+        : null;
+
+    final response = await _dio.put(
+      '/api/v1/career/goals/$goalId',
+      data: {
+        if (effectiveTitle != null) 'title': effectiveTitle,
+        if (targetDate != null) 'target_date': targetDate,
+        if (category != null) 'category': category,
+        if (isCompleted != null) 'is_completed': isCompleted,
+      },
+    );
+    return WeeklyGoalModel.fromJson(response.data['data']);
+  }
+
+  Future<void> deleteWeeklyGoal(String goalId) async {
+    await _dio.delete('/api/v1/career/goals/$goalId');
   }
 
   Future<void> toggleWeeklyGoal(String goalId, bool isCompleted) async {
@@ -81,8 +254,8 @@ class CareerRepository {
     return list.map((json) => MiniProjectModel.fromJson(json)).toList();
   }
 
-  Future<void> submitMiniProject(String projectId, String repoUrl, {String? liveDemoUrl}) async {
-    await _dio.post(
+  Future<ProjectEvaluationModel?> submitMiniProject(String projectId, String repoUrl, {String? liveDemoUrl}) async {
+    final response = await _dio.post(
       '/api/v1/career/mini-projects/submit',
       data: {
         'project_id': projectId,
@@ -90,6 +263,331 @@ class CareerRepository {
         'live_demo_url': liveDemoUrl,
       },
     );
+    final evalData = response.data['data']?['evaluation'];
+    if (evalData != null) {
+      return ProjectEvaluationModel.fromJson(evalData);
+    }
+    return null;
+  }
+
+  Future<AdaptiveQuizModel> generateAdaptiveQuiz({
+    String? roadmapId,
+    int? phaseNumber,
+    String? role,
+    String? topic,
+    String? difficulty,
+    int? numQuestions,
+  }) async {
+    final response = await _dio.post(
+      '/api/v1/career/quiz/generate',
+      data: {
+        if (roadmapId != null && roadmapId.isNotEmpty) 'roadmap_id': roadmapId,
+        if (phaseNumber != null) 'phase_number': phaseNumber,
+        if (role != null) 'role': role,
+        if (topic != null) 'topic': topic,
+        if (difficulty != null) 'difficulty': difficulty,
+        if (numQuestions != null) 'num_questions': numQuestions,
+      },
+    );
+    return AdaptiveQuizModel.fromJson(response.data['data']);
+  }
+
+  // ==========================================
+  // AI CAREER DISCOVERY & PERSONALIZED ROADMAP
+  // ==========================================
+
+  Future<List<CareerRecommendationModel>> submitAssessment(Map<String, dynamic> answers) async {
+    final response = await _dio.post('/api/v1/career/assessment', data: answers);
+    final List rawList = response.data['data']?['recommendations'] ?? [];
+    return rawList.map((json) => CareerRecommendationModel.fromJson(json)).toList();
+  }
+
+  Future<CareerDecisionResult> helpMeDecide({
+    required String visualVsLogic,
+    required String fastVsDeep,
+    required String startupVsEnterprise,
+    String? confusionNotes,
+  }) async {
+    final response = await _dio.post(
+      '/api/v1/career/decide',
+      data: {
+        'visual_vs_logic': visualVsLogic,
+        'fast_vs_deep': fastVsDeep,
+        'startup_vs_enterprise': startupVsEnterprise,
+        if (confusionNotes != null && confusionNotes.trim().isNotEmpty)
+          'confusion_notes': confusionNotes.trim(),
+      },
+    );
+    return CareerDecisionResult.fromJson(response.data['data']);
+  }
+
+  Future<ActiveRoadmapState?> getActiveRoadmap() async {
+    try {
+      final response = await _dio.get('/api/v1/career/active-roadmap');
+      final data = response.data['data'];
+      if (data == null) return null;
+      return ActiveRoadmapState.fromJson(data);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<Map<String, dynamic>> generateOrActivateRoadmap({
+    required String role,
+    required String level,
+    required int weeklyHours,
+    String? goal,
+    int? deadlineDays,
+    bool? isPlacementFocused,
+    bool? createNewVersion,
+    Map<String, dynamic>? assessmentData,
+  }) async {
+    final response = await _dio.post(
+      '/api/v1/career/generate-roadmap',
+      data: {
+        'role': role,
+        'level': level,
+        'weekly_hours': weeklyHours,
+        if (goal != null) 'goal': goal,
+        if (deadlineDays != null) 'deadline_days': deadlineDays,
+        if (isPlacementFocused != null) 'is_placement_focused': isPlacementFocused,
+        if (createNewVersion != null) 'create_new_version': createNewVersion,
+        if (assessmentData != null) 'assessment_data': assessmentData,
+      },
+    );
+    return response.data['data'] as Map<String, dynamic>;
+  }
+
+  Future<PhaseQuizResult> submitPhaseQuiz({
+    required int phaseNumber,
+    required String role,
+    required Map<int, int> answers,
+    String? roadmapId,
+  }) async {
+    final formattedAnswers = answers.map((k, v) => MapEntry(k.toString(), v));
+    final response = await _dio.post(
+      '/api/v1/career/quiz/submit',
+      data: {
+        'phase_number': phaseNumber,
+        'role': role,
+        'answers': formattedAnswers,
+        if (roadmapId != null && roadmapId.trim().isNotEmpty)
+          'roadmap_id': roadmapId.trim(),
+      },
+    );
+    return PhaseQuizResult.fromJson(response.data['data']);
+  }
+
+  // Conversational Pathfinder
+  Future<PathfinderChatResponse> startPathfinderSession({bool resumeActive = true}) async {
+    final response = await _dio.post(
+      '/api/v1/career/pathfinder/session',
+      data: {'resume_active': resumeActive},
+    );
+    return PathfinderChatResponse.fromJson(response.data['data']);
+  }
+
+  Future<PathfinderChatResponse> pathfinderChat({
+    required String message,
+    String? conversationId,
+  }) async {
+    final response = await _dio.post(
+      '/api/v1/career/pathfinder/chat',
+      data: {
+        'message': message,
+        if (conversationId != null) 'conversation_id': conversationId,
+      },
+    );
+    return PathfinderChatResponse.fromJson(response.data['data']);
+  }
+
+  Future<Map<String, dynamic>> confirmPathfinderJourney({
+    required String conversationId,
+    String? selectedDirection,
+  }) async {
+    final response = await _dio.post(
+      '/api/v1/career/pathfinder/confirm',
+      data: {
+        'conversation_id': conversationId,
+        if (selectedDirection != null) 'selected_direction': selectedDirection,
+      },
+    );
+    return response.data['data'] as Map<String, dynamic>;
+  }
+
+  // Ask AI Doubt
+  Future<AskAiResponseModel> askAiDoubt({
+    required String prompt,
+    String? roadmapId,
+  }) async {
+    final response = await _dio.post(
+      '/api/v1/career/ask-ai',
+      data: {
+        'prompt': prompt,
+        if (roadmapId != null) 'roadmap_id': roadmapId,
+      },
+    );
+    return AskAiResponseModel.fromJson(response.data['data']);
+  }
+
+  // Roadmap Changes History & Improvement
+  Future<List<RoadmapChangeModel>> getRoadmapChanges(String roadmapId) async {
+    final response = await _dio.get('/api/v1/career/roadmaps/$roadmapId/changes');
+    final List list = response.data['data'] ?? [];
+    return list.map((json) => RoadmapChangeModel.fromJson(json)).toList();
+  }
+
+  Future<Map<String, dynamic>> improveRoadmap({
+    required String roadmapId,
+    required String reason,
+    Map<String, dynamic>? details,
+  }) async {
+    final response = await _dio.post(
+      '/api/v1/career/roadmaps/$roadmapId/improve',
+      data: {
+        'reason': reason,
+        if (details != null) 'details': details,
+      },
+    );
+    return response.data['data'] as Map<String, dynamic>;
+  }
+
+  // Verified Learning Resources
+  Future<List<VerifiedResourceModel>> searchResources({
+    required String topic,
+    String? language,
+    String? level,
+    String? targetRole,
+  }) async {
+    final response = await _dio.get(
+      '/api/v1/career/resources/search',
+      queryParameters: {
+        'topic': topic,
+        if (language != null) 'language': language,
+        if (level != null) 'level': level,
+        if (targetRole != null) 'target_role': targetRole,
+      },
+    );
+    final List list = response.data['data'] ?? [];
+    return list.map((json) => VerifiedResourceModel.fromJson(json)).toList();
+  }
+
+  // Learning Sessions
+  Future<LearningSessionModel> startLearningSession({
+    required String roadmapId,
+    required String taskId,
+    required String taskTitle,
+    required int phaseNumber,
+  }) async {
+    final response = await _dio.post(
+      '/api/v1/career/learning-session/start',
+      data: {
+        'roadmap_id': roadmapId,
+        'task_id': taskId,
+        'task_title': taskTitle,
+        'phase_number': phaseNumber,
+      },
+    );
+    return LearningSessionModel.fromJson(response.data['data']);
+  }
+
+  Future<LearningSessionModel> finishLearningSession({
+    required String sessionId,
+    required int durationMinutes,
+    required String status,
+    int? selfRating,
+  }) async {
+    final response = await _dio.post(
+      '/api/v1/career/learning-session/finish',
+      data: {
+        'session_id': sessionId,
+        'duration_minutes': durationMinutes,
+        'status': status,
+        if (selfRating != null) 'self_rating': selfRating,
+      },
+    );
+    return LearningSessionModel.fromJson(response.data['data']);
+  }
+
+  // EVA AI Mock Interview
+  Future<InterviewSessionModel> startInterviewSession({
+    String? roadmapId,
+    required String targetRole,
+    String mode = 'TEXT',
+  }) async {
+    final response = await _dio.post(
+      '/api/v1/career/interview/start',
+      data: {
+        if (roadmapId != null) 'roadmap_id': roadmapId,
+        'target_role': targetRole,
+        'mode': mode,
+      },
+    );
+    return InterviewSessionModel.fromJson(response.data['data']);
+  }
+
+  Future<Map<String, dynamic>> submitInterviewTurn({
+    required String sessionId,
+    required String studentAnswer,
+  }) async {
+    final response = await _dio.post(
+      '/api/v1/career/interview/turn',
+      data: {
+        'session_id': sessionId,
+        'student_answer': studentAnswer,
+      },
+    );
+    return response.data['data'] as Map<String, dynamic>;
+  }
+
+  Future<InterviewSessionModel> finishInterviewSession({
+    required String sessionId,
+  }) async {
+    final response = await _dio.post(
+      '/api/v1/career/interview/finish',
+      data: {
+        'session_id': sessionId,
+      },
+    );
+    return InterviewSessionModel.fromJson(response.data['data']);
+  }
+
+  Future<Map<String, dynamic>> applyInterviewRoadmapUpdate({
+    required String sessionId,
+  }) async {
+    final response = await _dio.post(
+      '/api/v1/career/interview/apply-roadmap-update',
+      data: {
+        'session_id': sessionId,
+      },
+    );
+    return response.data['data'] as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> resetCareerData() async {
+    final response = await _dio.post('/api/v1/career/reset');
+    return (response.data['data'] as Map<String, dynamic>?) ?? {};
+  }
+
+  Future<List<VerifiedDocumentModel>> getVerifiedDocuments() async {
+    try {
+      final response = await _dio.get('/api/v1/career/docs');
+      final list = (response.data['data'] as List<dynamic>?) ?? [];
+      return list.map((item) => VerifiedDocumentModel.fromJson(item as Map<String, dynamic>)).toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<VerifiedDocumentModel?> getVerifiedDocument(String docId) async {
+    try {
+      final response = await _dio.get('/api/v1/career/docs/$docId');
+      final data = response.data['data'] as Map<String, dynamic>?;
+      if (data == null) return null;
+      return VerifiedDocumentModel.fromJson(data);
+    } catch (_) {
+      return null;
+    }
   }
 }
 

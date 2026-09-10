@@ -6,6 +6,7 @@ export interface CreateClubDto {
   description?: string;
   logo_url?: string;
   is_cross_department?: boolean;
+  department_id?: string;
 }
 
 export interface VerifyClubDto {
@@ -49,6 +50,9 @@ export interface QueryClubsDto {
   status?: ClubStatus;
   search?: string;
   is_cross_department?: boolean;
+  department_id?: string;
+  department_only?: boolean;
+  user_department_id?: string;
   page?: number;
   limit?: number;
 }

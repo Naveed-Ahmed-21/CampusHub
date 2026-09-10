@@ -19,6 +19,8 @@ notificationsRouter.use(authenticate);
 
 notificationsRouter.post('/fcm-token', validateRequest(registerFcmTokenSchema), notificationsController.registerFcmToken);
 notificationsRouter.post('/device-token', validateRequest(registerFcmTokenSchema), notificationsController.registerFcmToken);
+notificationsRouter.delete('/fcm-token', notificationsController.unregisterFcmToken);
+notificationsRouter.delete('/device-token', notificationsController.unregisterFcmToken);
 notificationsRouter.post('/send', validateRequest(sendNotificationSchema), notificationsController.sendNotification);
 notificationsRouter.get('/', notificationsController.getUserNotifications);
 notificationsRouter.patch('/:id/read', notificationsController.markAsRead);

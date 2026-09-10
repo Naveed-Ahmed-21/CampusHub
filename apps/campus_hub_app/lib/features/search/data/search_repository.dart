@@ -13,6 +13,7 @@ class SearchUserItem {
   final String? rollNumber;
   final String role;
   final String? departmentName;
+  final String? bio;
   final bool isFollowing;
 
   SearchUserItem({
@@ -26,6 +27,7 @@ class SearchUserItem {
     this.rollNumber,
     required this.role,
     this.departmentName,
+    this.bio,
     this.isFollowing = false,
   });
 
@@ -53,6 +55,7 @@ class SearchUserItem {
       rollNumber: json['rollNumber'] as String? ?? json['roll_number'] as String?,
       role: json['role'] as String? ?? 'STUDENT',
       departmentName: dName,
+      bio: json['bio'] as String?,
       isFollowing: json['isFollowing'] as bool? ?? json['is_following'] as bool? ?? false,
     );
   }
@@ -68,6 +71,7 @@ class SearchUserItem {
     String? rollNumber,
     String? role,
     String? departmentName,
+    String? bio,
     bool? isFollowing,
   }) {
     return SearchUserItem(
@@ -81,6 +85,7 @@ class SearchUserItem {
       rollNumber: rollNumber ?? this.rollNumber,
       role: role ?? this.role,
       departmentName: departmentName ?? this.departmentName,
+      bio: bio ?? this.bio,
       isFollowing: isFollowing ?? this.isFollowing,
     );
   }

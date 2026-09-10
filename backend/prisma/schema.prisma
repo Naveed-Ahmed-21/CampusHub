@@ -137,6 +137,7 @@ model Department {
   chat_room   ChatRoom?
   events      Event[]
   subjects    Subject[]
+  clubs       Club[]
 
   @@unique([college_id, code])
   @@index([college_id])
@@ -190,9 +191,20 @@ model User {
   notifications         Notification[]
   notification_tokens   NotificationToken[]
   roadmap_progress      UserRoadmapProgress[]
+  custom_roadmaps       CareerRoadmap[]             @relation("UserRoadmaps")
+  ai_interactions       CareerAIInteraction[]
+  mentor_shares_sent    CareerMentorShare[]         @relation("MentorShareStudent")
+  mentor_shares_received CareerMentorShare[]        @relation("MentorShareFaculty")
   node_progress         UserNodeProgress[]
   weekly_goals          WeeklyGoal[]
   project_submissions   UserMiniProjectSubmission[]
+  career_journeys       CareerJourney[]
+  roadmap_changes       RoadmapChange[]
+  learning_sessions     LearningSession[]
+  student_skills        StudentSkill[]
+  quiz_attempts         QuizAttempt[]
+  interview_sessions    InterviewSession[]
+  ai_conversations      AIConversation[]
   media_assets          MediaAsset[]
   faculty_subjects      Subject[]                   @relation("FacultySubjects")
   uploaded_resources    SubjectResource[]
@@ -410,6 +422,7 @@ model Club {
   college_id          String       @db.Uuid
   created_by_id       String?      @db.Uuid
   verified_by_id      String?      @db.Uuid
+  department_id       String?      @db.Uuid
   name                String       @db.VarChar(150)
   category            String       @db.VarChar(100)
   description         String?      @db.Text
@@ -422,17 +435,19 @@ model Club {
   created_at          DateTime     @default(now())
   updated_at          DateTime     @updatedAt
 
-  college   College        @relation(fields: [college_id], references: [id], onDelete: Cascade)
-  creator   User?          @relation("ClubCreator", fields: [created_by_id], references: [id], onDelete: SetNull)
-  verifier  User?          @relation("ClubVerifier", fields: [verified_by_id], references: [id], onDelete: SetNull)
-  members   ClubMember[]
-  events    Event[]
-  posts     Post[]
-  resources ClubResource[]
-  chat_room ChatRoom?
+  college    College        @relation(fields: [college_id], references: [id], onDelete: Cascade)
+  creator    User?          @relation("ClubCreator", fields: [created_by_id], references: [id], onDelete: SetNull)
+  verifier   User?          @relation("ClubVerifier", fields: [verified_by_id], references: [id], onDelete: SetNull)
+  department Department?    @relation(fields: [department_id], references: [id], onDelete: SetNull)
+  members    ClubMember[]
+  events     Event[]
+  posts      Post[]
+  resources  ClubResource[]
+  chat_room  ChatRoom?
 
   @@index([college_id])
   @@index([created_by_id])
+  @@index([department_id])
   @@index([status])
   @@map("clubs")
 }
@@ -865,20 +880,39 @@ model NotificationToken {
 
 model CareerRoadmap {
   id               String   @id @default(uuid()) @db.Uuid
+  user_id          String?  @db.Uuid
   title            String   @db.VarChar(255)
   slug             String   @unique @db.VarChar(100)
+  target_role      String?  @db.VarChar(100)
   category         String   @db.VarChar(100)
   description      String   @db.Text
   level            String   @default("Beginner") @db.VarChar(50)
   estimated_months Int      @default(3)
+  goal             String?  @db.Text
+  version          Int      @default(1)
+  status           String   @default("ACTIVE") @db.VarChar(50) // ACTIVE, PAUSED, COMPLETED, ARCHIVED
   icon_name        String?  @db.VarChar(100)
-  created_at       DateTime @default(now())
-  updated_at       DateTime @updatedAt
+  phases_json       Json?
+  skill_gaps_json   Json?
+  skill_map_json    Json?
+  adaptive_data     Json?
+  journey_id        String?               @db.Uuid
+  learning_language String                @default("English") @db.VarChar(50)
+  created_at        DateTime              @default(now())
+  updated_at        DateTime              @updatedAt
 
-  nodes         RoadmapNode[]
-  user_progress UserRoadmapProgress[]
-  resources     LearningResource[]
+  user              User?                 @relation("UserRoadmaps", fields: [user_id], references: [id], onDelete: Cascade)
+  journey           CareerJourney?        @relation(fields: [journey_id], references: [id], onDelete: SetNull)
+  nodes             RoadmapNode[]
+  user_progress     UserRoadmapProgress[]
+  resources         LearningResource[]
+  mentor_shares     CareerMentorShare[]
+  roadmap_changes   RoadmapChange[]
+  learning_sessions LearningSession[]
 
+  @@index([user_id])
+  @@index([journey_id])
+  @@index([user_id, target_role, version])
   @@map("career_roadmaps")
 }
 
@@ -904,7 +938,7 @@ model LearningResource {
   roadmap_id    String?  @db.Uuid
   node_id       String?  @db.Uuid
   title         String   @db.VarChar(255)
-  type          String   @db.VarChar(50) // ARTICLE, VIDEO, DOCS, PRACTICE
+  type          String   @db.VarChar(50) // ARTICLE, VIDEO, DOCS, PRACTICE, CHALLENGE, QUIZ, PROJECT
   url           String   @db.Text
   duration_mins Int?
   is_free       Boolean  @default(true)
@@ -919,14 +953,30 @@ model LearningResource {
 }
 
 model UserRoadmapProgress {
-  id                   String    @id @default(uuid()) @db.Uuid
-  user_id              String    @db.Uuid
-  roadmap_id           String    @db.Uuid
-  is_active            Boolean   @default(true)
-  completed_node_count Int       @default(0)
-  progress_percent     Float     @default(0.0)
-  started_at           DateTime  @default(now())
-  updated_at           DateTime  @updatedAt
+  id                      String    @id @default(uuid()) @db.Uuid
+  user_id                 String    @db.Uuid
+  roadmap_id              String    @db.Uuid
+  is_active               Boolean   @default(true)
+  status                  String    @default("ACTIVE") @db.VarChar(50) // ACTIVE, PAUSED, COMPLETED, ARCHIVED
+  version                 Int       @default(1)
+  completed_node_count    Int       @default(0)
+  progress_percent        Float     @default(0.0)
+  target_role             String?   @db.VarChar(100)
+  level                   String?   @default("Beginner") @db.VarChar(50)
+  weekly_hours            Int?      @default(10)
+  current_focus           String?   @db.VarChar(255)
+  today_goal              String?   @db.VarChar(255)
+  assessment_data         Json?
+  quiz_scores             Json?
+  daily_plan              Json?
+  streak_days             Int       @default(1)
+  total_study_minutes     Int       @default(0)
+  tasks_completed_count   Int       @default(0)
+  quizzes_completed_count Int       @default(0)
+  projects_completed_count Int      @default(0)
+  last_active_at          DateTime  @default(now())
+  started_at              DateTime  @default(now())
+  updated_at              DateTime  @updatedAt
 
   user    User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
   roadmap CareerRoadmap @relation(fields: [roadmap_id], references: [id], onDelete: Cascade)
@@ -934,6 +984,42 @@ model UserRoadmapProgress {
   @@unique([user_id, roadmap_id])
   @@index([user_id])
   @@map("user_roadmap_progress")
+}
+
+model CareerAIInteraction {
+  id         String   @id @default(uuid()) @db.Uuid
+  user_id    String   @db.Uuid
+  roadmap_id String?  @db.Uuid
+  prompt     String   @db.Text
+  response   String   @db.Text
+  category   String   @default("GENERAL") @db.VarChar(50) // ASK_AI, ADAPTATION, SKILL_GAP, INTERVIEW
+  created_at DateTime @default(now())
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@index([roadmap_id])
+  @@map("career_ai_interactions")
+}
+
+model CareerMentorShare {
+  id           String    @id @default(uuid()) @db.Uuid
+  student_id   String    @db.Uuid
+  faculty_id   String    @db.Uuid
+  roadmap_id   String    @db.Uuid
+  message      String    @db.Text
+  response     String?   @db.Text
+  status       String    @default("PENDING") @db.VarChar(50) // PENDING, ANSWERED
+  created_at   DateTime  @default(now())
+  updated_at   DateTime  @updatedAt
+
+  student User          @relation("MentorShareStudent", fields: [student_id], references: [id], onDelete: Cascade)
+  faculty User          @relation("MentorShareFaculty", fields: [faculty_id], references: [id], onDelete: Cascade)
+  roadmap CareerRoadmap @relation(fields: [roadmap_id], references: [id], onDelete: Cascade)
+
+  @@index([student_id])
+  @@index([faculty_id])
+  @@map("career_mentor_shares")
 }
 
 model UserNodeProgress {
@@ -1161,3 +1247,203 @@ model StudentMentorship {
   @@index([student_id])
   @@map("student_mentorships")
 }
+
+// ==========================================
+// 10. CAREER HUB ADVANCED AI & INTERVIEW
+// ==========================================
+
+model CareerJourney {
+  id                 String          @id @default(uuid()) @db.Uuid
+  user_id            String          @db.Uuid
+  title              String          @db.VarChar(255)
+  target_role        String          @db.VarChar(100)
+  preferred_language String          @default("English") @db.VarChar(50)
+  daily_hours        Int             @default(2)
+  current_level      String          @default("Beginner") @db.VarChar(50)
+  goal               String?         @db.Text
+  status             String          @default("ACTIVE") @db.VarChar(50)
+  created_at         DateTime        @default(now())
+  updated_at         DateTime        @updatedAt
+
+  user               User            @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  roadmaps           CareerRoadmap[]
+
+  @@index([user_id])
+  @@map("career_journeys")
+}
+
+model RoadmapChange {
+  id              String        @id @default(uuid()) @db.Uuid
+  roadmap_id      String        @db.Uuid
+  user_id         String        @db.Uuid
+  title           String        @db.VarChar(255)
+  reason          String        @db.Text
+  changes_summary String        @db.Text
+  created_at      DateTime      @default(now())
+
+  roadmap         CareerRoadmap @relation(fields: [roadmap_id], references: [id], onDelete: Cascade)
+  user            User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([roadmap_id])
+  @@index([user_id])
+  @@map("roadmap_changes")
+}
+
+model LearningSession {
+  id               String        @id @default(uuid()) @db.Uuid
+  user_id          String        @db.Uuid
+  roadmap_id       String        @db.Uuid
+  task_id          String        @db.VarChar(100)
+  task_title       String        @db.VarChar(255)
+  phase_number     Int           @default(1)
+  duration_minutes Int           @default(0)
+  status           String        @default("COMPLETED") @db.VarChar(50) // IN_PROGRESS, COMPLETED, SKIPPED, NEEDS_REVIEW
+  self_rating      Int?
+  started_at       DateTime      @default(now())
+  completed_at     DateTime?
+
+  user             User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  roadmap          CareerRoadmap @relation(fields: [roadmap_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@index([roadmap_id])
+  @@map("learning_sessions")
+}
+
+model StudentSkill {
+  id                String          @id @default(uuid()) @db.Uuid
+  user_id           String          @db.Uuid
+  skill_name        String          @db.VarChar(100)
+  category          String          @default("Technical") @db.VarChar(50)
+  target_role       String?         @db.VarChar(100)
+  proficiency_level String          @default("Beginner") @db.VarChar(50)
+  confidence_score  Int             @default(50)
+  evidence_count    Int             @default(1)
+  last_assessed_at  DateTime        @default(now())
+  created_at        DateTime        @default(now())
+  updated_at        DateTime        @updatedAt
+
+  user              User            @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  evidences         SkillEvidence[]
+
+  @@unique([user_id, skill_name])
+  @@index([user_id])
+  @@map("student_skills")
+}
+
+model SkillEvidence {
+  id               String       @id @default(uuid()) @db.Uuid
+  student_skill_id String       @db.Uuid
+  evidence_type    String       @db.VarChar(50) // QUIZ, PROJECT, CHALLENGE, LEARNING_SESSION, MENTOR
+  reference_id     String?      @db.VarChar(255)
+  score            Float?
+  notes            String?      @db.Text
+  created_at       DateTime     @default(now())
+
+  student_skill    StudentSkill @relation(fields: [student_skill_id], references: [id], onDelete: Cascade)
+
+  @@index([student_skill_id])
+  @@map("skill_evidences")
+}
+
+model QuizAttempt {
+  id              String   @id @default(uuid()) @db.Uuid
+  user_id         String   @db.Uuid
+  roadmap_id      String?  @db.Uuid
+  phase_number    Int
+  topic           String   @db.VarChar(150)
+  score           Int
+  total_questions Int
+  percentage      Float
+  passed          Boolean
+  feedback_json   Json?
+  created_at      DateTime @default(now())
+
+  user            User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@index([roadmap_id])
+  @@map("quiz_attempts")
+}
+
+model InterviewSession {
+  id                         String          @id @default(uuid()) @db.Uuid
+  user_id                    String          @db.Uuid
+  roadmap_id                 String?         @db.Uuid
+  target_role                String          @db.VarChar(100)
+  mode                       String          @default("TEXT") @db.VarChar(20) // TEXT, VOICE, VIDEO
+  status                     String          @default("IN_PROGRESS") @db.VarChar(30) // IN_PROGRESS, COMPLETED
+  current_turn               Int             @default(0)
+  total_turns                Int             @default(3)
+  technical_score            Int?
+  communication_score        Int?
+  problem_solving_score      Int?
+  confidence_score           Int?
+  overall_score              Int?
+  strong_areas               Json?
+  needs_improvement          Json?
+  struggled_questions        Json?
+  recommended_roadmap_update String?         @db.Text
+  final_report               String?         @db.Text
+  created_at                 DateTime        @default(now())
+  completed_at               DateTime?
+
+  user                       User            @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  turns                      InterviewTurn[]
+
+  @@index([user_id])
+  @@map("interview_sessions")
+}
+
+model InterviewTurn {
+  id                 String           @id @default(uuid()) @db.Uuid
+  session_id         String           @db.Uuid
+  turn_index         Int
+  question           String           @db.Text
+  student_answer     String?          @db.Text
+  expected_concepts  Json?
+  detected_concepts  Json?
+  missing_concepts   Json?
+  score              Int?
+  feedback           String?          @db.Text
+  follow_up_question String?          @db.Text
+  created_at         DateTime         @default(now())
+
+  session            InterviewSession @relation(fields: [session_id], references: [id], onDelete: Cascade)
+
+  @@index([session_id])
+  @@map("interview_turns")
+}
+
+model AIConversation {
+  id                String      @id @default(uuid()) @db.Uuid
+  user_id           String      @db.Uuid
+  type              String      @default("PATHFINDER") @db.VarChar(50) // PATHFINDER, DOUBT_SOLVER
+  title             String?     @db.VarChar(255)
+  confirmed_profile Json?
+  is_confirmed      Boolean     @default(false)
+  created_at        DateTime    @default(now())
+  updated_at        DateTime    @updatedAt
+
+  user              User        @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  messages          AIMessage[]
+
+  @@index([user_id])
+  @@map("ai_conversations")
+}
+
+model AIMessage {
+  id              String         @id @default(uuid()) @db.Uuid
+  conversation_id String         @db.Uuid
+  sender          String         @db.VarChar(20) // USER, EVA, SYSTEM
+  content         String         @db.Text
+  intent          String?        @db.VarChar(50)
+  metadata        Json?
+  created_at      DateTime       @default(now())
+
+  conversation    AIConversation @relation(fields: [conversation_id], references: [id], onDelete: Cascade)
+
+  @@index([conversation_id])
+  @@map("ai_messages")
+}
+

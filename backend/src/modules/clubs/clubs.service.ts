@@ -1,4 +1,5 @@
 import { ClubsRepository } from './clubs.repository';
+import { prisma } from '../../config/database';
 import {
   CreateClubDto,
   VerifyClubDto,
@@ -40,13 +41,22 @@ export class ClubsService {
     return club;
   }
 
-  async getClubs(collegeId: string, query: QueryClubsDto) {
+  async getClubs(collegeId: string, userId?: string, query: QueryClubsDto = {}) {
     try {
+      if (userId && (query.department_only || query.is_cross_department === false)) {
+        const user = await prisma.user.findUnique({
+          where: { id: userId },
+          select: { department_id: true },
+        });
+        if (user?.department_id) {
+          query.user_department_id = user.department_id;
+        }
+      }
       return await this.clubsRepository.findClubs(collegeId, query);
     } catch (_) {
       return {
         data: [],
-        meta: { total: 0, page: query.page || 1, limit: query.limit || 10, totalPages: 0 },
+        meta: { total: 0, page: query.page || 1, limit: query.limit || 50, totalPages: 0 },
       };
     }
   }

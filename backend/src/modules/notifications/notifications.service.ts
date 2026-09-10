@@ -14,9 +14,21 @@ export class NotificationsService {
     return this.notificationsRepository.registerFcmToken(userId, dto);
   }
 
+  async unregisterFcmToken(userId: string, fcmToken?: string) {
+    return this.notificationsRepository.unregisterFcmToken(userId, fcmToken);
+  }
+
   async sendNotification(dto: SendNotificationDto) {
     // 1. Create in-app notification record in DB
     const notification = await this.notificationsRepository.createNotification(dto);
+
+    // 1b. Dispatch real-time in-app notification via Socket.IO
+    try {
+      const { SocketServer } = await import('../../infrastructure/socket/socket.server');
+      SocketServer.getInstance().emitToUser(dto.user_id, 'new_notification', notification);
+    } catch (_) {
+      // Socket server may not be active in isolated unit test environments
+    }
 
     // 2. Fetch target user's registered FCM tokens
     const tokens = await this.notificationsRepository.getUserFcmTokens(dto.user_id);

@@ -8,6 +8,7 @@ export const createClubSchema = z.object({
     description: z.string().optional().nullable(),
     logo_url: z.string().optional().nullable(),
     is_cross_department: z.boolean().optional().default(true),
+    department_id: z.string().uuid().optional().nullable(),
   }),
 });
 
@@ -68,6 +69,11 @@ export const queryClubsSchema = z.object({
       .string()
       .transform((val) => val === 'true')
       .optional(),
+    department_only: z
+      .string()
+      .transform((val) => val === 'true')
+      .optional(),
+    department_id: z.string().uuid().optional(),
     page: z
       .string()
       .transform((val) => parseInt(val, 10))

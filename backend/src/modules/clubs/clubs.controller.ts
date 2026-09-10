@@ -20,11 +20,12 @@ export class ClubsController {
       status: req.query.status as ClubStatus,
       search: req.query.search as string,
       is_cross_department: req.query.is_cross_department !== undefined ? req.query.is_cross_department === 'true' : undefined,
+      department_only: req.query.department_only === 'true' || req.query.is_cross_department === 'false',
       page: req.query.page ? parseInt(req.query.page as string, 10) : 1,
-      limit: req.query.limit ? parseInt(req.query.limit as string, 10) : 10,
+      limit: req.query.limit ? parseInt(req.query.limit as string, 10) : 50,
     };
 
-    const result = await this.clubsService.getClubs(user.collegeId, query);
+    const result = await this.clubsService.getClubs(user.collegeId, user.userId, query);
     ResponseUtil.success(res, result, 'Clubs retrieved successfully');
   });
 

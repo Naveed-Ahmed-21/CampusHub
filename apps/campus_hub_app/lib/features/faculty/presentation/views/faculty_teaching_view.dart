@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/constants/api_endpoints.dart';
 import '../../../../shared/responsive/responsive_layout.dart';
 import '../../../../shared/widgets/async_value_widget.dart';
 import '../controllers/faculty_controller.dart';
@@ -205,12 +206,25 @@ class _FacultyTeachingViewState extends ConsumerState<FacultyTeachingView>
 
   Widget _buildMentoringTab(BuildContext context, WidgetRef ref, {required bool isDesktop}) {
     final menteesAsync = ref.watch(facultyMenteesProvider);
+    final theme = Theme.of(context);
 
     return AsyncValueWidget(
       value: menteesAsync,
       data: (mentees) {
         if (mentees.isEmpty) {
-          return const Center(child: Text('No student mentees assigned yet'));
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.school_outlined, size: 64, color: Colors.grey.shade400),
+                const SizedBox(height: 16),
+                Text(
+                  'No student mentees assigned yet.',
+                  style: theme.textTheme.titleMedium?.copyWith(color: Colors.grey),
+                ),
+              ],
+            ),
+          );
         }
 
         return ListView.builder(
@@ -220,18 +234,34 @@ class _FacultyTeachingViewState extends ConsumerState<FacultyTeachingView>
             final student = mentees[index];
             return Card(
               margin: const EdgeInsets.only(bottom: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+                side: BorderSide(
+                  color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+                ),
+              ),
               child: Padding(
                 padding: const EdgeInsets.all(14.0),
                 child: Row(
                   children: [
                     CircleAvatar(
                       radius: 24,
-                      backgroundImage: student.avatarUrl != null
-                          ? NetworkImage(student.avatarUrl!)
+                      backgroundColor: theme.colorScheme.primaryContainer,
+                      backgroundImage: student.avatarUrl != null && student.avatarUrl!.isNotEmpty
+                          ? NetworkImage(ApiEndpoints.resolveUrl(student.avatarUrl!))
                           : null,
-                      child: student.avatarUrl == null
-                          ? const Icon(Icons.person)
+                      onBackgroundImageError: student.avatarUrl != null && student.avatarUrl!.isNotEmpty
+                          ? (_, __) {}
+                          : null,
+                      child: student.avatarUrl == null || student.avatarUrl!.isEmpty
+                          ? Text(
+                              student.name.isNotEmpty ? student.name[0].toUpperCase() : 'S',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: theme.colorScheme.onPrimaryContainer,
+                              ),
+                            )
                           : null,
                     ),
                     const SizedBox(width: 14),
@@ -239,37 +269,22 @@ class _FacultyTeachingViewState extends ConsumerState<FacultyTeachingView>
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
-                            children: [
-                              Text(
-                                student.name,
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                              ),
-                              const SizedBox(width: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: Colors.teal.withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Text(
-                                  'CGPA: ${student.cgpa}',
-                                  style: const TextStyle(
-                                    color: Colors.teal,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ],
+                          Text(
+                            student.name,
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                           ),
                           const SizedBox(height: 4),
                           Text(
                             '${student.rollNumber} • ${student.department} • ${student.semester}',
-                            style: const TextStyle(color: Colors.grey, fontSize: 12),
+                            style: TextStyle(color: theme.colorScheme.outline, fontSize: 12),
                           ),
                         ],
                       ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.person_outline, color: Colors.teal),
+                      tooltip: 'View Profile',
+                      onPressed: () => context.push('/profile/${student.id}'),
                     ),
                     IconButton(
                       icon: const Icon(Icons.chat_bubble_outline, color: Colors.blue),

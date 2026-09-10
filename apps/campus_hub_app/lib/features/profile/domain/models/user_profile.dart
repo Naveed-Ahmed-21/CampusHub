@@ -58,6 +58,44 @@ class ProjectItem {
       };
 }
 
+class UserClubItem {
+  final String id;
+  final String clubId;
+  final String name;
+  final String category;
+  final String? logoUrl;
+  final String role;
+
+  const UserClubItem({
+    required this.id,
+    required this.clubId,
+    required this.name,
+    required this.category,
+    this.logoUrl,
+    required this.role,
+  });
+
+  factory UserClubItem.fromJson(Map<String, dynamic> json) {
+    return UserClubItem(
+      id: json['id'] as String? ?? '',
+      clubId: json['clubId'] as String? ?? json['club_id'] as String? ?? json['id'] as String? ?? '',
+      name: json['name'] as String? ?? json['club_name'] as String? ?? 'Club',
+      category: json['category'] as String? ?? 'General',
+      logoUrl: json['logoUrl'] as String? ?? json['logo_url'] as String?,
+      role: json['role'] as String? ?? 'MEMBER',
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'clubId': clubId,
+        'name': name,
+        'category': category,
+        'logoUrl': logoUrl,
+        'role': role,
+      };
+}
+
 class UserProfile {
   final String id;
   final String? username;
@@ -80,6 +118,7 @@ class UserProfile {
   final bool isFollowing;
   final List<SkillItem> skills;
   final List<ProjectItem> projects;
+  final List<UserClubItem> clubs;
 
   const UserProfile({
     required this.id,
@@ -103,6 +142,7 @@ class UserProfile {
     this.isFollowing = false,
     this.skills = const [],
     this.projects = const [],
+    this.clubs = const [],
   });
 
   String get fullName => '$firstName $lastName'.trim();
@@ -113,6 +153,7 @@ class UserProfile {
   factory UserProfile.fromJson(Map<String, dynamic> json) {
     final rawSkills = json['skills'] as List<dynamic>? ?? [];
     final rawProjects = json['projects'] as List<dynamic>? ?? [];
+    final rawClubs = json['clubs'] as List<dynamic>? ?? [];
     final deptData = json['department'];
     final deptName = deptData is Map ? deptData['name'] as String? : (deptData is String ? deptData : null);
 
@@ -142,6 +183,7 @@ class UserProfile {
       isFollowing: json['isFollowing'] as bool? ?? json['is_following'] as bool? ?? false,
       skills: rawSkills.map((s) => SkillItem.fromJson(s as Map<String, dynamic>)).toList(),
       projects: rawProjects.map((p) => ProjectItem.fromJson(p as Map<String, dynamic>)).toList(),
+      clubs: rawClubs.map((c) => UserClubItem.fromJson(c as Map<String, dynamic>)).toList(),
     );
   }
 
@@ -167,6 +209,7 @@ class UserProfile {
     bool? isFollowing,
     List<SkillItem>? skills,
     List<ProjectItem>? projects,
+    List<UserClubItem>? clubs,
   }) {
     return UserProfile(
       id: id ?? this.id,
@@ -190,6 +233,7 @@ class UserProfile {
       isFollowing: isFollowing ?? this.isFollowing,
       skills: skills ?? this.skills,
       projects: projects ?? this.projects,
+      clubs: clubs ?? this.clubs,
     );
   }
 }

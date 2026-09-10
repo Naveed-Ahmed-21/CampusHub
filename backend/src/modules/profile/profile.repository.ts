@@ -15,6 +15,19 @@ export class ProfileRepository {
       },
       include: {
         department: { select: { id: true, name: true, code: true } },
+        club_members: {
+          include: {
+            club: {
+              select: {
+                id: true,
+                name: true,
+                category: true,
+                logo_url: true,
+                status: true,
+              },
+            },
+          },
+        },
         portfolio: {
           include: {
             skills: true,

@@ -3,9 +3,18 @@ import { PostsRepository } from './posts.repository';
 import { CreatePostDTO, FeedType, PostResponseDTO } from './posts.types';
 import { PostType } from '@prisma/client';
 import { logger } from '../../infrastructure/logger/logger';
+import { NotificationsRepository } from '../notifications/notifications.repository';
+import { NotificationsService } from '../notifications/notifications.service';
 
 export class PostsService {
-  constructor(private readonly postsRepo: PostsRepository) {}
+  private readonly notificationsService: NotificationsService;
+
+  constructor(
+    private readonly postsRepo: PostsRepository,
+    notificationsService?: NotificationsService,
+  ) {
+    this.notificationsService = notificationsService ?? new NotificationsService(new NotificationsRepository());
+  }
 
   async getFeed({
     userId,
@@ -147,6 +156,21 @@ export class PostsService {
 
   async toggleLike(postId: string, userId: string): Promise<{ isLiked: boolean }> {
     const isLiked = await this.postsRepo.toggleLike(postId, userId);
+    if (isLiked) {
+      try {
+        const post = await this.postsRepo.findPostById(postId);
+        if (post && post.author_id !== userId) {
+          await this.notificationsService.sendNotification({
+            user_id: post.author_id,
+            title: 'New Like',
+            body: `Someone liked your post "${post.title || (post.content ? post.content.slice(0, 30) + '...' : 'Post')}"`,
+            type: 'LIKE',
+            category: 'Feed',
+            deep_link: `/feed`,
+          });
+        }
+      } catch (_) {}
+    }
     return { isLiked };
   }
 
@@ -157,6 +181,19 @@ export class PostsService {
 
   async addComment(postId: string, userId: string, content: string, parentCommentId?: string | null) {
     const comment = await this.postsRepo.addComment(postId, userId, content, parentCommentId);
+    try {
+      const post = await this.postsRepo.findPostById(postId);
+      if (post && post.author_id !== userId) {
+        await this.notificationsService.sendNotification({
+          user_id: post.author_id,
+          title: 'New Comment',
+          body: `${comment.author.first_name} ${comment.author.last_name}: "${content.length > 50 ? content.slice(0, 47) + '...' : content}"`,
+          type: 'COMMENT',
+          category: 'Feed',
+          deep_link: `/feed`,
+        });
+      }
+    } catch (_) {}
     return {
       id: comment.id,
       postId: comment.post_id,

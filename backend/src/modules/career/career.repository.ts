@@ -14,7 +14,7 @@ export class CareerRepository {
       ];
     }
 
-    let roadmaps = await prisma.careerRoadmap.findMany({
+    return prisma.careerRoadmap.findMany({
       where: where as never,
       orderBy: { created_at: 'asc' },
       include: {
@@ -25,25 +25,273 @@ export class CareerRepository {
         _count: { select: { nodes: true, resources: true } },
       },
     });
+  }
 
-    if (roadmaps.length === 0 && !category && !search) {
-      await this.seedDefaultRoadmaps();
-      roadmaps = await prisma.careerRoadmap.findMany({
-        orderBy: { created_at: 'asc' },
-        include: {
-          nodes: {
-            orderBy: { order_index: 'asc' },
-            include: { resources: true },
-          },
-          _count: { select: { nodes: true, resources: true } },
+  // Get user's own created/enrolled roadmaps
+  async getUserRoadmaps(userId: string) {
+    // 1. Roadmaps directly authored by user
+    const authoredRoadmaps = await prisma.careerRoadmap.findMany({
+      where: {
+        user_id: userId,
+        status: { not: 'ARCHIVED' },
+      },
+      include: {
+        nodes: {
+          orderBy: { order_index: 'asc' },
+          include: { resources: true },
         },
+        user_progress: {
+          where: { user_id: userId },
+        },
+        _count: { select: { nodes: true, resources: true } },
+      },
+      orderBy: { updated_at: 'desc' },
+    });
+
+    // 2. Roadmaps the user has progress on (including pre-seeded templates)
+    const progressRecords = await prisma.userRoadmapProgress.findMany({
+      where: {
+        user_id: userId,
+        status: { not: 'ARCHIVED' },
+      },
+      include: {
+        roadmap: {
+          include: {
+            nodes: {
+              orderBy: { order_index: 'asc' },
+              include: { resources: true },
+            },
+            _count: { select: { nodes: true, resources: true } },
+          },
+        },
+      },
+      orderBy: { updated_at: 'desc' },
+    });
+
+    // Merge without duplicates
+    const seenMap = new Map<string, any>();
+
+    for (const r of authoredRoadmaps) {
+      const prog = r.user_progress?.[0];
+      seenMap.set(r.id, {
+        id: r.id,
+        title: r.title,
+        targetRole: r.target_role || r.title,
+        category: r.category,
+        description: r.description,
+        level: r.level,
+        version: r.version,
+        status: r.status,
+        estimatedMonths: r.estimated_months,
+        isActive: prog ? prog.is_active : false,
+        progressPercent: prog ? prog.progress_percent : 0,
+        currentFocus: prog?.current_focus || `Phase 1: Foundations`,
+        todayGoal: prog?.today_goal || '',
+        streakDays: prog?.streak_days || 1,
+        quizScores: prog?.quiz_scores,
+        dailyPlan: prog?.daily_plan,
+        createdAt: r.created_at,
+        updatedAt: r.updated_at,
+        nodes: r.nodes,
+        phasesJson: r.phases_json,
+        skillGapsJson: r.skill_gaps_json,
+        skillMapJson: r.skill_map_json,
       });
     }
 
-    return roadmaps;
+    for (const p of progressRecords) {
+      if (!seenMap.has(p.roadmap_id) && p.roadmap) {
+        seenMap.set(p.roadmap_id, {
+          id: p.roadmap.id,
+          title: p.roadmap.title,
+          targetRole: p.target_role || p.roadmap.title,
+          category: p.roadmap.category,
+          description: p.roadmap.description,
+          level: p.level || p.roadmap.level,
+          version: p.version,
+          status: p.status,
+          estimatedMonths: p.roadmap.estimated_months,
+          isActive: p.is_active,
+          progressPercent: p.progress_percent,
+          currentFocus: p.current_focus || `Phase 1: Foundations`,
+          todayGoal: p.today_goal || '',
+          streakDays: p.streak_days || 1,
+          quizScores: p.quiz_scores,
+          dailyPlan: p.daily_plan,
+          createdAt: p.roadmap.created_at,
+          updatedAt: p.updated_at,
+          nodes: p.roadmap.nodes,
+          phasesJson: p.roadmap.phases_json,
+          skillGapsJson: p.roadmap.skill_gaps_json,
+          skillMapJson: p.roadmap.skill_map_json,
+        });
+      }
+    }
+
+    return Array.from(seenMap.values());
   }
 
-  async getRoadmapById(id: string) {
+  // Find existing roadmap for duplicate checking (Normalized role)
+  async findExistingRoadmapForRole(userId: string, targetRole: string) {
+    const norm = targetRole.trim().toLowerCase();
+
+    // Check user's roadmaps first
+    const existing = await prisma.careerRoadmap.findFirst({
+      where: {
+        user_id: userId,
+        status: { not: 'ARCHIVED' },
+        OR: [
+          { target_role: { equals: targetRole, mode: 'insensitive' } },
+          { title: { equals: targetRole, mode: 'insensitive' } },
+          { slug: { contains: norm.replace(/[^a-z0-9]+/g, '-').slice(0, 20) } },
+        ],
+      },
+      include: {
+        user_progress: {
+          where: { user_id: userId },
+        },
+      },
+      orderBy: { version: 'desc' },
+    });
+
+    if (existing) {
+      return existing;
+    }
+
+    // Check active user progress records
+    const existingProgress = await prisma.userRoadmapProgress.findFirst({
+      where: {
+        user_id: userId,
+        status: { not: 'ARCHIVED' },
+        OR: [
+          { target_role: { equals: targetRole, mode: 'insensitive' } },
+          { roadmap: { title: { equals: targetRole, mode: 'insensitive' } } },
+        ],
+      },
+      include: {
+        roadmap: true,
+      },
+      orderBy: { updated_at: 'desc' },
+    });
+
+    return existingProgress?.roadmap || null;
+  }
+
+  // Create custom AI roadmap with versioning
+  async createCustomRoadmap(
+    userId: string,
+    data: {
+      title: string;
+      targetRole: string;
+      category: string;
+      description: string;
+      level: string;
+      estimatedMonths: number;
+      goal?: string;
+      version: number;
+      phasesJson: unknown;
+      skillGapsJson: unknown;
+      skillMapJson: unknown;
+      weeklyHours: number;
+      assessmentData?: unknown;
+    }
+  ) {
+    // 1. Mark existing active roadmaps for this user inactive
+    await prisma.userRoadmapProgress.updateMany({
+      where: { user_id: userId },
+      data: { is_active: false },
+    });
+
+    const slug = `${data.targetRole.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-v${data.version}-${Date.now()}`;
+
+    // 2. Create CareerRoadmap
+    const roadmap = await prisma.careerRoadmap.create({
+      data: {
+        user_id: userId,
+        title: data.title,
+        slug,
+        target_role: data.targetRole,
+        category: data.category,
+        description: data.description,
+        level: data.level,
+        estimated_months: data.estimatedMonths,
+        goal: data.goal,
+        version: data.version,
+        status: 'ACTIVE',
+        phases_json: JSON.parse(JSON.stringify(data.phasesJson)),
+        skill_gaps_json: JSON.parse(JSON.stringify(data.skillGapsJson)),
+        skill_map_json: JSON.parse(JSON.stringify(data.skillMapJson)),
+      },
+    });
+
+    // 3. Create initial RoadmapNode entries for the phases
+    const phases = data.phasesJson as any[];
+    if (Array.isArray(phases)) {
+      for (const phase of phases) {
+        await prisma.roadmapNode.create({
+          data: {
+            roadmap_id: roadmap.id,
+            title: phase.title || `Phase ${phase.phase_number}`,
+            description: phase.description || '',
+            order_index: phase.phase_number || 1,
+            estimated_hours: (phase.weeks || 2) * (data.weeklyHours || 10),
+            resources: {
+              create: [
+                {
+                  title: `${phase.title} Overview & Docs`,
+                  type: 'DOCS',
+                  url: 'https://docs.campushub.edu',
+                  is_free: true,
+                },
+                {
+                  title: `${phase.title} Practical Challenge`,
+                  type: 'PRACTICE',
+                  url: 'https://practice.campushub.edu',
+                  is_free: true,
+                },
+              ],
+            },
+          },
+        });
+      }
+    }
+
+    // 4. Initialize UserRoadmapProgress
+    const firstPhaseTitle = phases?.[0]?.title || `Phase 1: Foundations of ${data.targetRole}`;
+    const initialTodayGoal = `Master initial concepts of ${firstPhaseTitle}`;
+
+    const progress = await prisma.userRoadmapProgress.create({
+      data: {
+        user_id: userId,
+        roadmap_id: roadmap.id,
+        is_active: true,
+        version: data.version,
+        status: 'ACTIVE',
+        target_role: data.targetRole,
+        level: data.level,
+        weekly_hours: data.weeklyHours,
+        current_focus: firstPhaseTitle,
+        today_goal: initialTodayGoal,
+        assessment_data: data.assessmentData ? JSON.parse(JSON.stringify(data.assessmentData)) : undefined,
+        streak_days: 1,
+        progress_percent: 0.0,
+      },
+      include: {
+        roadmap: {
+          include: {
+            nodes: {
+              orderBy: { order_index: 'asc' },
+              include: { resources: true },
+            },
+          },
+        },
+      },
+    });
+
+    return { roadmap, progress };
+  }
+
+  async getRoadmapById(id: string, userId?: string) {
     return prisma.careerRoadmap.findUnique({
       where: { id },
       include: {
@@ -52,20 +300,271 @@ export class CareerRepository {
           include: { resources: true },
         },
         resources: true,
+        user_progress: userId ? { where: { user_id: userId } } : undefined,
       },
     });
   }
 
-  // Progress Tracking
+  async updateRoadmap(
+    roadmapId: string,
+    userId: string,
+    data: {
+      status?: string;
+      title?: string;
+      phasesJson?: unknown;
+      skillGapsJson?: unknown;
+      adaptiveData?: unknown;
+    }
+  ) {
+    const updateData: Record<string, unknown> = {};
+    if (data.status) updateData.status = data.status;
+    if (data.title) updateData.title = data.title;
+    if (data.phasesJson) updateData.phases_json = JSON.parse(JSON.stringify(data.phasesJson));
+    if (data.skillGapsJson) updateData.skill_gaps_json = JSON.parse(JSON.stringify(data.skillGapsJson));
+    if (data.adaptiveData) updateData.adaptive_data = JSON.parse(JSON.stringify(data.adaptiveData));
+
+    // Update roadmap
+    const updatedRoadmap = await prisma.careerRoadmap.update({
+      where: { id: roadmapId },
+      data: updateData,
+    });
+
+    // Sync progress status
+    if (data.status) {
+      await prisma.userRoadmapProgress.updateMany({
+        where: { user_id: userId, roadmap_id: roadmapId },
+        data: {
+          status: data.status,
+          is_active: data.status === 'ACTIVE',
+          updated_at: new Date(),
+        },
+      });
+    }
+
+    return updatedRoadmap;
+  }
+
+  async deleteRoadmap(roadmapId: string, userId: string) {
+    // Soft delete / archive or remove
+    const roadmap = await prisma.careerRoadmap.findUnique({ where: { id: roadmapId } });
+    if (!roadmap) return null;
+
+    if (roadmap.user_id && roadmap.user_id !== userId) {
+      throw new Error('Unauthorized to delete this roadmap');
+    }
+
+    return prisma.careerRoadmap.update({
+      where: { id: roadmapId },
+      data: { status: 'ARCHIVED' },
+    });
+  }
+
+  async setActiveRoadmap(userId: string, roadmapId: string) {
+    await prisma.userRoadmapProgress.updateMany({
+      where: { user_id: userId },
+      data: { is_active: false },
+    });
+
+    return prisma.userRoadmapProgress.upsert({
+      where: { user_id_roadmap_id: { user_id: userId, roadmap_id: roadmapId } },
+      update: { is_active: true, status: 'ACTIVE', updated_at: new Date() },
+      create: {
+        user_id: userId,
+        roadmap_id: roadmapId,
+        is_active: true,
+        status: 'ACTIVE',
+      },
+      include: {
+        roadmap: {
+          include: {
+            nodes: {
+              orderBy: { order_index: 'asc' },
+              include: { resources: true },
+            },
+          },
+        },
+      },
+    });
+  }
+
   async getUserRoadmapProgress(userId: string) {
     return prisma.userRoadmapProgress.findMany({
-      where: { user_id: userId },
+      where: { user_id: userId, status: { not: 'ARCHIVED' } },
       include: {
         roadmap: {
           include: {
             _count: { select: { nodes: true } },
           },
         },
+      },
+    });
+  }
+
+  async getUserRoadmapProgressByRoadmap(userId: string, roadmapId: string) {
+    try {
+      return await prisma.userRoadmapProgress.findUnique({
+        where: { user_id_roadmap_id: { user_id: userId, roadmap_id: roadmapId } },
+        include: { roadmap: true },
+      });
+    } catch (_) {
+      return null;
+    }
+  }
+
+  async getActiveUserRoadmap(userId: string) {
+    return prisma.userRoadmapProgress.findFirst({
+      where: { user_id: userId, is_active: true, status: 'ACTIVE' },
+      include: {
+        roadmap: {
+          include: {
+            nodes: {
+              orderBy: { order_index: 'asc' },
+              include: { resources: true },
+            },
+          },
+        },
+      },
+      orderBy: { updated_at: 'desc' },
+    });
+  }
+
+  async upsertActiveRoadmap(
+    userId: string,
+    roadmapId: string,
+    data: {
+      targetRole: string;
+      level: string;
+      weeklyHours: number;
+      currentFocus?: string;
+      todayGoal?: string;
+      assessmentData?: unknown;
+    },
+  ) {
+    // Mark any other roadmaps inactive
+    await prisma.userRoadmapProgress.updateMany({
+      where: { user_id: userId },
+      data: { is_active: false },
+    });
+
+    return prisma.userRoadmapProgress.upsert({
+      where: { user_id_roadmap_id: { user_id: userId, roadmap_id: roadmapId } },
+      update: {
+        is_active: true,
+        status: 'ACTIVE',
+        target_role: data.targetRole,
+        level: data.level,
+        weekly_hours: data.weeklyHours,
+        current_focus: data.currentFocus,
+        today_goal: data.todayGoal,
+        assessment_data: data.assessmentData ? JSON.parse(JSON.stringify(data.assessmentData)) : undefined,
+        updated_at: new Date(),
+      },
+      create: {
+        user_id: userId,
+        roadmap_id: roadmapId,
+        is_active: true,
+        status: 'ACTIVE',
+        target_role: data.targetRole,
+        level: data.level,
+        weekly_hours: data.weeklyHours,
+        current_focus: data.currentFocus,
+        today_goal: data.todayGoal,
+        assessment_data: data.assessmentData ? JSON.parse(JSON.stringify(data.assessmentData)) : undefined,
+      },
+      include: {
+        roadmap: {
+          include: {
+            nodes: {
+              orderBy: { order_index: 'asc' },
+              include: { resources: true },
+            },
+          },
+        },
+      },
+    });
+  }
+
+  async updateDailyTask(
+    userId: string,
+    roadmapId: string,
+    taskId: string,
+    isCompleted: boolean
+  ) {
+    const progress = await prisma.userRoadmapProgress.findUnique({
+      where: { user_id_roadmap_id: { user_id: userId, roadmap_id: roadmapId } },
+    });
+
+    if (!progress) return null;
+
+    const plan = (progress.daily_plan as any) || {};
+    const tasks = (plan.tasks as any[]) || [];
+
+    const targetTask = tasks.find((t) => t.id === taskId);
+    if (targetTask) {
+      targetTask.is_completed = isCompleted;
+    }
+
+    const completedCount = tasks.filter((t) => t.is_completed).length;
+    const studyAdd = isCompleted ? (targetTask?.duration_mins || 20) : 0;
+
+    return prisma.userRoadmapProgress.update({
+      where: { user_id_roadmap_id: { user_id: userId, roadmap_id: roadmapId } },
+      data: {
+        daily_plan: JSON.parse(JSON.stringify(plan)),
+        total_study_minutes: { increment: studyAdd },
+        tasks_completed_count: { increment: isCompleted ? 1 : 0 },
+        last_active_at: new Date(),
+        updated_at: new Date(),
+      },
+    });
+  }
+
+  async saveDailyPlan(userId: string, roadmapId: string, dailyPlan: unknown) {
+    return prisma.userRoadmapProgress.update({
+      where: { user_id_roadmap_id: { user_id: userId, roadmap_id: roadmapId } },
+      data: {
+        daily_plan: JSON.parse(JSON.stringify(dailyPlan)),
+        today_goal: (dailyPlan as any)?.today_goal,
+        updated_at: new Date(),
+      },
+    });
+  }
+
+  async updateQuizScore(
+    userId: string,
+    roadmapId: string,
+    phaseNumber: number,
+    score: number,
+    totalQuestions: number,
+  ) {
+    const existing = await prisma.userRoadmapProgress.findUnique({
+      where: { user_id_roadmap_id: { user_id: userId, roadmap_id: roadmapId } },
+    });
+
+    const scoresObj = (existing?.quiz_scores as Record<string, unknown>) || {};
+    scoresObj[`phase_${phaseNumber}`] = {
+      score,
+      total: totalQuestions,
+      percentage: Math.round((score / totalQuestions) * 100),
+      passed: score >= Math.ceil(totalQuestions * 0.6),
+      completed_at: new Date().toISOString(),
+    };
+
+    return prisma.userRoadmapProgress.upsert({
+      where: { user_id_roadmap_id: { user_id: userId, roadmap_id: roadmapId } },
+      create: {
+        user_id: userId,
+        roadmap_id: roadmapId,
+        quiz_scores: JSON.parse(JSON.stringify(scoresObj)),
+        quizzes_completed_count: 1,
+        is_active: true,
+        last_active_at: new Date(),
+      },
+      update: {
+        quiz_scores: JSON.parse(JSON.stringify(scoresObj)),
+        quizzes_completed_count: { increment: 1 },
+        last_active_at: new Date(),
+        updated_at: new Date(),
       },
     });
   }
@@ -117,6 +616,7 @@ export class CareerRepository {
       update: {
         completed_node_count: completedNodesCount,
         progress_percent: parseFloat(percent.toFixed(1)),
+        last_active_at: new Date(),
         updated_at: new Date(),
       },
       create: {
@@ -130,6 +630,96 @@ export class CareerRepository {
     return { nodeId, isCompleted, completedNodesCount, totalNodes: allNodesCount, progressPercent: percent };
   }
 
+  // AI Interaction logging
+  async logAIInteraction(userId: string, roadmapId: string | undefined, prompt: string, response: string, category: string = 'GENERAL') {
+    return prisma.careerAIInteraction.create({
+      data: {
+        user_id: userId,
+        roadmap_id: roadmapId,
+        prompt,
+        response,
+        category,
+      },
+    });
+  }
+
+  // Mentor Sharing
+  async createMentorShare(studentId: string, roadmapId: string, message: string, facultyId?: string) {
+    let resolvedFacultyId = facultyId;
+
+    if (!resolvedFacultyId) {
+      // Find assigned faculty mentor
+      const mentorship = await prisma.studentMentorship.findFirst({
+        where: { student_id: studentId },
+      });
+      if (mentorship) {
+        resolvedFacultyId = mentorship.faculty_id;
+      }
+    }
+
+    if (!resolvedFacultyId) {
+      // Find any department faculty as fallback
+      const student = await prisma.user.findUnique({
+        where: { id: studentId },
+        select: { department_id: true, college_id: true },
+      });
+
+      const fallbackFaculty = await prisma.user.findFirst({
+        where: {
+          role: 'FACULTY',
+          department_id: student?.department_id,
+          college_id: student?.college_id,
+        },
+      });
+
+      resolvedFacultyId = fallbackFaculty?.id;
+    }
+
+    if (!resolvedFacultyId) {
+      throw new Error('No assigned faculty mentor found for your profile');
+    }
+
+    return prisma.careerMentorShare.create({
+      data: {
+        student_id: studentId,
+        faculty_id: resolvedFacultyId,
+        roadmap_id: roadmapId,
+        message,
+        status: 'PENDING',
+      },
+      include: {
+        faculty: {
+          select: { id: true, first_name: true, last_name: true, email: true },
+        },
+        roadmap: {
+          select: { id: true, title: true, target_role: true },
+        },
+      },
+    });
+  }
+
+  async getMenteeRoadmaps(facultyId: string) {
+    const shares = await prisma.careerMentorShare.findMany({
+      where: { faculty_id: facultyId },
+      include: {
+        student: {
+          select: {
+            id: true,
+            first_name: true,
+            last_name: true,
+            email: true,
+            avatar_url: true,
+            department: { select: { name: true } },
+          },
+        },
+        roadmap: true,
+      },
+      orderBy: { created_at: 'desc' },
+    });
+
+    return shares;
+  }
+
   // Weekly Goals
   async getWeeklyGoals(userId: string) {
     return prisma.weeklyGoal.findMany({
@@ -139,12 +729,45 @@ export class CareerRepository {
   }
 
   async createWeeklyGoal(userId: string, dto: CreateWeeklyGoalDto) {
+    const rawDate = dto.target_date || (dto as any).targetDate;
+    let parsedDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    if (rawDate) {
+      const d = new Date(rawDate);
+      if (!isNaN(d.getTime())) {
+        parsedDate = d;
+      }
+    }
+
     return prisma.weeklyGoal.create({
       data: {
         user_id: userId,
-        title: dto.title,
-        target_date: dto.target_date ? new Date(dto.target_date) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        title: dto.title.trim(),
+        target_date: parsedDate,
       },
+    });
+  }
+
+  async updateWeeklyGoal(goalId: string, userId: string, data: { title?: string; target_date?: string | null; is_completed?: boolean }) {
+    const updateData: Record<string, unknown> = {};
+    if (data.title !== undefined) updateData.title = data.title.trim();
+    if (data.target_date !== undefined && data.target_date !== null) {
+      const d = new Date(data.target_date);
+      if (!isNaN(d.getTime())) updateData.target_date = d;
+    }
+    if (data.is_completed !== undefined) {
+      updateData.is_completed = data.is_completed;
+      updateData.completed_at = data.is_completed ? new Date() : null;
+    }
+
+    return prisma.weeklyGoal.update({
+      where: { id: goalId, user_id: userId },
+      data: updateData,
+    });
+  }
+
+  async deleteWeeklyGoal(goalId: string, userId: string) {
+    return prisma.weeklyGoal.delete({
+      where: { id: goalId, user_id: userId },
     });
   }
 
@@ -236,6 +859,7 @@ export class CareerRepository {
       data: {
         title: 'Software Development Engineer (SDE)',
         slug: 'sde-roadmap',
+        target_role: 'Software Development Engineer (SDE)',
         category: 'Software Engineering',
         description: 'Complete path to crack SDE roles at product-based tech companies.',
         level: 'Intermediate',
@@ -287,6 +911,7 @@ export class CareerRepository {
       data: {
         title: 'Full Stack Web Developer',
         slug: 'fullstack-roadmap',
+        target_role: 'Full Stack Web Developer',
         category: 'Web Development',
         description: 'Master Frontend (React/Next.js), Backend (Node/Express), Databases, and Cloud.',
         level: 'Beginner',

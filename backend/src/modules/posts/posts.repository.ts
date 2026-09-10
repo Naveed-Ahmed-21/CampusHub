@@ -27,13 +27,17 @@ export class PostsRepository {
     take: number;
   }) {
     let effectiveDeptId = departmentId;
-    if (!effectiveDeptId && userId) {
+    let userDeptCode = '';
+    if (userId) {
       try {
         const user = await prisma.user.findUnique({
           where: { id: userId },
-          select: { department_id: true },
+          select: { department_id: true, department: { select: { code: true, name: true } } },
         });
-        effectiveDeptId = user?.department_id;
+        if (user) {
+          effectiveDeptId = user.department_id || effectiveDeptId;
+          userDeptCode = (user.department?.code || user.department?.name || '').toUpperCase().trim();
+        }
       } catch (_) {}
     }
 
@@ -47,17 +51,112 @@ export class PostsRepository {
       whereCondition = { department_id: departmentIdFilter };
     } else {
       switch (feedType) {
+        case FeedType.FOR_YOU:
         case FeedType.MY_FEED:
           whereCondition = { college_id: collegeId };
           break;
+
+        case FeedType.MY_DEPARTMENT:
         case FeedType.DEPARTMENT:
           if (effectiveDeptId) {
-            whereCondition.OR = [
-              { department_id: effectiveDeptId },
-              { department_id: null },
-            ];
+            whereCondition = {
+              college_id: collegeId,
+              department_id: effectiveDeptId,
+            };
+          } else {
+            whereCondition = { college_id: collegeId };
           }
           break;
+
+        case FeedType.RELATED:
+        case 'RELATED' as FeedType: {
+          const allDepts = await prisma.department.findMany({
+            where: { college_id: collegeId },
+            select: { id: true, code: true, name: true },
+          });
+
+          const deptMap = new Map<string, string>(); // CODE -> id
+          for (const d of allDepts) {
+            deptMap.set(d.code.toUpperCase().trim(), d.id);
+            deptMap.set(d.name.toUpperCase().trim(), d.id);
+          }
+
+          // Topic / keyword definitions for cross-disciplinary related feeds
+          const techKeywords = [
+            'software', 'programming', 'coding', 'code', 'python', 'java', 'c++', 'javascript',
+            'typescript', 'web', 'app', 'ai', 'ml', 'cloud', 'technology', 'tech', 'data', 'algorithm', 'dsa', 'database', 'sql'
+          ];
+          const evKeywords = [
+            'ev', 'electric', 'battery', 'motor', 'electronics', 'control', 'vehicle', 'hybrid', 'sensor', 'embedded', 'iot', 'automotive'
+          ];
+
+          const relatedOrConditions: any[] = [];
+
+          const addDeptByIds = (deptIds: string[]) => {
+            if (deptIds.length > 0) {
+              relatedOrConditions.push({ department_id: { in: deptIds } });
+            }
+          };
+
+          const addDeptWithKeywords = (deptIds: string[], keywords: string[]) => {
+            if (deptIds.length === 0) return;
+            const keywordConditions = keywords.flatMap((kw) => [
+              { title: { contains: kw, mode: 'insensitive' } },
+              { content: { contains: kw, mode: 'insensitive' } },
+            ]);
+
+            relatedOrConditions.push({
+              department_id: { in: deptIds },
+              OR: keywordConditions,
+            });
+          };
+
+          const resolveIds = (codes: string[]) => {
+            return codes
+              .map((c) => deptMap.get(c.toUpperCase().trim()))
+              .filter((id): id is string => Boolean(id));
+          };
+
+          // Relationship Mapping according to requirements
+          if (userDeptCode.includes('IT')) {
+            addDeptByIds(resolveIds(['CSE', 'CS&DS', 'CSDS', 'AIDS', 'AI&DS', 'ECE']));
+            addDeptWithKeywords(resolveIds(['EEE']), techKeywords);
+          } else if (userDeptCode.includes('CSE')) {
+            addDeptByIds(resolveIds(['IT', 'CS&DS', 'CSDS', 'AIDS', 'AI&DS', 'ECE']));
+            addDeptWithKeywords(resolveIds(['EEE']), techKeywords);
+          } else if (userDeptCode.includes('CS&DS') || userDeptCode.includes('CSDS') || userDeptCode.includes('AIDS') || userDeptCode.includes('AI&DS') || userDeptCode.includes('DATA')) {
+            addDeptByIds(resolveIds(['IT', 'CSE', 'ECE']));
+            addDeptWithKeywords(resolveIds(['EEE']), techKeywords);
+          } else if (userDeptCode.includes('ECE')) {
+            addDeptByIds(resolveIds(['EEE', 'IT', 'CSE', 'CS&DS', 'CSDS', 'AIDS', 'AI&DS']));
+          } else if (userDeptCode.includes('EEE')) {
+            addDeptByIds(resolveIds(['ECE', 'IT', 'CSE', 'CS&DS', 'CSDS', 'AIDS', 'AI&DS']));
+            addDeptWithKeywords(resolveIds(['AUTO', 'AUTOMOBILE', 'MECH', 'MECHANICAL']), evKeywords);
+          } else if (userDeptCode.includes('MECH') || userDeptCode.includes('MECHANICAL')) {
+            addDeptByIds(resolveIds(['AUTO', 'AUTOMOBILE']));
+            addDeptWithKeywords(resolveIds(['EEE']), evKeywords);
+          } else if (userDeptCode.includes('AUTO') || userDeptCode.includes('AUTOMOBILE')) {
+            addDeptByIds(resolveIds(['MECH', 'MECHANICAL']));
+            addDeptWithKeywords(resolveIds(['EEE']), evKeywords);
+          } else if (userDeptCode.includes('CIVIL')) {
+            addDeptByIds(resolveIds(['EEE', 'AUTO', 'AUTOMOBILE', 'MECH', 'MECHANICAL']));
+          } else {
+            // Default fallback for any other department: related technical departments
+            addDeptByIds(resolveIds(['CSE', 'IT', 'ECE', 'EEE']));
+          }
+
+          // Also include public general and cross-department collaboration posts
+          relatedOrConditions.push({ department_id: null });
+          relatedOrConditions.push({ type: PostType.EVENT_PROMO });
+          relatedOrConditions.push({ type: PostType.PLACEMENT });
+
+          whereCondition = {
+            college_id: collegeId,
+            OR: relatedOrConditions,
+          };
+          break;
+        }
+
         case FeedType.CROSS_DEPARTMENT:
           if (effectiveDeptId) {
             whereCondition.OR = [
@@ -71,6 +170,7 @@ export class PostsRepository {
             whereCondition = { college_id: collegeId };
           }
           break;
+
         case FeedType.CLUB:
           whereCondition.OR = [
             { type: PostType.ANNOUNCEMENT },
@@ -78,22 +178,40 @@ export class PostsRepository {
             { club_id: { not: null } },
           ];
           break;
+
         case FeedType.FOLLOWING:
+        case FeedType.FOLLOWING_UPPER:
+        case 'following' as FeedType:
+        case 'FOLLOWING' as FeedType:
           whereCondition = {
             college_id: collegeId,
-            author: {
-              followers: {
-                some: { follower_id: userId },
+            OR: [
+              {
+                author: {
+                  followers: {
+                    some: { follower_id: userId },
+                  },
+                },
               },
-            },
+              {
+                club: {
+                  members: {
+                    some: { user_id: userId },
+                  },
+                },
+              },
+            ],
           };
           break;
+
         case FeedType.MY_POSTS:
           whereCondition = { author_id: userId, club_id: null };
           break;
+
         case FeedType.AUTHOR:
           whereCondition = { author_id: authorId || userId, club_id: null };
           break;
+
         case FeedType.SAVED:
           whereCondition = {
             saves: {

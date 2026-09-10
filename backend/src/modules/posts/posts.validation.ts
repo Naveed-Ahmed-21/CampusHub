@@ -35,7 +35,21 @@ export const addCommentSchema = z.object({
 
 export const queryPostsSchema = z.object({
   query: z.object({
-    feedType: z.enum(['MY_FEED', 'DEPARTMENT', 'CROSS_DEPARTMENT', 'CLUB', 'FOLLOWING', 'MY_POSTS', 'SAVED', 'AUTHOR']).default('DEPARTMENT'),
+    feedType: z.enum([
+      'forYou',
+      'myDepartment',
+      'related',
+      'following',
+      'MY_FEED',
+      'DEPARTMENT',
+      'RELATED',
+      'CROSS_DEPARTMENT',
+      'CLUB',
+      'FOLLOWING',
+      'MY_POSTS',
+      'SAVED',
+      'AUTHOR',
+    ]).default('forYou'),
     page: z.string().transform((val) => parseInt(val, 10)).default('1'),
     limit: z.string().transform((val) => parseInt(val, 10)).default('10'),
     authorId: z.string().optional(),

@@ -84,6 +84,12 @@ class AuthController extends AsyncNotifier<AuthUser?> {
   }
 
   Future<void> logout() async {
+    try {
+      final user = state.asData?.value;
+      if (user != null) {
+        await ref.read(notificationsRepositoryProvider).unregisterFcmToken('fcm_token_${user.email}');
+      }
+    } catch (_) {}
     final repository = ref.read(authRepositoryProvider);
     await repository.logout();
     state = const AsyncValue.data(null);

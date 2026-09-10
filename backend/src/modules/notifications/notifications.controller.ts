@@ -13,6 +13,13 @@ export class NotificationsController {
     ResponseUtil.success(res, token, 'FCM token registered successfully');
   });
 
+  unregisterFcmToken = asyncHandler(async (req: Request, res: Response) => {
+    const user = req.user!;
+    const fcmToken = req.body?.fcm_token || (req.query.fcm_token as string);
+    await this.notificationsService.unregisterFcmToken(user.userId, fcmToken);
+    ResponseUtil.success(res, null, 'Device token unregistered successfully');
+  });
+
   sendNotification = asyncHandler(async (req: Request, res: Response) => {
     const result = await this.notificationsService.sendNotification(req.body);
     ResponseUtil.success(res, result, 'Notification sent successfully', 201);

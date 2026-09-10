@@ -20,6 +20,7 @@ import '../../../clubs/data/clubs_repository.dart';
 import 'user_posts_view.dart';
 import 'user_events_view.dart';
 import 'user_follows_view.dart';
+import '../../../clubs/presentation/views/club_detail_view.dart';
 import '../../../../shared/widgets/full_screen_image_viewer.dart';
 
 class ProfileView extends ConsumerWidget {
@@ -156,19 +157,21 @@ class _ProfileMobileLayoutState extends ConsumerState<_ProfileMobileLayout>
       body: TabBarView(
         controller: _tabController,
         children: [
-          // Tab 1: Overview (Bio, Skills, Projects, Socials, Resume)
+          // Tab 1: Overview (Bio, Resume, Clubs, Projects, Skills, Socials)
           ListView(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             children: [
               _BioSection(profile: profile),
               const SizedBox(height: 16),
-              _SkillsSection(profile: profile),
+              _ResumeSection(profile: profile),
+              const SizedBox(height: 16),
+              _ProfileClubsSection(profile: profile),
               const SizedBox(height: 16),
               _ProjectsSection(profile: profile),
               const SizedBox(height: 16),
-              _SocialLinksSection(profile: profile),
+              _SkillsSection(profile: profile),
               const SizedBox(height: 16),
-              _ResumeSection(profile: profile),
+              _SocialLinksSection(profile: profile),
               const SizedBox(height: 32),
             ],
           ),
@@ -1010,6 +1013,74 @@ class _SocialLinksSection extends StatelessWidget {
   }
 }
 
+class _ProfileClubsSection extends StatelessWidget {
+  final UserProfile profile;
+  const _ProfileClubsSection({required this.profile});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    if (profile.clubs.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainer,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.groups_outlined, color: theme.colorScheme.primary, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'My Clubs & Organizations',
+                style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ...profile.clubs.map((club) {
+            return Card(
+              margin: const EdgeInsets.only(bottom: 8),
+              elevation: 0,
+              color: theme.colorScheme.surfaceContainerLow,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3)),
+              ),
+              child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (ctx) => ClubDetailView(clubId: club.clubId)),
+                  );
+                },
+                leading: CircleAvatar(
+                  radius: 18,
+                  backgroundColor: theme.colorScheme.primaryContainer,
+                  backgroundImage: club.logoUrl != null && club.logoUrl!.isNotEmpty
+                      ? NetworkImage(ApiEndpoints.resolveUrl(club.logoUrl!))
+                      : null,
+                  child: club.logoUrl == null || club.logoUrl!.isEmpty
+                      ? Icon(Icons.groups, size: 18, color: theme.colorScheme.primary)
+                      : null,
+                ),
+                title: Text(club.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
+                subtitle: Text('${club.role} • ${club.category}', style: TextStyle(fontSize: 11.5, color: theme.colorScheme.outline)),
+                trailing: const Icon(Icons.chevron_right, size: 18),
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+}
+
 class _ResumeSection extends ConsumerStatefulWidget {
   final UserProfile profile;
   const _ResumeSection({required this.profile});
@@ -1023,17 +1094,13 @@ class _ResumeSectionState extends ConsumerState<_ResumeSection> {
   bool _isOpening = false;
 
   Future<void> _pickAndUploadResume() async {
-    final file = await MediaPickerService.showMediaPickerSheet(
-      context,
-      title: 'Select Resume (PDF / DOCX)',
-      enableCamera: false,
-      enableGallery: false,
-      enableVideoCamera: false,
-      enableVideoGallery: false,
-      enableDocuments: true,
+    final files = await MediaPickerService.pickDocuments(
+      allowedExtensions: ['pdf', 'doc', 'docx'],
+      allowMultiple: false,
     );
 
-    if (file != null && mounted) {
+    if (files.isNotEmpty && mounted) {
+      final file = files.first;
       setState(() => _isUploading = true);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Uploading resume to your portfolio...')),

@@ -4,10 +4,20 @@ import { CreateClubDto, QueryClubsDto, CreateClubPostDto, CreateClubEventDto, Cr
 
 export class ClubsRepository {
   async createClub(collegeId: string, creatorId: string, dto: CreateClubDto, status: ClubStatus = ClubStatus.PENDING) {
+    let departmentId = dto.department_id;
+    if (!departmentId) {
+      const creator = await prisma.user.findUnique({
+        where: { id: creatorId },
+        select: { department_id: true },
+      });
+      departmentId = creator?.department_id ?? undefined;
+    }
+
     return prisma.club.create({
       data: {
         college_id: collegeId,
         created_by_id: creatorId,
+        department_id: departmentId,
         name: dto.name,
         category: dto.category,
         description: dto.description,
@@ -26,7 +36,16 @@ export class ClubsRepository {
       },
       include: {
         creator: {
-          select: { id: true, first_name: true, last_name: true, email: true },
+          select: {
+            id: true,
+            first_name: true,
+            last_name: true,
+            email: true,
+            department: { select: { id: true, name: true, code: true } },
+          },
+        },
+        department: {
+          select: { id: true, name: true, code: true },
         },
         members: {
           include: {
@@ -44,7 +63,16 @@ export class ClubsRepository {
       where: { id: clubId },
       include: {
         creator: {
-          select: { id: true, first_name: true, last_name: true, email: true },
+          select: {
+            id: true,
+            first_name: true,
+            last_name: true,
+            email: true,
+            department: { select: { id: true, name: true, code: true } },
+          },
+        },
+        department: {
+          select: { id: true, name: true, code: true },
         },
         verifier: {
           select: { id: true, first_name: true, last_name: true, email: true },
@@ -67,7 +95,7 @@ export class ClubsRepository {
 
   async findClubs(collegeId: string, query: QueryClubsDto) {
     const page = query.page || 1;
-    const limit = query.limit || 10;
+    const limit = query.limit || 50;
     const skip = (page - 1) * limit;
 
     const whereCondition: Record<string, unknown> = {
@@ -84,16 +112,46 @@ export class ClubsRepository {
       whereCondition.category = { equals: query.category, mode: 'insensitive' };
     }
 
-    if (typeof query.is_cross_department === 'boolean') {
-      whereCondition.is_cross_department = query.is_cross_department;
+    if (query.department_only) {
+      if (query.user_department_id) {
+        whereCondition.OR = [
+          { is_cross_department: true },
+          { department_id: query.user_department_id },
+          { creator: { department_id: query.user_department_id } },
+        ];
+      } else {
+        whereCondition.is_cross_department = true;
+      }
+    } else if (typeof query.is_cross_department === 'boolean') {
+      if (query.is_cross_department) {
+        whereCondition.is_cross_department = true;
+      } else if (query.user_department_id) {
+        whereCondition.OR = [
+          { is_cross_department: true },
+          { department_id: query.user_department_id },
+          { creator: { department_id: query.user_department_id } },
+        ];
+      } else {
+        whereCondition.is_cross_department = true;
+      }
     }
 
     if (query.search) {
-      whereCondition.OR = [
+      const searchOR = [
         { name: { contains: query.search, mode: 'insensitive' } },
         { description: { contains: query.search, mode: 'insensitive' } },
         { category: { contains: query.search, mode: 'insensitive' } },
       ];
+
+      if (whereCondition.OR) {
+        whereCondition.AND = [
+          { OR: whereCondition.OR },
+          { OR: searchOR },
+        ];
+        delete whereCondition.OR;
+      } else {
+        whereCondition.OR = searchOR;
+      }
     }
 
     const [total, clubs] = await Promise.all([
@@ -105,7 +163,15 @@ export class ClubsRepository {
         orderBy: { created_at: 'desc' },
         include: {
           creator: {
-            select: { id: true, first_name: true, last_name: true },
+            select: {
+              id: true,
+              first_name: true,
+              last_name: true,
+              department: { select: { id: true, name: true, code: true } },
+            },
+          },
+          department: {
+            select: { id: true, name: true, code: true },
           },
           _count: {
             select: { members: true, events: true, posts: true, resources: true },

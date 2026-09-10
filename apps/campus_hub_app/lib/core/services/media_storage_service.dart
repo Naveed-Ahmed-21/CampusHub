@@ -19,6 +19,12 @@ class MediaStorageService {
 
   MediaStorageService({Dio? dio}) : _dio = dio ?? Dio();
 
+  /// Static helper to ensure registry is initialized on app startup
+  static Future<void> ensureInitialized() async {
+    final service = MediaStorageService();
+    await service.init();
+  }
+
   /// Loads downloaded messages cache from persistent disk storage
   Future<void> init() async {
     if (_isInitialized || kIsWeb) return;

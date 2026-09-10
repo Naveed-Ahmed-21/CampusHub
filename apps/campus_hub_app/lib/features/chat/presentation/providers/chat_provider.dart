@@ -12,7 +12,12 @@ class UserChatRoomsNotifier extends AsyncNotifier<List<ChatRoomModel>> {
   Future<List<ChatRoomModel>> build() async {
     final repo = ref.watch(chatRepositoryProvider);
     final socket = ref.watch(socketChatServiceProvider);
-    final currentUserId = ref.watch(authControllerProvider).asData?.value?.id;
+    final authUser = ref.watch(authControllerProvider).asData?.value;
+    final currentUserId = authUser?.id;
+
+    if (currentUserId == null || currentUserId.isEmpty) {
+      return const [];
+    }
 
     _messageSub?.cancel();
     _messageSub = socket.onNewMessage.listen((msg) {
@@ -143,7 +148,12 @@ class ChatMessagesNotifier extends FamilyAsyncNotifier<List<ChatMessageModel>, S
     final roomId = arg;
     final repo = ref.watch(chatRepositoryProvider);
     final socket = ref.watch(socketChatServiceProvider);
-    final currentUserId = ref.watch(authControllerProvider).asData?.value?.id;
+    final authUser = ref.watch(authControllerProvider).asData?.value;
+    final currentUserId = authUser?.id;
+
+    if (currentUserId == null || currentUserId.isEmpty) {
+      return const [];
+    }
 
     socket.joinRoom(roomId);
 
@@ -155,7 +165,7 @@ class ChatMessagesNotifier extends FamilyAsyncNotifier<List<ChatMessageModel>, S
         if (!current.any((m) => m.id == msg.id)) {
           state = AsyncValue.data([...current, msg]);
         }
-        if (currentUserId != null && msg.senderId != currentUserId) {
+        if (msg.senderId != currentUserId) {
           repo.markRead(roomId, [msg.id]).then((_) {
             ref.read(userChatRoomsProvider.notifier).refresh();
           }).catchError((_) {});
@@ -213,7 +223,7 @@ class ChatMessagesNotifier extends FamilyAsyncNotifier<List<ChatMessageModel>, S
 
     final messages = await repo.getRoomMessages(roomId);
 
-    if (currentUserId != null && messages.isNotEmpty) {
+    if (messages.isNotEmpty) {
       final unreadIncomingIds = messages
           .where((m) => m.senderId != currentUserId && !m.readByUserIdList.contains(currentUserId))
           .map((m) => m.id)

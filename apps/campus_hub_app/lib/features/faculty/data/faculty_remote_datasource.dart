@@ -14,19 +14,19 @@ class FacultyRemoteDataSource {
   FacultyRemoteDataSource(this._dio);
 
   Future<FacultyDashboard> getDashboard() async {
-    final response = await _dio.get('/faculty/dashboard');
+    final response = await _dio.get('/api/v1/faculty/dashboard');
     final data = response.data['data'] as Map<String, dynamic>;
     return FacultyDashboard.fromJson(data);
   }
 
   Future<List<FacultySubject>> getSubjects() async {
-    final response = await _dio.get('/faculty/subjects');
+    final response = await _dio.get('/api/v1/faculty/subjects');
     final list = response.data['data'] as List<dynamic>? ?? [];
     return list.map((e) => FacultySubject.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   Future<FacultySubject> getSubjectDetails(String subjectId) async {
-    final response = await _dio.get('/faculty/subjects/$subjectId');
+    final response = await _dio.get('/api/v1/faculty/subjects/$subjectId');
     final data = response.data['data'] as Map<String, dynamic>;
     return FacultySubject.fromJson(data);
   }
@@ -41,7 +41,7 @@ class FacultyRemoteDataSource {
     String? departmentName,
   }) async {
     final response = await _dio.post(
-      '/faculty/subjects',
+      '/api/v1/faculty/subjects',
       data: {
         'code': code,
         'name': name,
@@ -64,7 +64,7 @@ class FacultyRemoteDataSource {
     required String fileType,
   }) async {
     final response = await _dio.post(
-      '/faculty/subjects/$subjectId/resources',
+      '/api/v1/faculty/subjects/$subjectId/resources',
       data: {
         'title': title,
         if (description != null) 'description': description,
@@ -82,7 +82,7 @@ class FacultyRemoteDataSource {
     required String content,
   }) async {
     final response = await _dio.post(
-      '/faculty/subjects/$subjectId/announcements',
+      '/api/v1/faculty/subjects/$subjectId/announcements',
       data: {
         'title': title,
         'content': content,
@@ -93,13 +93,13 @@ class FacultyRemoteDataSource {
   }
 
   Future<List<ClassScheduleSlot>> getTodaySchedule() async {
-    final response = await _dio.get('/faculty/classes/today');
+    final response = await _dio.get('/api/v1/faculty/classes/today');
     final list = response.data['data'] as List<dynamic>? ?? [];
     return list.map((e) => ClassScheduleSlot.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   Future<List<MenteeStudent>> getMentees() async {
-    final response = await _dio.get('/faculty/mentees');
+    final response = await _dio.get('/api/v1/faculty/mentees');
     final list = response.data['data'] as List<dynamic>? ?? [];
     return list.map((e) => MenteeStudent.fromJson(e as Map<String, dynamic>)).toList();
   }

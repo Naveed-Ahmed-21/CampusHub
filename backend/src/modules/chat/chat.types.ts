@@ -11,7 +11,7 @@ export interface SendMessageDto {
   roomId: string;
   message: string;
   media_url?: string;
-  media_type?: 'IMAGE' | 'DOCUMENT' | 'AUDIO' | 'VIDEO';
+  media_type?: 'IMAGE' | 'DOCUMENT' | 'AUDIO' | 'VIDEO' | 'POST';
   file_name?: string;
   file_size?: number;
   reply_to_message_id?: string;

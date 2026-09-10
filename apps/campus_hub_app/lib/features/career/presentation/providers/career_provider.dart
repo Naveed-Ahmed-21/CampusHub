@@ -31,3 +31,72 @@ final miniProjectsProvider = FutureProvider.autoDispose<List<MiniProjectModel>>(
   final repo = ref.watch(careerRepositoryProvider);
   return repo.getMiniProjects();
 });
+
+final activeUserRoadmapProvider = FutureProvider.autoDispose<ActiveRoadmapState?>((ref) async {
+  final repo = ref.watch(careerRepositoryProvider);
+  return repo.getActiveRoadmap();
+});
+
+final userRoadmapsProvider = FutureProvider.autoDispose<List<UserRoadmapItemModel>>((ref) async {
+  final repo = ref.watch(careerRepositoryProvider);
+  return repo.getUserRoadmaps();
+});
+
+final dailyPlanProvider = FutureProvider.family.autoDispose<DailyLearningPlanModel?, String?>((ref, roadmapId) async {
+  final repo = ref.watch(careerRepositoryProvider);
+  return repo.getDailyPlan(roadmapId: roadmapId);
+});
+
+final skillGapProvider = FutureProvider.family.autoDispose<SkillGapAnalysisModel, String>((ref, roadmapId) async {
+  final repo = ref.watch(careerRepositoryProvider);
+  return repo.getSkillGapAnalysis(roadmapId);
+});
+
+final skillMapProvider = FutureProvider.family.autoDispose<List<SkillMapNodeModel>, String>((ref, roadmapId) async {
+  final repo = ref.watch(careerRepositoryProvider);
+  return repo.getSkillMap(roadmapId);
+});
+
+final weeklyReviewProvider = FutureProvider.family.autoDispose<WeeklyReviewModel, String?>((ref, roadmapId) async {
+  final repo = ref.watch(careerRepositoryProvider);
+  return repo.getWeeklyReview(roadmapId: roadmapId);
+});
+
+final jobReadinessProvider = FutureProvider.family.autoDispose<JobReadinessModel, String?>((ref, roadmapId) async {
+  final repo = ref.watch(careerRepositoryProvider);
+  return repo.getJobReadiness(roadmapId: roadmapId);
+});
+
+final interviewPrepProvider = FutureProvider.family.autoDispose<List<InterviewQuestionModel>, String?>((ref, roadmapId) async {
+  final repo = ref.watch(careerRepositoryProvider);
+  return repo.getInterviewPrep(roadmapId: roadmapId);
+});
+
+final roadmapChangesProvider = FutureProvider.family.autoDispose<List<RoadmapChangeModel>, String>((ref, roadmapId) async {
+  final repo = ref.watch(careerRepositoryProvider);
+  return repo.getRoadmapChanges(roadmapId);
+});
+
+final adaptiveQuizProvider = FutureProvider.family.autoDispose<AdaptiveQuizModel, Map<String, dynamic>>((ref, params) async {
+  final repo = ref.watch(careerRepositoryProvider);
+  return repo.generateAdaptiveQuiz(
+    roadmapId: params['roadmapId'],
+    phaseNumber: params['phaseNumber'],
+    role: params['role'],
+    topic: params['topic'],
+    difficulty: params['difficulty'],
+    numQuestions: params['numQuestions'],
+  );
+});
+
+final verifiedDocumentsProvider = FutureProvider.autoDispose<List<VerifiedDocumentModel>>((ref) async {
+  final repo = ref.watch(careerRepositoryProvider);
+  return repo.getVerifiedDocuments();
+});
+
+final verifiedDocumentDetailProvider = FutureProvider.family.autoDispose<VerifiedDocumentModel?, String>((ref, docId) async {
+  final repo = ref.watch(careerRepositoryProvider);
+  return repo.getVerifiedDocument(docId);
+});
+
+

@@ -1,7 +1,41 @@
+import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/storage/secure_storage_service.dart';
 import '../../data/search_repository.dart';
 import '../../../../features/feed/presentation/controllers/feed_controller.dart';
 import '../../../../features/profile/presentation/controllers/profile_controller.dart';
+
+class RecentSearchUserItem {
+  final String id;
+  final String name;
+  final String? avatarUrl;
+  final String? username;
+  final String? role;
+
+  RecentSearchUserItem({
+    required this.id,
+    required this.name,
+    this.avatarUrl,
+    this.username,
+    this.role,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'avatarUrl': avatarUrl,
+        'username': username,
+        'role': role,
+      };
+
+  factory RecentSearchUserItem.fromJson(Map<String, dynamic> json) => RecentSearchUserItem(
+        id: json['id'] as String? ?? '',
+        name: json['name'] as String? ?? '',
+        avatarUrl: json['avatarUrl'] as String?,
+        username: json['username'] as String?,
+        role: json['role'] as String?,
+      );
+}
 
 class SearchState {
   final String query;
@@ -9,6 +43,7 @@ class SearchState {
   final bool isLoading;
   final SearchResultsModel? results;
   final String? errorMessage;
+  final List<RecentSearchUserItem> recentSearches;
 
   SearchState({
     required this.query,
@@ -16,6 +51,7 @@ class SearchState {
     required this.isLoading,
     this.results,
     this.errorMessage,
+    this.recentSearches = const [],
   });
 
   SearchState copyWith({
@@ -24,6 +60,7 @@ class SearchState {
     bool? isLoading,
     SearchResultsModel? results,
     String? errorMessage,
+    List<RecentSearchUserItem>? recentSearches,
   }) {
     return SearchState(
       query: query ?? this.query,
@@ -31,6 +68,7 @@ class SearchState {
       isLoading: isLoading ?? this.isLoading,
       results: results ?? this.results,
       errorMessage: errorMessage,
+      recentSearches: recentSearches ?? this.recentSearches,
     );
   }
 }
@@ -38,10 +76,62 @@ class SearchState {
 class SearchNotifier extends StateNotifier<SearchState> {
   final SearchRepository _repository;
   final Ref _ref;
+  final SecureStorageService _storage;
 
-  SearchNotifier(this._repository, this._ref)
+  SearchNotifier(this._repository, this._ref, this._storage)
       : super(SearchState(query: '', selectedType: 'all', isLoading: true)) {
+    _loadRecentSearches();
     loadDiscover();
+  }
+
+  Future<void> _loadRecentSearches() async {
+    try {
+      final jsonStr = await _storage.getRecentSearches();
+      if (jsonStr != null && jsonStr.isNotEmpty) {
+        final List list = jsonDecode(jsonStr);
+        final loaded = list.map((item) => RecentSearchUserItem.fromJson(item as Map<String, dynamic>)).toList();
+        state = state.copyWith(recentSearches: loaded);
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _persistRecentSearches(List<RecentSearchUserItem> list) async {
+    try {
+      final jsonStr = jsonEncode(list.map((e) => e.toJson()).toList());
+      await _storage.saveRecentSearches(jsonStr);
+    } catch (_) {}
+  }
+
+  void addRecentSearch(SearchUserItem user) {
+    final current = List<RecentSearchUserItem>.from(state.recentSearches);
+    current.removeWhere((item) => item.id == user.id);
+    current.insert(
+      0,
+      RecentSearchUserItem(
+        id: user.id,
+        name: user.fullName,
+        avatarUrl: user.avatarUrl,
+        username: user.displayUsername,
+        role: user.role,
+      ),
+    );
+    if (current.length > 15) {
+      current.removeRange(15, current.length);
+    }
+    state = state.copyWith(recentSearches: current);
+    _persistRecentSearches(current);
+  }
+
+  void removeRecentSearch(String userId) {
+    final current = List<RecentSearchUserItem>.from(state.recentSearches);
+    current.removeWhere((item) => item.id == userId);
+    state = state.copyWith(recentSearches: current);
+    _persistRecentSearches(current);
+  }
+
+  void clearAllRecentSearches() {
+    state = state.copyWith(recentSearches: []);
+    _persistRecentSearches([]);
   }
 
   Future<void> loadDiscover() async {
@@ -132,5 +222,6 @@ class SearchNotifier extends StateNotifier<SearchState> {
 
 final searchNotifierProvider = StateNotifierProvider<SearchNotifier, SearchState>((ref) {
   final repo = ref.watch(searchRepositoryProvider);
-  return SearchNotifier(repo, ref);
+  final storage = ref.watch(secureStorageServiceProvider);
+  return SearchNotifier(repo, ref, storage);
 });

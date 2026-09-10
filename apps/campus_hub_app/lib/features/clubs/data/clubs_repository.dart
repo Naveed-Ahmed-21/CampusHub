@@ -12,12 +12,14 @@ class ClubsRepository {
   Future<List<Club>> getClubs({
     String? category,
     bool? isCrossDepartment,
+    bool? departmentOnly,
     String? search,
     String? status,
   }) async {
     final query = <String, dynamic>{};
     if (category != null && category.isNotEmpty) query['category'] = category;
     if (isCrossDepartment != null) query['is_cross_department'] = isCrossDepartment.toString();
+    if (departmentOnly != null) query['department_only'] = departmentOnly.toString();
     if (search != null && search.isNotEmpty) query['search'] = search;
     if (status != null && status.isNotEmpty) query['status'] = status;
 

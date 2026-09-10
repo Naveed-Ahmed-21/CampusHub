@@ -8,11 +8,13 @@ import '../../../feed/domain/models/post_item.dart';
 class ClubFilterState {
   final String category;
   final bool? isCrossDepartment;
+  final bool departmentOnly;
   final String searchQuery;
 
   const ClubFilterState({
     this.category = 'ALL',
     this.isCrossDepartment,
+    this.departmentOnly = false,
     this.searchQuery = '',
   });
 
@@ -20,11 +22,13 @@ class ClubFilterState {
     String? category,
     bool? isCrossDepartment,
     bool clearCrossDepartment = false,
+    bool? departmentOnly,
     String? searchQuery,
   }) {
     return ClubFilterState(
       category: category ?? this.category,
       isCrossDepartment: clearCrossDepartment ? null : (isCrossDepartment ?? this.isCrossDepartment),
+      departmentOnly: departmentOnly ?? this.departmentOnly,
       searchQuery: searchQuery ?? this.searchQuery,
     );
   }
@@ -41,6 +45,7 @@ final approvedClubsProvider = FutureProvider<List<Club>>((ref) async {
   return repository.getClubs(
     category: filter.category == 'ALL' ? null : filter.category,
     isCrossDepartment: filter.isCrossDepartment,
+    departmentOnly: filter.departmentOnly || filter.isCrossDepartment == false,
     search: filter.searchQuery.isEmpty ? null : filter.searchQuery,
   );
 });
@@ -53,6 +58,12 @@ final pendingClubsProvider = FutureProvider.autoDispose<List<Club>>((ref) async 
 final myProposedClubsProvider = FutureProvider.autoDispose<List<Club>>((ref) async {
   final repository = ref.watch(clubsRepositoryProvider);
   return repository.getMyProposedClubs();
+});
+
+final myClubsProvider = FutureProvider<List<Club>>((ref) async {
+  final repository = ref.watch(clubsRepositoryProvider);
+  final allClubs = await repository.getClubs();
+  return allClubs.where((c) => c.isMember).toList();
 });
 
 final clubDetailsProvider = FutureProvider.autoDispose.family<Club, String>((ref, clubId) async {

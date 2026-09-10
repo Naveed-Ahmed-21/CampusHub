@@ -19,6 +19,9 @@ class Club {
   final int postCount;
   final int resourceCount;
   final String? creatorName;
+  final String? departmentCode;
+  final String? departmentName;
+  final bool isMember;
 
   Club({
     required this.id,
@@ -39,6 +42,9 @@ class Club {
     this.postCount = 0,
     this.resourceCount = 0,
     this.creatorName,
+    this.departmentCode,
+    this.departmentName,
+    this.isMember = false,
   });
 
   factory Club.fromJson(Map<String, dynamic> json) {
@@ -47,6 +53,10 @@ class Club {
     final creatorName = creator != null
         ? '${creator['first_name'] ?? ''} ${creator['last_name'] ?? ''}'.trim()
         : null;
+    final department = json['department'] as Map<String, dynamic>?;
+    final creatorDept = creator?['department'] as Map<String, dynamic>?;
+    final departmentCode = department?['code']?.toString() ?? creatorDept?['code']?.toString();
+    final departmentName = department?['name']?.toString() ?? creatorDept?['name']?.toString();
 
     return Club(
       id: json['id'] ?? '',
@@ -69,6 +79,9 @@ class Club {
       postCount: count?['posts'] ?? 0,
       resourceCount: count?['resources'] ?? 0,
       creatorName: creatorName,
+      departmentCode: departmentCode,
+      departmentName: departmentName,
+      isMember: json['is_member'] as bool? ?? json['isMember'] as bool? ?? false,
     );
   }
 }
@@ -268,21 +281,21 @@ class ClubResource {
   });
 
   factory ClubResource.fromJson(Map<String, dynamic> json) {
-    final uploader = json['uploaded_by'] as Map<String, dynamic>? ?? {};
+    final uploader = json['uploaded_by'] as Map<String, dynamic>? ?? (json['uploadedBy'] as Map<String, dynamic>? ?? {});
 
     return ClubResource(
       id: json['id'] ?? '',
-      clubId: json['club_id'] ?? '',
-      uploadedById: json['uploaded_by_id'] ?? uploader['id'] ?? '',
+      clubId: json['club_id'] ?? json['clubId'] ?? '',
+      uploadedById: json['uploaded_by_id'] ?? json['uploadedById'] ?? uploader['id'] ?? '',
       title: json['title'] ?? '',
       description: json['description'],
-      fileUrl: json['file_url'] ?? '',
-      fileName: json['file_name'] ?? '',
-      fileType: json['file_type'] ?? 'document',
+      fileUrl: json['file_url'] ?? json['fileUrl'] ?? '',
+      fileName: json['file_name'] ?? json['fileName'] ?? '',
+      fileType: json['file_type'] ?? json['fileType'] ?? 'document',
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'])
-          : DateTime.now(),
-      uploaderName: '${uploader['first_name'] ?? ''} ${uploader['last_name'] ?? ''}'.trim(),
+          : (json['createdAt'] != null ? DateTime.parse(json['createdAt']) : DateTime.now()),
+      uploaderName: '${uploader['first_name'] ?? uploader['firstName'] ?? ''} ${uploader['last_name'] ?? uploader['lastName'] ?? ''}'.trim(),
     );
   }
 }

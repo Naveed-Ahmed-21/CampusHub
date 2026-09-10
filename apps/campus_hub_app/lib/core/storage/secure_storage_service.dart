@@ -28,6 +28,21 @@ class SecureStorageService {
   Future<String?> getUserId() async =>
       await _storage.read(key: _userIdKey);
 
+  static const String _recentSearchesKey = 'recent_searches_v1';
+  static const String _themeModeKey = 'theme_mode_preference';
+
+  Future<void> saveRecentSearches(String jsonString) async =>
+      await _storage.write(key: _recentSearchesKey, value: jsonString);
+
+  Future<String?> getRecentSearches() async =>
+      await _storage.read(key: _recentSearchesKey);
+
+  Future<void> saveThemeMode(String mode) async =>
+      await _storage.write(key: _themeModeKey, value: mode);
+
+  Future<String?> getThemeMode() async =>
+      await _storage.read(key: _themeModeKey);
+
   Future<void> clearAll() async => await _storage.deleteAll();
 }
 
