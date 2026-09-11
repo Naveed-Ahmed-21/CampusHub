@@ -34,6 +34,10 @@ import {
   turnInterviewSchema,
   finishInterviewSchema,
   applyInterviewRoadmapSchema,
+  startDynamicPathfinderSchema,
+  answerDynamicPathfinderSchema,
+  generatePersonalizedRoadmapSchema,
+  createProjectEvidenceSchema,
 } from './career.validation';
 
 const careerRepository = new CareerRepository();
@@ -88,6 +92,30 @@ careerRouter.get('/pathfinder/:sessionId', validateRequest(getPathfinderSessionS
 careerRouter.post('/pathfinder/:sessionId/message', validateRequest(sendPathfinderMessageSchema), careerController.sendPathfinderMessage);
 careerRouter.post('/pathfinder/:sessionId/confirm', validateRequest(confirmPathfinderSessionSchema), careerController.confirmPathfinderSession);
 careerRouter.post('/pathfinder/:sessionId/generate-journey', validateRequest(generatePathfinderJourneySchema), careerController.generatePathfinderJourney);
+
+// Dynamic 7-Stage AI Pathfinder (Rebuild V2)
+careerRouter.post('/pathfinder/session/start', validateRequest(startDynamicPathfinderSchema), careerController.startDynamicPathfinder);
+careerRouter.post('/pathfinder/session/:sessionId/answer', validateRequest(answerDynamicPathfinderSchema), careerController.answerDynamicPathfinder);
+careerRouter.get('/pathfinder/session/:sessionId', careerController.getDynamicPathfinderSession);
+
+// Personalized Roadmap & Skill Dependency Graph (Rebuild V2)
+careerRouter.post('/generate-personalized-roadmap', validateRequest(generatePersonalizedRoadmapSchema), careerController.generatePersonalizedRoadmap);
+careerRouter.get('/roadmaps/:id/graph', careerController.getRoadmapGraph);
+
+// Verified External Resources (GitHub & YouTube Engines)
+careerRouter.get('/resources/github', careerController.searchGitHubResources);
+careerRouter.get('/resources/youtube', careerController.getYouTubeResources);
+
+// Adaptive Assessment & Quizzes (Rebuild V2)
+careerRouter.post('/quiz/adaptive-generate', careerController.generateAdaptiveQuizV2);
+careerRouter.post('/quiz/adaptive-submit', careerController.submitAdaptiveQuizV2);
+
+// Project Evidence & Portfolio Deliverables
+careerRouter.get('/projects', careerController.getProjectEvidences);
+careerRouter.post('/projects', validateRequest(createProjectEvidenceSchema), careerController.createProjectEvidence);
+
+// Comprehensive Job Readiness Analytics (Rebuild V2)
+careerRouter.get('/job-readiness/detailed', careerController.getDetailedJobReadiness);
 
 // Backward-compatible Pathfinder routes
 careerRouter.post('/pathfinder/chat', validateRequest(pathfinderChatSchema), careerController.pathfinderChat);

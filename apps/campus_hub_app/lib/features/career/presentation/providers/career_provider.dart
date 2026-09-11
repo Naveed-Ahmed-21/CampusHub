@@ -99,4 +99,33 @@ final verifiedDocumentDetailProvider = FutureProvider.family.autoDispose<Verifie
   return repo.getVerifiedDocument(docId);
 });
 
+// V2 Providers
+final detailedJobReadinessProvider = FutureProvider.family.autoDispose<Map<String, dynamic>, String?>((ref, targetRole) async {
+  final repo = ref.watch(careerRepositoryProvider);
+  return repo.getDetailedJobReadiness(targetRole: targetRole);
+});
+
+final projectEvidencesProvider = FutureProvider.autoDispose<List<ProjectEvidenceModel>>((ref) async {
+  final repo = ref.watch(careerRepositoryProvider);
+  return repo.getProjects();
+});
+
+final skillGraphProvider = FutureProvider.family.autoDispose<SkillGraphModel, String>((ref, roadmapId) async {
+  final repo = ref.watch(careerRepositoryProvider);
+  return repo.getRoadmapGraph(roadmapId);
+});
+
+final gitHubResourcesProvider = FutureProvider.family.autoDispose<List<Map<String, dynamic>>, String>((ref, topic) async {
+  final repo = ref.watch(careerRepositoryProvider);
+  return repo.searchGitHubResources(topic: topic);
+});
+
+final youTubeResourcesProvider = FutureProvider.family.autoDispose<List<Map<String, dynamic>>, Map<String, String>>((ref, params) async {
+  final repo = ref.watch(careerRepositoryProvider);
+  return repo.getYouTubeResources(
+    topic: params['topic'] ?? 'Algorithms',
+    language: params['language'] ?? 'English',
+  );
+});
+
 

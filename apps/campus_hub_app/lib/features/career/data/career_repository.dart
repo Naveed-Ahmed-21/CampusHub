@@ -589,6 +589,188 @@ class CareerRepository {
       return null;
     }
   }
+
+  // ==========================================
+  // V2 REBUILD METHODS
+  // ==========================================
+
+  Future<DynamicPathfinderSessionModel> startPathfinderSessionV2({
+    String? targetDomain,
+    String? preferredLanguage,
+    String? department,
+  }) async {
+    final response = await _dio.post(
+      '/api/v1/career/pathfinder/session/start',
+      data: {
+        if (targetDomain != null) 'target_domain': targetDomain,
+        if (preferredLanguage != null) 'preferred_language': preferredLanguage,
+        if (department != null) 'department': department,
+      },
+    );
+    return DynamicPathfinderSessionModel.fromJson(response.data['data']);
+  }
+
+  Future<Map<String, dynamic>> answerPathfinderQuestionV2({
+    required String sessionId,
+    required String answer,
+    String? questionId,
+  }) async {
+    final response = await _dio.post(
+      '/api/v1/career/pathfinder/session/$sessionId/answer',
+      data: {
+        'answer': answer,
+        if (questionId != null) 'question_id': questionId,
+      },
+    );
+    return (response.data['data'] as Map<String, dynamic>?) ?? {};
+  }
+
+  Future<DynamicPathfinderSessionModel> getPathfinderSessionV2(String sessionId) async {
+    final response = await _dio.get('/api/v1/career/pathfinder/session/$sessionId');
+    return DynamicPathfinderSessionModel.fromJson(response.data['data']);
+  }
+
+  Future<CareerRoadmapModel> generatePersonalizedRoadmap({
+    required String targetRole,
+    String? department,
+    String? currentLevel,
+    int? hoursPerWeek,
+    int? timelineWeeks,
+    String? primaryGoal,
+    String? preferredLanguage,
+  }) async {
+    final response = await _dio.post(
+      '/api/v1/career/generate-personalized-roadmap',
+      data: {
+        'target_role': targetRole,
+        if (department != null) 'department': department,
+        if (currentLevel != null) 'current_level': currentLevel,
+        if (hoursPerWeek != null) 'hours_per_week': hoursPerWeek,
+        if (timelineWeeks != null) 'timeline_weeks': timelineWeeks,
+        if (primaryGoal != null) 'primary_goal': primaryGoal,
+        if (preferredLanguage != null) 'preferred_language': preferredLanguage,
+      },
+    );
+    return CareerRoadmapModel.fromJson(response.data['data']);
+  }
+
+  Future<SkillGraphModel> getRoadmapGraph(String roadmapId) async {
+    final response = await _dio.get('/api/v1/career/roadmaps/$roadmapId/graph');
+    return SkillGraphModel.fromJson(response.data['data']);
+  }
+
+  Future<List<Map<String, dynamic>>> searchGitHubResources({
+    required String topic,
+    int limit = 6,
+    String? language,
+  }) async {
+    final response = await _dio.get(
+      '/api/v1/career/resources/github',
+      queryParameters: {
+        'topic': topic,
+        'limit': limit,
+        if (language != null) 'language': language,
+      },
+    );
+    final list = (response.data['data'] as List<dynamic>?) ?? [];
+    return list.map((item) => item as Map<String, dynamic>).toList();
+  }
+
+  Future<List<Map<String, dynamic>>> getYouTubeResources({
+    required String topic,
+    String language = 'English',
+    int limit = 6,
+  }) async {
+    final response = await _dio.get(
+      '/api/v1/career/resources/youtube',
+      queryParameters: {
+        'topic': topic,
+        'language': language,
+        'limit': limit,
+      },
+    );
+    final list = (response.data['data'] as List<dynamic>?) ?? [];
+    return list.map((item) => item as Map<String, dynamic>).toList();
+  }
+
+  Future<AdaptiveQuizModel> generateAdaptiveQuizV2({
+    required String topic,
+    int phaseNumber = 1,
+    String? roadmapId,
+    String? skillName,
+    String? difficulty,
+  }) async {
+    final response = await _dio.post(
+      '/api/v1/career/quiz/adaptive-generate',
+      data: {
+        'topic': topic,
+        'phase_number': phaseNumber,
+        if (roadmapId != null) 'roadmap_id': roadmapId,
+        if (skillName != null) 'skill_name': skillName,
+        if (difficulty != null) 'difficulty': difficulty,
+      },
+    );
+    return AdaptiveQuizModel.fromJson(response.data['data']);
+  }
+
+  Future<Map<String, dynamic>> submitAdaptiveQuizV2({
+    String? roadmapId,
+    int phaseNumber = 1,
+    required String topic,
+    String? skillName,
+    required Map<String, dynamic> answers,
+    required List<Map<String, dynamic>> questions,
+    int timeSpentSeconds = 60,
+  }) async {
+    final response = await _dio.post(
+      '/api/v1/career/quiz/adaptive-submit',
+      data: {
+        if (roadmapId != null) 'roadmap_id': roadmapId,
+        'phase_number': phaseNumber,
+        'topic': topic,
+        if (skillName != null) 'skill_name': skillName,
+        'answers': answers,
+        'questions': questions,
+        'time_spent_seconds': timeSpentSeconds,
+      },
+    );
+    return response.data['data'] as Map<String, dynamic>;
+  }
+
+  Future<List<ProjectEvidenceModel>> getProjects() async {
+    final response = await _dio.get('/api/v1/career/projects');
+    final data = response.data['data'] as Map<String, dynamic>? ?? {};
+    final list = (data['evidences'] as List<dynamic>?) ?? [];
+    return list.map((item) => ProjectEvidenceModel.fromJson(item as Map<String, dynamic>)).toList();
+  }
+
+  Future<ProjectEvidenceModel> createProjectEvidence({
+    required String title,
+    required String description,
+    String? githubUrl,
+    String? demoUrl,
+    List<String> techStack = const [],
+  }) async {
+    final response = await _dio.post(
+      '/api/v1/career/projects',
+      data: {
+        'title': title,
+        'description': description,
+        if (githubUrl != null && githubUrl.isNotEmpty) 'github_url': githubUrl,
+        if (demoUrl != null && demoUrl.isNotEmpty) 'demo_url': demoUrl,
+        'tech_stack': techStack,
+      },
+    );
+    return ProjectEvidenceModel.fromJson(response.data['data']);
+  }
+
+  Future<Map<String, dynamic>> getDetailedJobReadiness({String? targetRole}) async {
+    final response = await _dio.get(
+      '/api/v1/career/job-readiness/detailed',
+      queryParameters: targetRole != null ? {'target_role': targetRole} : null,
+    );
+    return (response.data['data'] as Map<String, dynamic>?) ?? {};
+  }
 }
 
 final careerRepositoryProvider = Provider<CareerRepository>((ref) {

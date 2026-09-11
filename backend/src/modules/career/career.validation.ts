@@ -269,3 +269,61 @@ export const applyInterviewRoadmapSchema = z.object({
   }),
 });
 
+export const startDynamicPathfinderSchema = z.object({
+  body: z
+    .object({
+      target_domain: z.string().optional(),
+      preferred_language: z.string().optional(),
+      department: z.string().optional(),
+      resume_active: z.boolean().optional(),
+    })
+    .optional(),
+});
+
+export const answerDynamicPathfinderSchema = z.object({
+  params: z.object({
+    sessionId: z.string().uuid('Invalid session ID'),
+  }),
+  body: z.object({
+    answer: z.string().min(1, 'Answer is required').max(3000),
+    question_id: z.string().optional(),
+  }),
+});
+
+export const generatePersonalizedRoadmapSchema = z.object({
+  body: z.object({
+    target_role: z.string().min(2, 'Target role is required').max(150),
+    department: z.string().optional(),
+    current_level: z.string().optional(),
+    hours_per_week: z
+      .union([z.number(), z.string()])
+      .nullish()
+      .transform((val) => {
+        if (val === null || val === undefined) return 10;
+        const num = typeof val === 'number' ? val : parseInt(String(val), 10);
+        return isNaN(num) ? 10 : Math.min(Math.max(num, 1), 80);
+      }),
+    timeline_weeks: z
+      .union([z.number(), z.string()])
+      .nullish()
+      .transform((val) => {
+        if (val === null || val === undefined) return 16;
+        const num = typeof val === 'number' ? val : parseInt(String(val), 10);
+        return isNaN(num) ? 16 : Math.min(Math.max(num, 2), 52);
+      }),
+    primary_goal: z.string().max(500).optional(),
+    preferred_language: z.string().optional(),
+    skill_focus_areas: z.array(z.string()).optional(),
+  }),
+});
+
+export const createProjectEvidenceSchema = z.object({
+  body: z.object({
+    title: z.string().min(2, 'Title is required').max(255),
+    description: z.string().min(5, 'Description is required').max(3000),
+    github_url: z.string().url('Invalid GitHub URL').optional().or(z.literal('')),
+    demo_url: z.string().url('Invalid live demo URL').optional().or(z.literal('')),
+    tech_stack: z.array(z.string()).optional(),
+  }),
+});
+

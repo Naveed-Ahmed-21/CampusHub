@@ -2,6 +2,13 @@ import { Request, Response } from 'express';
 import { CareerService } from './career.service';
 import { asyncHandler } from '../../shared/utils/async-handler.util';
 import { ResponseUtil } from '../../shared/utils/api-response.util';
+import { CareerPathfinderService } from './services/career.pathfinder.service';
+import { CareerRoadmapGenerator } from './services/career.roadmap-generator';
+import { CareerGitHubService } from './services/career.github.service';
+import { CareerYouTubeService } from './services/career.youtube.service';
+import { CareerAdaptiveQuizService } from './services/career.adaptive-quiz.service';
+import { JobReadinessService } from './services/career.job-readiness.service';
+import { prisma } from '../../config/database';
 
 export class CareerController {
   constructor(private readonly careerService: CareerService) {}
@@ -406,5 +413,188 @@ export class CareerController {
     const user = req.user!;
     const result = await this.careerService.resetCareerData(user.userId);
     ResponseUtil.success(res, result, 'Career data reset successfully');
+  });
+
+  // ==========================================
+  // V2 REBUILD METHODS
+  // ==========================================
+
+  startDynamicPathfinder = asyncHandler(async (req: Request, res: Response) => {
+    const user = req.user!;
+    const { target_domain, preferred_language, department, resume_active } = req.body || {};
+    const result = await CareerPathfinderService.startSession(user.userId, {
+      targetDomain: target_domain,
+      preferredLanguage: preferred_language,
+      department,
+      resumeActive: resume_active !== false,
+    });
+    ResponseUtil.success(res, result, 'Pathfinder dynamic session started', 201);
+  });
+
+  answerDynamicPathfinder = asyncHandler(async (req: Request, res: Response) => {
+    const user = req.user!;
+    const { sessionId } = req.params;
+    const { answer, question_id } = req.body;
+    const result = await CareerPathfinderService.answerQuestion(user.userId, sessionId, answer, question_id);
+    ResponseUtil.success(res, result, 'Pathfinder response processed');
+  });
+
+  getDynamicPathfinderSession = asyncHandler(async (req: Request, res: Response) => {
+    const user = req.user!;
+    const { sessionId } = req.params;
+    const result = await CareerPathfinderService.getSession(user.userId, sessionId);
+    ResponseUtil.success(res, result, 'Pathfinder session details');
+  });
+
+  generatePersonalizedRoadmap = asyncHandler(async (req: Request, res: Response) => {
+    const user = req.user!;
+    const {
+      target_role,
+      department,
+      current_level,
+      hours_per_week,
+      timeline_weeks,
+      primary_goal,
+      preferred_language,
+      skill_focus_areas,
+    } = req.body;
+
+    const result = await CareerRoadmapGenerator.generateRoadmap(user.userId, {
+      targetRole: target_role,
+      department,
+      currentLevel: current_level,
+      hoursPerWeek: hours_per_week,
+      timelineWeeks: timeline_weeks,
+      primaryGoal: primary_goal,
+      preferredLanguage: preferred_language,
+      skillFocusAreas: skill_focus_areas,
+    });
+    ResponseUtil.success(res, result, 'Personalized career roadmap generated', 201);
+  });
+
+  getRoadmapGraph = asyncHandler(async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const roadmap = await prisma.careerRoadmap.findUnique({
+      where: { id },
+      include: {
+        nodes: {
+          orderBy: { order_index: 'asc' },
+        },
+        skill_dependencies: true,
+      },
+    });
+
+    if (!roadmap) {
+      return ResponseUtil.error(res, 'Roadmap not found', 404, 'NOT_FOUND');
+    }
+
+    const nodes = roadmap.nodes.map((node) => ({
+      id: node.id,
+      title: node.title,
+      description: node.description || '',
+      estimatedHours: node.estimated_hours || 4,
+      orderIndex: node.order_index,
+    }));
+
+    const edges = roadmap.skill_dependencies.map((dep) => ({
+      id: dep.id,
+      sourceSkill: dep.source_skill,
+      targetSkill: dep.target_skill,
+      dependencyType: dep.dependency_type,
+      confidence: dep.confidence,
+    }));
+
+    ResponseUtil.success(res, { nodes, edges, roadmapTitle: roadmap.title, category: roadmap.category, phases: roadmap.phases_json }, 'Roadmap skill graph retrieved');
+  });
+
+  searchGitHubResources = asyncHandler(async (req: Request, res: Response) => {
+    const topic = (req.query.topic as string) || 'Full Stack Web Development';
+    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 6;
+    const language = req.query.language as string | undefined;
+    const results = await CareerGitHubService.searchRepositories(topic, limit, language);
+    ResponseUtil.success(res, results, 'Verified GitHub resources retrieved');
+  });
+
+  getYouTubeResources = asyncHandler(async (req: Request, res: Response) => {
+    const topic = (req.query.topic as string) || 'Data Structures and Algorithms';
+    const language = (req.query.language as string) || 'English';
+    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 6;
+    const results = await CareerYouTubeService.getEducationalVideos(topic, language, limit);
+    ResponseUtil.success(res, results, 'Language-aware YouTube educational resources retrieved');
+  });
+
+  generateAdaptiveQuizV2 = asyncHandler(async (req: Request, res: Response) => {
+    const user = req.user!;
+    const { topic, phase_number, roadmap_id, skill_name, difficulty } = req.body;
+    const quiz = await CareerAdaptiveQuizService.generateAdaptiveQuiz(user.userId, {
+      topic: topic || 'Core Technical Concepts',
+      phaseNumber: phase_number || 1,
+      roadmapId: roadmap_id,
+      skillName: skill_name,
+      targetDifficulty: difficulty,
+    });
+    ResponseUtil.success(res, quiz, 'Adaptive quiz generated');
+  });
+
+  submitAdaptiveQuizV2 = asyncHandler(async (req: Request, res: Response) => {
+    const user = req.user!;
+    const {
+      roadmap_id,
+      phase_number,
+      topic,
+      skill_name,
+      answers,
+      questions,
+      time_spent_seconds,
+    } = req.body;
+
+    const result = await CareerAdaptiveQuizService.submitAndEvaluateQuiz(user.userId, {
+      roadmapId: roadmap_id,
+      phaseNumber: phase_number || 1,
+      topic: topic || 'Technical Assessment',
+      skillName: skill_name,
+      answers,
+      questions,
+      timeSpentSeconds: time_spent_seconds,
+    });
+    ResponseUtil.success(res, result, 'Adaptive quiz evaluated and skills updated');
+  });
+
+  getProjectEvidences = asyncHandler(async (req: Request, res: Response) => {
+    const user = req.user!;
+    const evidences = await prisma.projectEvidence.findMany({
+      where: { user_id: user.userId },
+      orderBy: { created_at: 'desc' },
+    });
+    const portfolioProjects = await prisma.portfolioProject.findMany({
+      where: { portfolio: { user_id: user.userId } },
+      orderBy: { created_at: 'desc' },
+    });
+    ResponseUtil.success(res, { evidences, portfolioProjects }, 'Project evidence and deliverables retrieved');
+  });
+
+  createProjectEvidence = asyncHandler(async (req: Request, res: Response) => {
+    const user = req.user!;
+    const { title, description, github_url, demo_url, tech_stack } = req.body;
+    const evidence = await prisma.projectEvidence.create({
+      data: {
+        user_id: user.userId,
+        title,
+        description,
+        github_url: github_url || null,
+        demo_url: demo_url || null,
+        tech_stack: tech_stack || [],
+        verified: !!(github_url && github_url.includes('github.com')),
+        evidence_score: 80,
+      },
+    });
+    ResponseUtil.success(res, evidence, 'Project evidence registered', 201);
+  });
+
+  getDetailedJobReadiness = asyncHandler(async (req: Request, res: Response) => {
+    const user = req.user!;
+    const targetRole = req.query.target_role as string | undefined;
+    const report = await JobReadinessService.calculateReadiness(user.userId, targetRole);
+    ResponseUtil.success(res, report, 'Detailed job readiness analytics retrieved');
   });
 }

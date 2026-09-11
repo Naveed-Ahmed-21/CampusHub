@@ -480,6 +480,8 @@ class ActiveRoadmapState {
     return 1;
   }
 
+  String get currentPhaseTitle => currentFocus;
+
   factory ActiveRoadmapState.fromJson(Map<String, dynamic> json) {
     final rawCompleted = json['completedNodeIds'] as List<dynamic>? ?? [];
     final roadmapJson = json['roadmap'] as Map<String, dynamic>?;
@@ -638,6 +640,7 @@ class RoadmapTaskDetailModel {
 
   String get category => type;
   int get estimatedMinutes => durationMins;
+  List<String> get keyTopics => description.isNotEmpty ? [description] : ['Foundations', 'Implementation'];
 
   factory RoadmapTaskDetailModel.fromJson(Map<String, dynamic> json) {
     return RoadmapTaskDetailModel(
@@ -1103,6 +1106,8 @@ class InterviewQuestionModel {
     this.keyPoints = const [],
   });
 
+  String get idealAnswer => sampleAnswer;
+
   factory InterviewQuestionModel.fromJson(Map<String, dynamic> json) {
     final rawTips = json['tips'] as List<dynamic>? ?? [];
     final rawKeyPoints = json['key_points'] as List<dynamic>? ?? json['keyPoints'] as List<dynamic>? ?? [];
@@ -1523,6 +1528,8 @@ class AdaptiveQuizQuestionModel {
     required this.testedConcept,
   });
 
+  String get concept => testedConcept;
+
   factory AdaptiveQuizQuestionModel.fromJson(Map<String, dynamic> json) {
     final rawOpts = json['options'] as List<dynamic>? ?? [];
     return AdaptiveQuizQuestionModel(
@@ -1710,6 +1717,185 @@ class VerifiedDocumentModel {
   String get domain => category;
   String get description => tagline;
   List<String> get tags => [category, source, '${estimatedMinutes}m read'];
+}
+
+class ProjectEvidenceModel {
+  final String id;
+  final String title;
+  final String description;
+  final String? githubUrl;
+  final String? demoUrl;
+  final List<String> techStack;
+  final bool verified;
+  final int evidenceScore;
+  final String? aiReview;
+  final DateTime createdAt;
+
+  ProjectEvidenceModel({
+    required this.id,
+    required this.title,
+    required this.description,
+    this.githubUrl,
+    this.demoUrl,
+    this.techStack = const [],
+    this.verified = false,
+    this.evidenceScore = 70,
+    this.aiReview,
+    required this.createdAt,
+  });
+
+  factory ProjectEvidenceModel.fromJson(Map<String, dynamic> json) {
+    final rawTech = json['tech_stack'] as List<dynamic>? ??
+        json['techStack'] as List<dynamic>? ??
+        [];
+    return ProjectEvidenceModel(
+      id: json['id'] ?? '',
+      title: json['title'] ?? '',
+      description: json['description'] ?? '',
+      githubUrl: json['github_url'] ?? json['githubUrl'] ?? json['repo_url'],
+      demoUrl: json['demo_url'] ?? json['demoUrl'] ?? json['project_url'],
+      techStack: rawTech.map((t) => t.toString()).toList(),
+      verified: json['verified'] == true,
+      evidenceScore: json['evidence_score'] ?? json['evidenceScore'] ?? 70,
+      aiReview: json['ai_review'] ?? json['aiReview'],
+      createdAt: json['created_at'] != null
+          ? DateTime.tryParse(json['created_at'].toString()) ?? DateTime.now()
+          : DateTime.now(),
+    );
+  }
+}
+
+class SkillGraphNode {
+  final String id;
+  final String title;
+  final String description;
+  final int estimatedHours;
+  final int orderIndex;
+  final bool isCompleted;
+
+  SkillGraphNode({
+    required this.id,
+    required this.title,
+    required this.description,
+    required this.estimatedHours,
+    required this.orderIndex,
+    this.isCompleted = false,
+  });
+
+  factory SkillGraphNode.fromJson(Map<String, dynamic> json) {
+    return SkillGraphNode(
+      id: json['id'] ?? '',
+      title: json['title'] ?? '',
+      description: json['description'] ?? '',
+      estimatedHours: json['estimatedHours'] ?? json['estimated_hours'] ?? 4,
+      orderIndex: json['orderIndex'] ?? json['order_index'] ?? 1,
+      isCompleted: json['isCompleted'] == true,
+    );
+  }
+}
+
+class SkillGraphEdge {
+  final String id;
+  final String sourceSkill;
+  final String targetSkill;
+  final String dependencyType;
+  final double confidence;
+
+  SkillGraphEdge({
+    required this.id,
+    required this.sourceSkill,
+    required this.targetSkill,
+    required this.dependencyType,
+    required this.confidence,
+  });
+
+  factory SkillGraphEdge.fromJson(Map<String, dynamic> json) {
+    return SkillGraphEdge(
+      id: json['id'] ?? '',
+      sourceSkill: json['sourceSkill'] ?? json['source_skill'] ?? '',
+      targetSkill: json['targetSkill'] ?? json['target_skill'] ?? '',
+      dependencyType: json['dependencyType'] ?? json['dependency_type'] ?? 'PREREQUISITE',
+      confidence: (json['confidence'] as num?)?.toDouble() ?? 1.0,
+    );
+  }
+}
+
+class SkillGraphModel {
+  final List<SkillGraphNode> nodes;
+  final List<SkillGraphEdge> edges;
+  final String roadmapTitle;
+  final String category;
+
+  SkillGraphModel({
+    required this.nodes,
+    required this.edges,
+    required this.roadmapTitle,
+    required this.category,
+  });
+
+  factory SkillGraphModel.fromJson(Map<String, dynamic> json) {
+    final rawNodes = json['nodes'] as List<dynamic>? ?? [];
+    final rawEdges = json['edges'] as List<dynamic>? ?? [];
+    return SkillGraphModel(
+      nodes: rawNodes.map((n) => SkillGraphNode.fromJson(n as Map<String, dynamic>)).toList(),
+      edges: rawEdges.map((e) => SkillGraphEdge.fromJson(e as Map<String, dynamic>)).toList(),
+      roadmapTitle: json['roadmapTitle'] ?? json['roadmap_title'] ?? '',
+      category: json['category'] ?? 'Engineering',
+    );
+  }
+}
+
+class DynamicPathfinderSessionModel {
+  final String id;
+  final String stage;
+  final int step;
+  final int totalSteps;
+  final String question;
+  final List<String> options;
+  final String difficulty;
+  final List<String> skillsTargeted;
+  final String reason;
+  final bool isCompleted;
+  final Map<String, dynamic>? careerAnalysis;
+
+  DynamicPathfinderSessionModel({
+    required this.id,
+    required this.stage,
+    required this.step,
+    required this.totalSteps,
+    required this.question,
+    required this.options,
+    required this.difficulty,
+    this.skillsTargeted = const [],
+    required this.reason,
+    this.isCompleted = false,
+    this.careerAnalysis,
+  });
+
+  factory DynamicPathfinderSessionModel.fromJson(Map<String, dynamic> json) {
+    final currentQ = json['current_question'] as Map<String, dynamic>? ??
+        json['currentQuestion'] as Map<String, dynamic>? ??
+        {};
+    final rawOptions = currentQ['options'] as List<dynamic>? ?? [];
+    final rawSkills = currentQ['skillsTargeted'] as List<dynamic>? ??
+        currentQ['skills_targeted'] as List<dynamic>? ??
+        [];
+
+    return DynamicPathfinderSessionModel(
+      id: json['id'] ?? '',
+      stage: json['stage'] ?? 'CAREER_DISCOVERY',
+      step: currentQ['step'] ?? 1,
+      totalSteps: currentQ['totalSteps'] ?? currentQ['total_steps'] ?? 8,
+      question: currentQ['question'] ?? 'What is your primary engineering interest?',
+      options: rawOptions.map((o) => o.toString()).toList(),
+      difficulty: currentQ['difficulty'] ?? 'Beginner',
+      skillsTargeted: rawSkills.map((s) => s.toString()).toList(),
+      reason: currentQ['reason'] ?? '',
+      isCompleted: json['completed'] == true,
+      careerAnalysis: json['career_analysis'] as Map<String, dynamic>? ??
+          json['careerAnalysis'] as Map<String, dynamic>?,
+    );
+  }
 }
 
 
