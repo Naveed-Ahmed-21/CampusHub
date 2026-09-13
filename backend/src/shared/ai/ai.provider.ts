@@ -352,6 +352,15 @@ export class FreeLLMAPIProvider implements AIProvider {
         });
       }
 
+      if (lower.includes('contradiction') || lower.includes('hascontradiction')) {
+        return JSON.stringify({
+          hasContradiction: false,
+          contradictionDescription: null,
+          conflictingThemes: [],
+          suggestedClarification: null,
+        });
+      }
+
       return JSON.stringify({
         status: 'success',
         result: 'Processed successfully',

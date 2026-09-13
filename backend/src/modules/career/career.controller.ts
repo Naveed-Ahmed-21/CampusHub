@@ -481,6 +481,7 @@ export class CareerController {
 
   getRoadmapGraph = asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
+    const user = req.user!;
     let roadmap = await prisma.careerRoadmap.findUnique({
       where: { id },
       include: {
@@ -493,6 +494,10 @@ export class CareerController {
 
     if (!roadmap) {
       return ResponseUtil.error(res, 'Roadmap not found', 404, 'NOT_FOUND');
+    }
+
+    if (roadmap.user_id && roadmap.user_id !== user.userId) {
+      return ResponseUtil.error(res, 'You do not have permission to access this roadmap graph', 403, 'FORBIDDEN');
     }
 
     // Auto-heal if 0 dependencies exist but nodes exist

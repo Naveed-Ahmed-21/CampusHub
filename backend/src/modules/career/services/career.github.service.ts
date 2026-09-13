@@ -236,7 +236,7 @@ export class GitHubResourceService {
     }
 
     // 3. Resilient fallback to verified curated library
-    const fallbackResults = this.getCuratedFallback(normalizedKey);
+    const fallbackResults = GitHubResourceService.getCuratedFallback(normalizedKey);
     GitHubResourceService.cache.set(normalizedKey, {
       data: fallbackResults,
       expiresAt: Date.now() + GitHubResourceService.CACHE_TTL_MS,
@@ -245,7 +245,7 @@ export class GitHubResourceService {
     return fallbackResults.slice(0, limit);
   }
 
-  private getCuratedFallback(key: string): GitHubRepositoryItem[] {
+  static getCuratedFallback(key: string): GitHubRepositoryItem[] {
     for (const [domainKey, repos] of Object.entries(GitHubResourceService.VERIFIED_REPOSITORIES)) {
       if (key.includes(domainKey) || domainKey.includes(key)) {
         return repos;

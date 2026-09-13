@@ -52,6 +52,9 @@ export class CareerService {
     if (!roadmap) {
       throw new NotFoundError('Career roadmap not found');
     }
+    if (roadmap.user_id && userId && roadmap.user_id !== userId) {
+      throw new ForbiddenError('You do not have permission to access this roadmap');
+    }
     return roadmap;
   }
 

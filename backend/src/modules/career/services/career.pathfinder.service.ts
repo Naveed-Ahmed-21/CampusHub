@@ -80,12 +80,12 @@ export class CareerPathfinderService {
   }
 
   static async answerQuestion(
-    _userId: string,
+    userId: string,
     sessionId: string,
     answerText: string,
     _questionId?: string
   ) {
-    return careerPathfinderService.submitAnswer(sessionId, answerText);
+    return careerPathfinderService.submitAnswer(sessionId, answerText, userId);
   }
 
   static async getSession(userId: string, sessionId: string) {
@@ -132,7 +132,7 @@ export class CareerPathfinderService {
   /**
    * Processes a student answer, updates evidence, checks contradictions, and advances to next question or final analysis.
    */
-  async submitAnswer(sessionId: string, answerText: string) {
+  async submitAnswer(sessionId: string, answerText: string, userId?: string) {
     const session = await prisma.careerPathfinderSession.findUnique({
       where: { id: sessionId },
       include: { user: { include: { department: true } } },
@@ -140,6 +140,10 @@ export class CareerPathfinderService {
 
     if (!session) {
       throw new Error('Pathfinder session not found');
+    }
+
+    if (userId && session.user_id !== userId) {
+      throw new Error('Unauthorized to submit answers to this session');
     }
 
     const currentQ = (session.current_question as unknown as PathfinderQuestionPayload) || {
