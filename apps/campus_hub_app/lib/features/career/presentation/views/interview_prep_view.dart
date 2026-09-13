@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers/career_provider.dart';
 import '../theme/career_theme.dart';
 import '../widgets/career_shared_widgets.dart';
 import 'eva_interview_room_view.dart';
@@ -38,7 +39,7 @@ class _InterviewPrepViewState extends ConsumerState<InterviewPrepView> {
   Timer? _timer;
   int _timeRemainingSeconds = 120; // 2 minutes per question
 
-  final List<Map<String, dynamic>> _questions = [
+  final List<Map<String, dynamic>> _fallbackQuestions = [
     {
       'question': 'Explain the Virtual DOM and how React uses reconciliation to optimize UI updates.',
       'category': 'React & Component Architecture',
@@ -68,25 +69,6 @@ class _InterviewPrepViewState extends ConsumerState<InterviewPrepView> {
       'category': 'System Design & STAR Behavioral',
       'keyConcepts': ['STAR Framework', 'Bottleneck Identification', 'Quantifiable Metrics', 'Simplicity vs Optimization'],
       'idealAnswer': 'Use Situation, Task, Action, Result. Frame the tradeoff around concrete engineering metrics (e.g. choosing Postgres JSONB over a separate Mongo instance to reduce operational overhead while monitoring query latencies under 5ms).',
-    },
-  ];
-
-  final List<Map<String, dynamic>> _historySessions = [
-    {
-      'date': 'Yesterday, 4:15 PM',
-      'role': 'Frontend Developer',
-      'score': 88,
-      'questionsCount': 5,
-      'status': 'Strong Hire',
-      'feedback': 'Excellent explanation of browser rendering and React memoization.',
-    },
-    {
-      'date': 'Sep 10, 2026',
-      'role': 'Full Stack Engineer',
-      'score': 74,
-      'questionsCount': 4,
-      'status': 'Hire',
-      'feedback': 'Good foundational clarity; reinforce distributed cache invalidation strategies.',
     },
   ];
 
@@ -124,33 +106,40 @@ class _InterviewPrepViewState extends ConsumerState<InterviewPrepView> {
     });
   }
 
-  Future<void> _submitAnswer() async {
+  Future<void> _submitAnswer(Map<String, dynamic> currentQ) async {
     _timer?.cancel();
     setState(() {
       _isRecording = false;
       _isEvaluating = true;
     });
 
-    await Future.delayed(const Duration(milliseconds: 900));
+    await Future.delayed(const Duration(milliseconds: 700));
 
     if (!mounted) return;
-    final currentQ = _questions[_currentQuestionIndex];
     final keyConcepts = (currentQ['keyConcepts'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [];
+    final studentText = _answerController.text.toLowerCase();
+    final detected = keyConcepts.where((c) => studentText.contains(c.toLowerCase())).toList();
+    final missing = keyConcepts.where((c) => !studentText.contains(c.toLowerCase())).toList();
+    final coverage = keyConcepts.isEmpty ? 0.75 : (detected.length / keyConcepts.length);
+    final score = (coverage * 100).round().clamp(45, 96);
+    final feedback = detected.isNotEmpty
+        ? 'Solid articulation covering ${detected.join(', ')}. Keep reinforcing real-world tradeoffs to elevate depth.'
+        : 'Ensure your response directly addresses key concepts such as ${keyConcepts.take(2).join(', ')}.';
 
     setState(() {
       _isEvaluating = false;
       _lastEvaluation = {
-        'score': 86,
-        'detectedConcepts': keyConcepts.take(3).toList(),
-        'missingConcepts': keyConcepts.skip(3).toList(),
-        'feedback': 'Clear structure and accurate technical terminology. You highlighted reconciliation heuristics effectively. To reach 95%+, elaborate on Fiber work loop scheduling.',
+        'score': score,
+        'detectedConcepts': detected.isNotEmpty ? detected : keyConcepts.take(2).toList(),
+        'missingConcepts': missing,
+        'feedback': feedback,
       };
     });
   }
 
-  void _nextQuestion() {
+  void _nextQuestion(int totalCount) {
     setState(() {
-      if (_currentQuestionIndex < _questions.length - 1) {
+      if (totalCount > 0 && _currentQuestionIndex < totalCount - 1) {
         _currentQuestionIndex++;
       } else {
         _currentQuestionIndex = 0;
@@ -246,7 +235,25 @@ class _InterviewPrepViewState extends ConsumerState<InterviewPrepView> {
   // PRACTICE TAB (SCREEN 12)
   // ==========================================
   Widget _buildPracticeTab() {
-    final currentQ = _questions[_currentQuestionIndex];
+    final questionsAsync = ref.watch(interviewPrepProvider(widget.roadmapId));
+    final List<Map<String, dynamic>> questions = questionsAsync.when(
+      data: (items) {
+        if (items.isNotEmpty) {
+          return items.map((q) => {
+            'question': q.question,
+            'category': q.category,
+            'keyConcepts': q.keyPoints.isNotEmpty ? q.keyPoints : q.tips,
+            'idealAnswer': q.idealAnswer,
+          }).toList();
+        }
+        return _fallbackQuestions;
+      },
+      loading: () => _fallbackQuestions,
+      error: (_, __) => _fallbackQuestions,
+    );
+
+    final safeIndex = (_currentQuestionIndex < questions.length) ? _currentQuestionIndex : 0;
+    final currentQ = questions[safeIndex];
     final minutes = (_timeRemainingSeconds ~/ 60).toString().padLeft(2, '0');
     final seconds = (_timeRemainingSeconds % 60).toString().padLeft(2, '0');
     final keyConcepts = (currentQ['keyConcepts'] as List<dynamic>?) ?? [];
@@ -266,7 +273,7 @@ class _InterviewPrepViewState extends ConsumerState<InterviewPrepView> {
                 border: Border.all(color: CareerTheme.glassBorder),
               ),
               child: Text(
-                'Question ${_currentQuestionIndex + 1} of ${_questions.length}',
+                'Question ${safeIndex + 1} of ${questions.length}',
                 style: const TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
@@ -323,13 +330,13 @@ class _InterviewPrepViewState extends ConsumerState<InterviewPrepView> {
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                  currentQ['category'] as String,
+                  (currentQ['category'] ?? 'Technical').toString(),
                   style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFFA5B4FC)),
                 ),
               ),
               const SizedBox(height: 12),
               Text(
-                currentQ['question'] as String,
+                (currentQ['question'] ?? '').toString(),
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
@@ -350,8 +357,8 @@ class _InterviewPrepViewState extends ConsumerState<InterviewPrepView> {
                       border: Border.all(color: CareerTheme.glassBorder),
                     ),
                     child: Text(
-                      '#$concept',
-                      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: CareerTheme.textMuted),
+                      concept.toString(),
+                      style: const TextStyle(fontSize: 10, color: CareerTheme.textMuted),
                     ),
                   );
                 }).toList(),
@@ -359,74 +366,63 @@ class _InterviewPrepViewState extends ConsumerState<InterviewPrepView> {
             ],
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 14),
 
-        // Audio Waveform & Recording Section (SCREEN 12)
+        // Ideal Answer / Key Concepts Accordion
         CareerGlassCard(
-          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+          padding: const EdgeInsets.all(14),
+          child: Theme(
+            data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+            child: ExpansionTile(
+              tilePadding: EdgeInsets.zero,
+              childrenPadding: const EdgeInsets.only(top: 8),
+              leading: const Icon(Icons.tips_and_updates_outlined, color: CareerTheme.warning, size: 20),
+              title: const Text(
+                'Key Evaluation Rubric & Ideal Flow',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white),
+              ),
+              children: [
+                Text(
+                  (currentQ['idealAnswer'] ?? '').toString(),
+                  style: const TextStyle(fontSize: 12, color: CareerTheme.textSecondary, height: 1.4),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 14),
+
+        // Student Answer Box with Mic
+        CareerGlassCard(
+          padding: const EdgeInsets.all(16),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Real-Time Animated Waveform
-              CareerAnimatedWaveform(
-                isRecording: _isRecording,
-                color: CareerTheme.primaryCyan,
-              ),
-              const SizedBox(height: 16),
-
-              // Large Touch-Friendly Mic Button
-              GestureDetector(
-                onTap: _toggleRecording,
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 250),
-                  width: 68,
-                  height: 68,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: _isRecording
-                        ? const LinearGradient(
-                            colors: [Color(0xFFEF4444), Color(0xFFDC2626)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          )
-                        : CareerTheme.primaryGradient,
-                    boxShadow: [
-                      BoxShadow(
-                        color: _isRecording
-                            ? const Color(0xFFEF4444).withValues(alpha: 0.4)
-                            : CareerTheme.primaryCyan.withValues(alpha: 0.35),
-                        blurRadius: 20,
-                        spreadRadius: 3,
-                      ),
-                    ],
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Your Response',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white),
                   ),
-                  child: Icon(
-                    _isRecording ? Icons.stop_rounded : Icons.mic_rounded,
-                    color: Colors.white,
-                    size: 32,
+                  IconButton(
+                    icon: Icon(
+                      _isRecording ? Icons.mic_rounded : Icons.mic_none_rounded,
+                      color: _isRecording ? CareerTheme.error : CareerTheme.primaryCyan,
+                    ),
+                    onPressed: _toggleRecording,
+                    tooltip: 'Speak Answer (Simulated Voice)',
                   ),
-                ),
+                ],
               ),
-              const SizedBox(height: 12),
-              Text(
-                _isRecording
-                    ? 'Listening to speech... Tap stop when finished'
-                    : 'Tap microphone to answer with voice',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: _isRecording ? const Color(0xFFF87171) : CareerTheme.textMuted,
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Transcript / Written Notes Field
+              const SizedBox(height: 6),
               TextField(
                 controller: _answerController,
-                maxLines: 3,
-                style: const TextStyle(color: Colors.white, fontSize: 13),
+                maxLines: 5,
+                style: const TextStyle(fontSize: 13, color: Colors.white),
                 decoration: InputDecoration(
-                  hintText: 'Voice transcript appears here, or type your answer...',
-                  hintStyle: const TextStyle(color: CareerTheme.textSubtle, fontSize: 12),
+                  hintText: 'Type or speak your answer structure...',
+                  hintStyle: const TextStyle(color: CareerTheme.textMuted, fontSize: 12),
                   filled: true,
                   fillColor: CareerTheme.surfaceMuted,
                   contentPadding: const EdgeInsets.all(12),
@@ -461,12 +457,12 @@ class _InterviewPrepViewState extends ConsumerState<InterviewPrepView> {
             label: 'Submit Answer',
             icon: Icons.send_rounded,
             isLoading: _isEvaluating,
-            onPressed: _submitAnswer,
+            onPressed: () => _submitAnswer(currentQ),
           )
         else
           CareerPrimaryButton(
-            label: _currentQuestionIndex < _questions.length - 1 ? 'Next Question →' : 'Complete Practice Round',
-            onPressed: _nextQuestion,
+            label: safeIndex < questions.length - 1 ? 'Next Question →' : 'Complete Practice Round',
+            onPressed: () => _nextQuestion(questions.length),
           ),
       ],
     );
@@ -577,54 +573,126 @@ class _InterviewPrepViewState extends ConsumerState<InterviewPrepView> {
   // HISTORY TAB (SCREEN 12)
   // ==========================================
   Widget _buildHistoryTab() {
-    return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
-      itemCount: _historySessions.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
-      itemBuilder: (context, idx) {
-        final session = _historySessions[idx];
-        final score = session['score'] as int;
+    final historyAsync = ref.watch(interviewHistoryProvider);
 
-        return CareerGlassCard(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return historyAsync.when(
+      data: (sessions) {
+        if (sessions.isEmpty) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(
-                    session['date'] as String,
-                    style: const TextStyle(fontSize: 11, color: CareerTheme.textMuted, fontWeight: FontWeight.w500),
-                  ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    padding: const EdgeInsets.all(18),
                     decoration: BoxDecoration(
-                      color: CareerTheme.success.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(CareerTheme.radiusPill),
-                      border: Border.all(color: CareerTheme.success.withValues(alpha: 0.4)),
+                      color: CareerTheme.surface,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: CareerTheme.glassBorder),
                     ),
-                    child: Text(
-                      'Score: $score%',
-                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: CareerTheme.success),
-                    ),
+                    child: const Icon(Icons.history_edu_rounded, size: 36, color: CareerTheme.textMuted),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'No Interview Sessions Yet',
+                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: Colors.white),
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Take a 1-on-1 mock interview with EVA AI or practice questions to record your interview performance and readiness.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 13, color: CareerTheme.textSecondary, height: 1.4),
+                  ),
+                  const SizedBox(height: 20),
+                  CareerPrimaryButton(
+                    label: 'Start Live EVA Room',
+                    icon: Icons.video_camera_front_rounded,
+                    onPressed: () {
+                      EvaInterviewRoomView.open(
+                        context,
+                        targetRole: widget.targetRole,
+                        roadmapId: widget.roadmapId,
+                        initialMode: 'VOICE',
+                      );
+                    },
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
-              Text(
-                session['role'] as String,
-                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white),
+            ),
+          );
+        }
+
+        return ListView.separated(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+          itemCount: sessions.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 12),
+          itemBuilder: (context, idx) {
+            final session = sessions[idx];
+            final score = session.overallScore ?? session.technicalScore ?? 0;
+            final created = session.createdAt != null
+                ? '${session.createdAt!.day}/${session.createdAt!.month}/${session.createdAt!.year}'
+                : 'Recent';
+
+            return CareerGlassCard(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        created,
+                        style: const TextStyle(fontSize: 11, color: CareerTheme.textMuted, fontWeight: FontWeight.w500),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: score >= 70 ? CareerTheme.success.withValues(alpha: 0.15) : CareerTheme.warning.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(CareerTheme.radiusPill),
+                          border: Border.all(
+                            color: score >= 70 ? CareerTheme.success.withValues(alpha: 0.4) : CareerTheme.warning.withValues(alpha: 0.4),
+                          ),
+                        ),
+                        child: Text(
+                          'Score: $score%',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: score >= 70 ? CareerTheme.success : CareerTheme.warning,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    session.targetRole,
+                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white),
+                  ),
+                  if (session.finalReport != null && session.finalReport!.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      session.finalReport!,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 12, color: CareerTheme.textSecondary, height: 1.35),
+                    ),
+                  ],
+                ],
               ),
-              const SizedBox(height: 4),
-              Text(
-                session['feedback'] as String,
-                style: const TextStyle(fontSize: 12, color: CareerTheme.textSecondary, height: 1.35),
-              ),
-            ],
-          ),
+            );
+          },
         );
       },
+      loading: () => const Center(child: CircularProgressIndicator(color: CareerTheme.primaryCyan)),
+      error: (err, _) => Center(
+        child: Text(
+          'Failed to load interview history: $err',
+          style: const TextStyle(color: CareerTheme.textMuted),
+        ),
+      ),
     );
   }
 }

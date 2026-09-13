@@ -381,6 +381,12 @@ export class CareerController {
   // 1-ON-1 EVA AI INTERVIEW
   // ==========================================
 
+  getInterviewHistory = asyncHandler(async (req: Request, res: Response) => {
+    const user = req.user!;
+    const history = await this.careerService.getInterviewHistory(user.userId);
+    ResponseUtil.success(res, history, 'Interview history retrieved');
+  });
+
   startInterviewSession = asyncHandler(async (req: Request, res: Response) => {
     const user = req.user!;
     const { roadmap_id, target_role, mode } = req.body;

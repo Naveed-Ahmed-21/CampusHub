@@ -72,6 +72,11 @@ final interviewPrepProvider = FutureProvider.family.autoDispose<List<InterviewQu
   return repo.getInterviewPrep(roadmapId: roadmapId);
 });
 
+final interviewHistoryProvider = FutureProvider.autoDispose<List<InterviewSessionModel>>((ref) async {
+  final repo = ref.watch(careerRepositoryProvider);
+  return repo.getInterviewHistory();
+});
+
 final roadmapChangesProvider = FutureProvider.family.autoDispose<List<RoadmapChangeModel>, String>((ref, roadmapId) async {
   final repo = ref.watch(careerRepositoryProvider);
   return repo.getRoadmapChanges(roadmapId);

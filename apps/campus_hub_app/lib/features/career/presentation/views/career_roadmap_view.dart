@@ -145,7 +145,7 @@ class _CareerRoadmapViewState extends ConsumerState<CareerRoadmapView> {
 
     final overallPercent = totalTasks > 0
         ? ((completedTasksCount / totalTasks) * 100).clamp(0.0, 100.0)
-        : 68.0;
+        : 0.0;
 
     final estimatedWeeks = phases.isNotEmpty ? phases.length * 2 : 8;
 

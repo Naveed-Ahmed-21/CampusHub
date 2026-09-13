@@ -194,8 +194,10 @@ class _CareerAnalysisResultViewState extends ConsumerState<CareerAnalysisResultV
                     children: [
                       Radio<String>(
                         value: aTitle,
+                        // ignore: deprecated_member_use
                         groupValue: _selectedRole,
                         activeColor: const Color(0xFF6366F1),
+                        // ignore: deprecated_member_use
                         onChanged: (val) => setState(() => _selectedRole = val),
                       ),
                       Expanded(

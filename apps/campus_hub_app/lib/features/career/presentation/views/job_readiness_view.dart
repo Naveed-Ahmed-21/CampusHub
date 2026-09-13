@@ -57,24 +57,13 @@ class JobReadinessView extends ConsumerWidget {
         onRefresh: () async => ref.invalidate(detailedJobReadinessProvider(targetRole)),
         child: readinessAsync.when(
           data: (data) {
-            final overallScore = (data['overallScore'] as num?)?.toInt() ?? 72;
-            final readinessLevel = data['readinessLevel']?.toString() ?? 'Intermediate Builder';
-            final role = data['targetRole']?.toString() ?? targetRole ?? 'Frontend Developer';
-            final dimensions = (data['dimensions'] as List<dynamic>?) ?? _defaultDimensions;
-            final nextAction = data['nextBestAction'] as Map<String, dynamic>? ?? {
-              'title': 'Complete 2 more full-stack projects to reach 80% readiness',
-              'description': 'Deliverable evidence in full-stack architecture is your highest-leverage growth area for campus hiring.',
-              'actionType': 'PROJECT',
-            };
-            final strongAreas = (data['strongAreas'] as List<dynamic>?) ?? [
-              'Modern UI Component Architecture & State Management',
-              'Git Version Control & PR Reviews',
-              'RESTful API Contract Design',
-            ];
-            final areasToImprove = (data['areasToImprove'] as List<dynamic>?) ?? [
-              'Distributed Systems & Real-Time WebSockets',
-              'Advanced Graph Algorithms & System Design',
-            ];
+            final overallScore = (data['overallScore'] as num?)?.toInt() ?? 0;
+            final readinessLevel = data['readinessLevel']?.toString() ?? 'Getting Started';
+            final role = data['targetRole']?.toString() ?? targetRole ?? 'Software Engineer';
+            final dimensions = (data['dimensions'] as List<dynamic>?) ?? const [];
+            final nextAction = data['nextBestAction'] as Map<String, dynamic>?;
+            final strongAreas = (data['strongAreas'] as List<dynamic>?) ?? const [];
+            final areasToImprove = (data['areasToImprove'] as List<dynamic>?) ?? const [];
 
             return SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 36),
@@ -90,41 +79,49 @@ class JobReadinessView extends ConsumerWidget {
                   const SizedBox(height: 20),
 
                   // 2. 6 DIMENSIONS GRID (SCREEN 11)
-                  const CareerSectionHeader(
-                    title: 'Evaluated Competencies',
-                    subtitle: 'Multi-dimensional readiness breakdown for hiring rubrics',
-                  ),
-                  const SizedBox(height: 12),
-                  _buildDimensionsGrid(dimensions),
-                  const SizedBox(height: 20),
+                  if (dimensions.isNotEmpty) ...[
+                    const CareerSectionHeader(
+                      title: 'Evaluated Competencies',
+                      subtitle: 'Multi-dimensional readiness breakdown for hiring rubrics',
+                    ),
+                    const SizedBox(height: 12),
+                    _buildDimensionsGrid(dimensions),
+                    const SizedBox(height: 20),
+                  ],
 
                   // 3. NEXT BEST ACTION BANNER (SCREEN 11)
-                  _buildNextBestActionCard(context, nextAction),
-                  const SizedBox(height: 24),
+                  if (nextAction != null && (nextAction['title']?.toString().isNotEmpty ?? false)) ...[
+                    _buildNextBestActionCard(context, nextAction),
+                    const SizedBox(height: 24),
+                  ],
 
                   // 4. STRENGTHS & FOCUS AREAS
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: _buildCompetencyListCard(
-                          title: 'Strengths',
-                          items: strongAreas,
-                          color: CareerTheme.success,
-                          icon: Icons.check_circle_rounded,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildCompetencyListCard(
-                          title: 'Focus Areas',
-                          items: areasToImprove,
-                          color: CareerTheme.warning,
-                          icon: Icons.lightbulb_outline_rounded,
-                        ),
-                      ),
-                    ],
-                  ),
+                  if (strongAreas.isNotEmpty || areasToImprove.isNotEmpty)
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (strongAreas.isNotEmpty)
+                          Expanded(
+                            child: _buildCompetencyListCard(
+                              title: 'Strengths',
+                              items: strongAreas,
+                              color: CareerTheme.success,
+                              icon: Icons.check_circle_rounded,
+                            ),
+                          ),
+                        if (strongAreas.isNotEmpty && areasToImprove.isNotEmpty)
+                          const SizedBox(width: 12),
+                        if (areasToImprove.isNotEmpty)
+                          Expanded(
+                            child: _buildCompetencyListCard(
+                              title: 'Focus Areas',
+                              items: areasToImprove,
+                              color: CareerTheme.warning,
+                              icon: Icons.lightbulb_outline_rounded,
+                            ),
+                          ),
+                      ],
+                    ),
                 ],
               ),
             );
@@ -273,7 +270,7 @@ class JobReadinessView extends ConsumerWidget {
       itemBuilder: (context, idx) {
         final dim = dimensions[idx] as Map<String, dynamic>;
         final name = dim['name']?.toString() ?? 'Dimension';
-        final score = (dim['score'] as num?)?.toInt() ?? 60;
+        final score = (dim['score'] as num?)?.toInt() ?? 0;
         final icon = _getDimensionIcon(name);
         final color = _getDimensionColor(idx);
 
@@ -472,13 +469,4 @@ class JobReadinessView extends ConsumerWidget {
       ),
     );
   }
-
-  static const List<Map<String, dynamic>> _defaultDimensions = [
-    {'name': 'Technical Skills', 'score': 80},
-    {'name': 'Projects', 'score': 70},
-    {'name': 'DSA & Problem Solving', 'score': 60},
-    {'name': 'Resume & ATS', 'score': 70},
-    {'name': 'Interview Prep', 'score': 65},
-    {'name': 'Communication', 'score': 76},
-  ];
 }

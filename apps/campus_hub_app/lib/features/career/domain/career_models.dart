@@ -1284,6 +1284,8 @@ class InterviewSessionModel {
   final List<String> roadmapReinforcements;
   final List<InterviewTurnModel> turns;
   final InterviewTurnModel? nextTurn;
+  final DateTime? createdAt;
+  final String? finalReport;
 
   InterviewSessionModel({
     required this.id,
@@ -1302,6 +1304,8 @@ class InterviewSessionModel {
     this.roadmapReinforcements = const [],
     this.turns = const [],
     this.nextTurn,
+    this.createdAt,
+    this.finalReport,
   });
 
   bool get isCompleted => status == 'COMPLETED';
@@ -1330,6 +1334,8 @@ class InterviewSessionModel {
       roadmapReinforcements: rawReinforcements.map((e) => e.toString()).toList(),
       turns: rawTurns.map((t) => InterviewTurnModel.fromJson(t)).toList(),
       nextTurn: rawNext != null ? InterviewTurnModel.fromJson(rawNext) : null,
+      createdAt: json['created_at'] != null ? DateTime.tryParse(json['created_at'].toString()) : null,
+      finalReport: json['final_report'] ?? json['finalReport'] ?? json['summary_feedback'] ?? json['summaryFeedback'],
     );
   }
 }

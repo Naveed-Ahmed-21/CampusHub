@@ -309,8 +309,10 @@ class _CareerPathfinderViewState extends ConsumerState<CareerPathfinderView> {
                   },
                   leading: Radio<String>(
                     value: option,
+                    // ignore: deprecated_member_use
                     groupValue: _selectedOption,
                     activeColor: const Color(0xFF6366F1),
+                    // ignore: deprecated_member_use
                     onChanged: (val) {
                       setState(() {
                         _selectedOption = val;

@@ -123,6 +123,7 @@ careerRouter.post('/pathfinder/confirm', validateRequest(pathfinderConfirmSchema
 careerRouter.post('/ask-ai', validateRequest(askAiDoubtSchema), careerController.askAiDoubt);
 
 // 1-on-1 EVA AI Mock Interview
+careerRouter.get('/interview/history', careerController.getInterviewHistory);
 careerRouter.post('/interview/start', validateRequest(startInterviewSchema), careerController.startInterviewSession);
 careerRouter.post('/interview/turn', validateRequest(turnInterviewSchema), careerController.submitInterviewTurn);
 careerRouter.post('/interview/finish', validateRequest(finishInterviewSchema), careerController.finishInterviewSession);

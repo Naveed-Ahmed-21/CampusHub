@@ -263,20 +263,52 @@ class _CareerHubHomeViewState extends ConsumerState<CareerHubHomeView> {
         const SizedBox(height: 12),
         activeAsync.when(
           data: (active) {
-            final hasRoadmap = active != null;
-            final role = hasRoadmap ? active.targetRole : 'Full Stack Developer';
-            final progress = hasRoadmap ? (active.progressPercent).clamp(0, 100) : 68;
-            final roadmapId = active?.roadmapId ?? '';
+            if (active == null) {
+              return CareerGlassCard(
+                padding: const EdgeInsets.all(16),
+                onTap: () => CreateRoadmapView.open(context),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: CareerTheme.primaryCyan.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: CareerTheme.primaryCyan.withValues(alpha: 0.3)),
+                      ),
+                      child: const Icon(Icons.add_road_rounded, color: CareerTheme.primaryCyan, size: 22),
+                    ),
+                    const SizedBox(width: 14),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'No active roadmap yet',
+                            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white),
+                          ),
+                          SizedBox(height: 3),
+                          Text(
+                            'Tap to generate your personalized learning roadmap',
+                            style: TextStyle(fontSize: 11, color: CareerTheme.textMuted),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Icon(Icons.arrow_forward_rounded, color: CareerTheme.primaryCyan, size: 20),
+                  ],
+                ),
+              );
+            }
+
+            final role = active.targetRole;
+            final progress = (active.progressPercent).clamp(0, 100);
+            final roadmapId = active.roadmapId;
 
             return CareerGlassCard(
               padding: const EdgeInsets.all(16),
-              onTap: () {
-                if (hasRoadmap) {
-                  CareerRoadmapView.open(context, roadmapId: roadmapId);
-                } else {
-                  CreateRoadmapView.open(context);
-                }
-              },
+              onTap: () => CareerRoadmapView.open(context, roadmapId: roadmapId),
               child: Row(
                 children: [
                   // Role Icon Box
@@ -307,7 +339,7 @@ class _CareerHubHomeViewState extends ConsumerState<CareerHubHomeView> {
                         Row(
                           children: [
                             Text(
-                              hasRoadmap ? 'In Progress • $progress%' : 'In Progress • 68%',
+                              'In Progress • $progress%',
                               style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: CareerTheme.primaryCyan),
                             ),
                           ],

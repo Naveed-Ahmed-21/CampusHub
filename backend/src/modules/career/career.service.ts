@@ -1769,6 +1769,15 @@ export class CareerService {
     };
   }
 
+  async getInterviewHistory(userId: string) {
+    const sessions = await prisma.interviewSession.findMany({
+      where: { user_id: userId },
+      include: { turns: { orderBy: { turn_index: 'asc' } } },
+      orderBy: { created_at: 'desc' },
+    });
+    return sessions;
+  }
+
   async applyInterviewRoadmapUpdate(userId: string, sessionId: string) {
     const session = await prisma.interviewSession.findUnique({
       where: { id: sessionId },

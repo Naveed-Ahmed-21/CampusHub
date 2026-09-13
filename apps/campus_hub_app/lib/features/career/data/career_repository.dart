@@ -564,6 +564,12 @@ class CareerRepository {
     return response.data['data'] as Map<String, dynamic>;
   }
 
+  Future<List<InterviewSessionModel>> getInterviewHistory() async {
+    final response = await _dio.get('/api/v1/career/interview/history');
+    final list = (response.data['data'] as List<dynamic>?) ?? [];
+    return list.map((json) => InterviewSessionModel.fromJson(json as Map<String, dynamic>)).toList();
+  }
+
   Future<Map<String, dynamic>> resetCareerData() async {
     final response = await _dio.post('/api/v1/career/reset');
     return (response.data['data'] as Map<String, dynamic>?) ?? {};
