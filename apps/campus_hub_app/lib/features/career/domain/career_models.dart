@@ -25,6 +25,8 @@ class CareerRoadmapModel {
     this.phases = const [],
   });
 
+  String get targetRole => title;
+
   factory CareerRoadmapModel.fromJson(Map<String, dynamic> json) {
     final rawNodes = json['nodes'] as List<dynamic>? ?? [];
     final rawResources = json['resources'] as List<dynamic>? ?? [];

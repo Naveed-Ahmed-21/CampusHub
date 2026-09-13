@@ -216,9 +216,9 @@ class _CareerPathfinderViewState extends ConsumerState<CareerPathfinderView> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF6366F1).withOpacity(0.2),
+                    color: const Color(0xFF6366F1).withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: const Color(0xFF6366F1).withOpacity(0.4)),
+                    border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.4)),
                   ),
                   child: Text(
                     _session?.stage.replaceAll('_', ' ') ?? 'DISCOVERY',
@@ -293,7 +293,7 @@ class _CareerPathfinderViewState extends ConsumerState<CareerPathfinderView> {
               return Container(
                 margin: const EdgeInsets.only(bottom: 10),
                 decoration: BoxDecoration(
-                  color: isSelected ? const Color(0xFF6366F1).withOpacity(0.15) : const Color(0xFF1E293B),
+                  color: isSelected ? const Color(0xFF6366F1).withValues(alpha: 0.15) : const Color(0xFF1E293B),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: isSelected ? const Color(0xFF6366F1) : const Color(0xFF334155),

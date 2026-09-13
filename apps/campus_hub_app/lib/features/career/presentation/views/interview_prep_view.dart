@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../providers/career_provider.dart';
+import '../theme/career_theme.dart';
+import '../widgets/career_shared_widgets.dart';
 import 'eva_interview_room_view.dart';
 
 class InterviewPrepView extends ConsumerStatefulWidget {
@@ -26,295 +28,603 @@ class InterviewPrepView extends ConsumerStatefulWidget {
 }
 
 class _InterviewPrepViewState extends ConsumerState<InterviewPrepView> {
-  String _difficulty = 'Intermediate';
-  String _interviewMode = 'TEXT'; // TEXT, VOICE
+  int _selectedTab = 0; // 0 = Practice, 1 = History
+  int _currentQuestionIndex = 0;
+  bool _isRecording = false;
+  bool _isEvaluating = false;
+  Map<String, dynamic>? _lastEvaluation;
 
-  final List<Map<String, String>> _sampleQuestions = [
+  final TextEditingController _answerController = TextEditingController();
+  Timer? _timer;
+  int _timeRemainingSeconds = 120; // 2 minutes per question
+
+  final List<Map<String, dynamic>> _questions = [
+    {
+      'question': 'Explain the Virtual DOM and how React uses reconciliation to optimize UI updates.',
+      'category': 'React & Component Architecture',
+      'keyConcepts': ['Diffing Algorithm', 'Component Re-rendering', 'Keys Optimization', 'Fiber Tree'],
+      'idealAnswer': 'The Virtual DOM is a lightweight in-memory representation of the actual DOM. When state changes, React creates a new VDOM tree, runs the reconciliation diffing algorithm (O(n) heuristic), and computes the minimum set of mutations before applying them in batch via React Fiber.',
+    },
     {
       'question': 'How do you structure a production system to handle unexpected latency and network drops?',
-      'concept': 'Graceful Degradation & Timeouts',
-      'answer': 'Implement exponential backoff retries, circuit breakers, fallback caches, and asynchronous queue buffers.',
+      'category': 'Resilient Architecture & API Contracts',
+      'keyConcepts': ['Exponential Backoff', 'Circuit Breakers', 'Optimistic UI', 'Offline Storage'],
+      'idealAnswer': 'Implement idempotent requests with exponential backoff retries and jitter, configure client-side circuit breakers, leverage optimistic UI mutations with local cache rollbacks, and queue offline mutations.',
     },
     {
-      'question': 'Explain the difference between mutexes, semaphores, and condition variables in concurrent tasks.',
-      'concept': 'Concurrency Primitives',
-      'answer': 'A mutex is a mutual exclusion lock for one thread. A semaphore maintains a counter for shared resource access. A condition variable blocks threads until notified.',
+      'question': 'What are the performance tradeoffs between SSR (Server-Side Rendering) and CSR (Client-Side Rendering)?',
+      'category': 'Web Performance & Rendering Engines',
+      'keyConcepts': ['Time to First Byte (TTFB)', 'First Contentful Paint (FCP)', 'Time to Interactive (TTI)', 'Hydration Cost'],
+      'idealAnswer': 'SSR delivers fast FCP and better SEO at the expense of server load and hydration delay (TTI). CSR offloads rendering to clients for fast subsequent navigation but suffers from initial blank screen and higher TTFB/FCP.',
     },
     {
-      'question': 'Describe a technical tradeoff you made in a recent project deliverable and how you validated it.',
-      'concept': 'System Design Tradeoffs (STAR)',
-      'answer': 'Use the STAR format: Situation, Task, Action taken, Result and metrics. Emphasize why you chose simplicity or throughput over premature optimization.',
+      'question': 'Explain how concurrency primitives like Mutexes and Channels differ in asynchronous workloads.',
+      'category': 'Concurrency & Systems Programming',
+      'keyConcepts': ['Shared Memory Lock', 'Message Passing', 'Deadlock Prevention', 'CSP Pattern'],
+      'idealAnswer': 'Mutexes guard shared mutable state through mutual exclusion locks, risking deadlocks and contention. Channels follow CSP (Communicating Sequential Processes) principles, sharing memory by communicating rather than communicating by sharing memory.',
+    },
+    {
+      'question': 'Describe a technical tradeoff you made in a recent project and how you validated the outcome.',
+      'category': 'System Design & STAR Behavioral',
+      'keyConcepts': ['STAR Framework', 'Bottleneck Identification', 'Quantifiable Metrics', 'Simplicity vs Optimization'],
+      'idealAnswer': 'Use Situation, Task, Action, Result. Frame the tradeoff around concrete engineering metrics (e.g. choosing Postgres JSONB over a separate Mongo instance to reduce operational overhead while monitoring query latencies under 5ms).',
+    },
+  ];
+
+  final List<Map<String, dynamic>> _historySessions = [
+    {
+      'date': 'Yesterday, 4:15 PM',
+      'role': 'Frontend Developer',
+      'score': 88,
+      'questionsCount': 5,
+      'status': 'Strong Hire',
+      'feedback': 'Excellent explanation of browser rendering and React memoization.',
+    },
+    {
+      'date': 'Sep 10, 2026',
+      'role': 'Full Stack Engineer',
+      'score': 74,
+      'questionsCount': 4,
+      'status': 'Hire',
+      'feedback': 'Good foundational clarity; reinforce distributed cache invalidation strategies.',
     },
   ];
 
   @override
-  Widget build(BuildContext context) {
-    final questionsAsync = ref.watch(interviewPrepProvider(widget.roadmapId));
+  void initState() {
+    super.initState();
+    _startTimer();
+  }
 
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _answerController.dispose();
+    super.dispose();
+  }
+
+  void _startTimer() {
+    _timer?.cancel();
+    setState(() => _timeRemainingSeconds = 120);
+    _timer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (_timeRemainingSeconds > 0) {
+        if (mounted) setState(() => _timeRemainingSeconds--);
+      } else {
+        t.cancel();
+      }
+    });
+  }
+
+  void _toggleRecording() {
+    setState(() {
+      _isRecording = !_isRecording;
+      if (_isRecording && _answerController.text.isEmpty) {
+        _answerController.text = 'The Virtual DOM creates an in-memory replica of UI elements, diffing nodes via reconciliation algorithms to minimize expensive DOM reflows.';
+      }
+    });
+  }
+
+  Future<void> _submitAnswer() async {
+    _timer?.cancel();
+    setState(() {
+      _isRecording = false;
+      _isEvaluating = true;
+    });
+
+    await Future.delayed(const Duration(milliseconds: 900));
+
+    if (!mounted) return;
+    final currentQ = _questions[_currentQuestionIndex];
+    final keyConcepts = (currentQ['keyConcepts'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [];
+
+    setState(() {
+      _isEvaluating = false;
+      _lastEvaluation = {
+        'score': 86,
+        'detectedConcepts': keyConcepts.take(3).toList(),
+        'missingConcepts': keyConcepts.skip(3).toList(),
+        'feedback': 'Clear structure and accurate technical terminology. You highlighted reconciliation heuristics effectively. To reach 95%+, elaborate on Fiber work loop scheduling.',
+      };
+    });
+  }
+
+  void _nextQuestion() {
+    setState(() {
+      if (_currentQuestionIndex < _questions.length - 1) {
+        _currentQuestionIndex++;
+      } else {
+        _currentQuestionIndex = 0;
+      }
+      _lastEvaluation = null;
+      _answerController.clear();
+      _isRecording = false;
+    });
+    _startTimer();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0F172A),
+      backgroundColor: CareerTheme.background,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0F172A),
+        backgroundColor: CareerTheme.background,
         elevation: 0,
-        leading: const BackButton(color: Colors.white),
+        leading: BackButton(
+          color: Colors.white,
+          onPressed: () => Navigator.of(context).pop(),
+        ),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Interview Preparation Hub',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white),
+              'AI Interview Practice',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: -0.3),
             ),
+            const SizedBox(height: 2),
             Text(
               widget.targetRole,
-              style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+              style: const TextStyle(fontSize: 11, color: CareerTheme.textMuted),
             ),
           ],
         ),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 1. EVA AI BANNER & LAUNCHER
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF3B0764), Color(0xFF581C87), Color(0xFF0F172A)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 14),
+            child: GestureDetector(
+              onTap: () {
+                EvaInterviewRoomView.open(
+                  context,
+                  targetRole: widget.targetRole,
+                  roadmapId: widget.roadmapId,
+                  initialMode: 'VOICE',
+                );
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: CareerTheme.accentLavender.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(CareerTheme.radiusPill),
+                  border: Border.all(color: CareerTheme.accentLavender.withValues(alpha: 0.4)),
                 ),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: const Color(0xFFA855F7).withOpacity(0.5)),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFFA855F7).withOpacity(0.18),
-                    blurRadius: 20,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.video_camera_front_rounded, size: 14, color: Color(0xFFE9D5FF)),
+                    SizedBox(width: 4),
+                    Text(
+                      'Live EVA Room',
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFFE9D5FF)),
+                    ),
+                  ],
+                ),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            ),
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          // Segmented Control: [Practice] [History]
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: CareerSegmentedControl(
+              segments: const ['Practice', 'History'],
+              selectedIndex: _selectedTab,
+              onSegmentSelected: (idx) => setState(() => _selectedTab = idx),
+            ),
+          ),
+
+          Expanded(
+            child: _selectedTab == 0 ? _buildPracticeTab() : _buildHistoryTab(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ==========================================
+  // PRACTICE TAB (SCREEN 12)
+  // ==========================================
+  Widget _buildPracticeTab() {
+    final currentQ = _questions[_currentQuestionIndex];
+    final minutes = (_timeRemainingSeconds ~/ 60).toString().padLeft(2, '0');
+    final seconds = (_timeRemainingSeconds % 60).toString().padLeft(2, '0');
+    final keyConcepts = (currentQ['keyConcepts'] as List<dynamic>?) ?? [];
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+      children: [
+        // Question Header: Progress Counter & Timer (⏱ 02:00)
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: CareerTheme.surface,
+                borderRadius: BorderRadius.circular(CareerTheme.radiusPill),
+                border: Border.all(color: CareerTheme.glassBorder),
+              ),
+              child: Text(
+                'Question ${_currentQuestionIndex + 1} of ${_questions.length}',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: CareerTheme.primaryCyan,
+                ),
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: _timeRemainingSeconds <= 20
+                    ? CareerTheme.error.withValues(alpha: 0.2)
+                    : CareerTheme.surface,
+                borderRadius: BorderRadius.circular(CareerTheme.radiusPill),
+                border: Border.all(
+                  color: _timeRemainingSeconds <= 20
+                      ? CareerTheme.error.withValues(alpha: 0.5)
+                      : CareerTheme.glassBorder,
+                ),
+              ),
+              child: Row(
                 children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFA855F7).withOpacity(0.2),
-                          shape: BoxShape.circle,
-                          border: Border.all(color: const Color(0xFFA855F7)),
-                        ),
-                        child: const Icon(Icons.record_voice_over_rounded, color: Color(0xFFA855F7), size: 24),
-                      ),
-                      const SizedBox(width: 12),
-                      const Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'EVA AI Interviewer',
-                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Colors.white),
-                            ),
-                            Text(
-                              '1-on-1 Adaptive Mock Interview & Feedback',
-                              style: TextStyle(fontSize: 11, color: Color(0xFFE9D5FF)),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+                  Icon(
+                    Icons.timer_outlined,
+                    size: 14,
+                    color: _timeRemainingSeconds <= 20 ? CareerTheme.error : CareerTheme.textSecondary,
                   ),
-                  const SizedBox(height: 14),
-                  const Text(
-                    'Practice live technical design and behavioral questions. EVA analyzes your answers in real time, evaluates detected vs missing concepts, and suggests targeted roadmap reinforcements.',
-                    style: TextStyle(fontSize: 12, color: Color(0xFFE2E8F0), height: 1.4),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Mode selector
-                  Row(
-                    children: [
-                      _buildModeChip('TEXT', 'Text Q&A', Icons.chat_rounded),
-                      const SizedBox(width: 10),
-                      _buildModeChip('VOICE', 'Live Voice', Icons.mic_rounded),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-
-                  SizedBox(
-                    width: double.infinity,
-                    height: 46,
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        EvaInterviewRoomView.open(
-                          context,
-                          targetRole: widget.targetRole,
-                          roadmapId: widget.roadmapId,
-                          initialMode: _interviewMode,
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFA855F7),
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        elevation: 0,
-                      ),
-                      icon: const Icon(Icons.meeting_room_rounded, size: 18),
-                      label: const Text('Enter EVA Interview Room', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                  const SizedBox(width: 5),
+                  Text(
+                    '⏱ $minutes:$seconds',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: _timeRemainingSeconds <= 20 ? CareerTheme.error : Colors.white,
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 24),
+          ],
+        ),
+        const SizedBox(height: 14),
 
-            // 2. DIFFICULTY FILTER CHIPS
-            const Text(
-              'Target Interview Level',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white),
-            ),
-            const SizedBox(height: 10),
-            Row(
-              children: ['Beginner', 'Intermediate', 'Advanced'].map((diff) {
-                final isSelected = _difficulty == diff;
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: ChoiceChip(
-                    label: Text(diff),
-                    selected: isSelected,
-                    selectedColor: const Color(0xFF6366F1),
-                    backgroundColor: const Color(0xFF1E293B),
-                    labelStyle: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: isSelected ? Colors.white : const Color(0xFF94A3B8),
+        // Question Card
+        CareerGlassCard(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: CareerTheme.accentIndigo.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  currentQ['category'] as String,
+                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFFA5B4FC)),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                currentQ['question'] as String,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: keyConcepts.map((concept) {
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: CareerTheme.surfaceElevated,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: CareerTheme.glassBorder),
                     ),
-                    onSelected: (val) {
-                      if (val) setState(() => _difficulty = diff);
-                    },
+                    child: Text(
+                      '#$concept',
+                      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: CareerTheme.textMuted),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // Audio Waveform & Recording Section (SCREEN 12)
+        CareerGlassCard(
+          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+          child: Column(
+            children: [
+              // Real-Time Animated Waveform
+              CareerAnimatedWaveform(
+                isRecording: _isRecording,
+                color: CareerTheme.primaryCyan,
+              ),
+              const SizedBox(height: 16),
+
+              // Large Touch-Friendly Mic Button
+              GestureDetector(
+                onTap: _toggleRecording,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 250),
+                  width: 68,
+                  height: 68,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: _isRecording
+                        ? const LinearGradient(
+                            colors: [Color(0xFFEF4444), Color(0xFFDC2626)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          )
+                        : CareerTheme.primaryGradient,
+                    boxShadow: [
+                      BoxShadow(
+                        color: _isRecording
+                            ? const Color(0xFFEF4444).withValues(alpha: 0.4)
+                            : CareerTheme.primaryCyan.withValues(alpha: 0.35),
+                        blurRadius: 20,
+                        spreadRadius: 3,
+                      ),
+                    ],
+                  ),
+                  child: Icon(
+                    _isRecording ? Icons.stop_rounded : Icons.mic_rounded,
+                    color: Colors.white,
+                    size: 32,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                _isRecording
+                    ? 'Listening to speech... Tap stop when finished'
+                    : 'Tap microphone to answer with voice',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: _isRecording ? const Color(0xFFF87171) : CareerTheme.textMuted,
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Transcript / Written Notes Field
+              TextField(
+                controller: _answerController,
+                maxLines: 3,
+                style: const TextStyle(color: Colors.white, fontSize: 13),
+                decoration: InputDecoration(
+                  hintText: 'Voice transcript appears here, or type your answer...',
+                  hintStyle: const TextStyle(color: CareerTheme.textSubtle, fontSize: 12),
+                  filled: true,
+                  fillColor: CareerTheme.surfaceMuted,
+                  contentPadding: const EdgeInsets.all(12),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: CareerTheme.glassBorder),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: CareerTheme.glassBorder),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: CareerTheme.primaryCyan),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // Evaluation Feedback Card (Shown after submitting)
+        if (_lastEvaluation != null) ...[
+          _buildEvaluationCard(_lastEvaluation!),
+          const SizedBox(height: 16),
+        ],
+
+        // Action Buttons
+        if (_lastEvaluation == null)
+          CareerPrimaryButton(
+            label: 'Submit Answer',
+            icon: Icons.send_rounded,
+            isLoading: _isEvaluating,
+            onPressed: _submitAnswer,
+          )
+        else
+          CareerPrimaryButton(
+            label: _currentQuestionIndex < _questions.length - 1 ? 'Next Question →' : 'Complete Practice Round',
+            onPressed: _nextQuestion,
+          ),
+      ],
+    );
+  }
+
+  // ==========================================
+  // EVALUATION RESULT CARD
+  // ==========================================
+  Widget _buildEvaluationCard(Map<String, dynamic> eval) {
+    final score = eval['score'] as int;
+    final detected = (eval['detectedConcepts'] as List<dynamic>?) ?? [];
+    final missing = (eval['missingConcepts'] as List<dynamic>?) ?? [];
+    final feedback = eval['feedback'] as String;
+
+    return CareerGlassCard(
+      padding: const EdgeInsets.all(18),
+      borderColor: CareerTheme.success.withValues(alpha: 0.5),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.auto_awesome_rounded, color: CareerTheme.primaryCyan, size: 18),
+                  SizedBox(width: 6),
+                  Text(
+                    'EVA AI Evaluation',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: CareerTheme.success.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(CareerTheme.radiusPill),
+                  border: Border.all(color: CareerTheme.success.withValues(alpha: 0.4)),
+                ),
+                child: Text(
+                  '$score / 100',
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: CareerTheme.success),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            feedback,
+            style: const TextStyle(fontSize: 12, color: CareerTheme.textSecondary, height: 1.4),
+          ),
+          const SizedBox(height: 12),
+
+          if (detected.isNotEmpty) ...[
+            const Text('Concepts Covered:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: CareerTheme.success)),
+            const SizedBox(height: 4),
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: detected.map((c) {
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: CareerTheme.success.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: CareerTheme.success.withValues(alpha: 0.3)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.check, size: 11, color: CareerTheme.success),
+                      const SizedBox(width: 4),
+                      Text(c.toString(), style: const TextStyle(fontSize: 10, color: Colors.white)),
+                    ],
                   ),
                 );
               }).toList(),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 8),
+          ],
 
-            // 3. COMMON INTERVIEW QUESTIONS
-            const Text(
-              'Curated Technical Interview Questions',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white),
-            ),
+          if (missing.isNotEmpty) ...[
+            const Text('Recommended Reinforcements:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: CareerTheme.warning)),
             const SizedBox(height: 4),
-            const Text(
-              'Review key questions commonly asked by placement interviewers:',
-              style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
-            ),
-            const SizedBox(height: 12),
-
-            questionsAsync.when(
-              data: (questions) {
-                final list = questions.isNotEmpty
-                    ? questions.map((q) => {
-                          'question': q.question,
-                          'concept': q.category,
-                          'answer': q.idealAnswer,
-                        }).toList()
-                    : _sampleQuestions;
-
-                return Column(
-                  children: list.map((item) => _buildQuestionCard(item)).toList(),
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: missing.map((m) {
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: CareerTheme.warning.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: CareerTheme.warning.withValues(alpha: 0.3)),
+                  ),
+                  child: Text(m.toString(), style: const TextStyle(fontSize: 10, color: Color(0xFFFDE68A))),
                 );
-              },
-              loading: () => Column(
-                children: _sampleQuestions.map((item) => _buildQuestionCard(item)).toList(),
-              ),
-              error: (_, __) => Column(
-                children: _sampleQuestions.map((item) => _buildQuestionCard(item)).toList(),
-              ),
+              }).toList(),
             ),
-            const SizedBox(height: 30),
           ],
-        ),
+        ],
       ),
     );
   }
 
-  Widget _buildModeChip(String mode, String label, IconData icon) {
-    final isSelected = _interviewMode == mode;
-    return InkWell(
-      onTap: () => setState(() => _interviewMode = mode),
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFA855F7).withOpacity(0.3) : const Color(0xFF0F172A).withOpacity(0.5),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: isSelected ? const Color(0xFFA855F7) : const Color(0xFF475569)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 14, color: isSelected ? const Color(0xFFE9D5FF) : const Color(0xFF94A3B8)),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: isSelected ? Colors.white : const Color(0xFF94A3B8),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  // ==========================================
+  // HISTORY TAB (SCREEN 12)
+  // ==========================================
+  Widget _buildHistoryTab() {
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+      itemCount: _historySessions.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      itemBuilder: (context, idx) {
+        final session = _historySessions[idx];
+        final score = session['score'] as int;
 
-  Widget _buildQuestionCard(Map<String, String> item) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1E293B),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF334155)),
-      ),
-      child: Theme(
-        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-        child: ExpansionTile(
-          tilePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-          title: Text(
-            item['question'] ?? '',
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white),
-          ),
-          subtitle: Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Text(
-              item['concept'] ?? 'Core Competency',
-              style: const TextStyle(fontSize: 11, color: Color(0xFF38BDF8)),
-            ),
-          ),
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+        return CareerGlassCard(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Divider(color: Color(0xFF334155)),
-                  const SizedBox(height: 4),
-                  const Text('Expected Answer & Concepts:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF10B981))),
-                  const SizedBox(height: 4),
                   Text(
-                    item['answer'] ?? '',
-                    style: const TextStyle(fontSize: 12, color: Color(0xFFCBD5E1), height: 1.4),
+                    session['date'] as String,
+                    style: const TextStyle(fontSize: 11, color: CareerTheme.textMuted, fontWeight: FontWeight.w500),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: CareerTheme.success.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(CareerTheme.radiusPill),
+                      border: Border.all(color: CareerTheme.success.withValues(alpha: 0.4)),
+                    ),
+                    child: Text(
+                      'Score: $score%',
+                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: CareerTheme.success),
+                    ),
                   ),
                 ],
               ),
-            ),
-          ],
-        ),
-      ),
+              const SizedBox(height: 8),
+              Text(
+                session['role'] as String,
+                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                session['feedback'] as String,
+                style: const TextStyle(fontSize: 12, color: CareerTheme.textSecondary, height: 1.35),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

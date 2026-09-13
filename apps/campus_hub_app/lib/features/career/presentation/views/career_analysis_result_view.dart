@@ -109,10 +109,10 @@ class _CareerAnalysisResultViewState extends ConsumerState<CareerAnalysisResultV
                   end: Alignment.bottomRight,
                 ),
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: const Color(0xFF6366F1).withOpacity(0.5)),
+                border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.5)),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFF6366F1).withOpacity(0.2),
+                    color: const Color(0xFF6366F1).withValues(alpha: 0.2),
                     blurRadius: 20,
                     offset: const Offset(0, 8),
                   ),
@@ -127,9 +127,9 @@ class _CareerAnalysisResultViewState extends ConsumerState<CareerAnalysisResultV
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF10B981).withOpacity(0.2),
+                          color: const Color(0xFF10B981).withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: const Color(0xFF10B981).withOpacity(0.4)),
+                          border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.4)),
                         ),
                         child: const Row(
                           children: [
@@ -185,7 +185,7 @@ class _CareerAnalysisResultViewState extends ConsumerState<CareerAnalysisResultV
                   margin: const EdgeInsets.only(bottom: 10),
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: isChosen ? const Color(0xFF6366F1).withOpacity(0.12) : const Color(0xFF1E293B),
+                    color: isChosen ? const Color(0xFF6366F1).withValues(alpha: 0.12) : const Color(0xFF1E293B),
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(color: isChosen ? const Color(0xFF6366F1) : const Color(0xFF334155)),
                   ),
@@ -205,8 +205,20 @@ class _CareerAnalysisResultViewState extends ConsumerState<CareerAnalysisResultV
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text(aTitle, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white)),
-                                Text('$aFit% Fit', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF38BDF8))),
+                                Expanded(
+                                  child: Text(
+                                    aTitle,
+                                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white),
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF6366F1).withValues(alpha: 0.2),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text('$aFit% Match', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF818CF8))),
+                                ),
                               ],
                             ),
                             const SizedBox(height: 4),
@@ -221,9 +233,9 @@ class _CareerAnalysisResultViewState extends ConsumerState<CareerAnalysisResultV
               const SizedBox(height: 20),
             ],
 
-            // KEY STRENGTHS
+            // STRENGTHS BREAKDOWN
             const Text(
-              'Verified Key Strengths',
+              'Your Key Career Strengths',
               style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white),
             ),
             const SizedBox(height: 8),
@@ -234,9 +246,9 @@ class _CareerAnalysisResultViewState extends ConsumerState<CareerAnalysisResultV
                 return Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF065F46).withOpacity(0.3),
+                    color: const Color(0xFF065F46).withValues(alpha: 0.3),
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFF10B981).withOpacity(0.4)),
+                    border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.4)),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -264,9 +276,9 @@ class _CareerAnalysisResultViewState extends ConsumerState<CareerAnalysisResultV
                 return Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF78350F).withOpacity(0.3),
+                    color: const Color(0xFF78350F).withValues(alpha: 0.3),
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFFF59E0B).withOpacity(0.4)),
+                    border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.4)),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -287,7 +299,7 @@ class _CareerAnalysisResultViewState extends ConsumerState<CareerAnalysisResultV
               decoration: BoxDecoration(
                 color: const Color(0xFF1E293B),
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0xFF38BDF8).withOpacity(0.3)),
+                border: Border.all(color: const Color(0xFF38BDF8).withValues(alpha: 0.3)),
               ),
               child: Row(
                 children: [
@@ -319,7 +331,7 @@ class _CareerAnalysisResultViewState extends ConsumerState<CareerAnalysisResultV
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   elevation: 4,
-                  shadowColor: const Color(0xFF6366F1).withOpacity(0.5),
+                  shadowColor: const Color(0xFF6366F1).withValues(alpha: 0.5),
                 ),
                 child: _isGenerating
                     ? const Row(

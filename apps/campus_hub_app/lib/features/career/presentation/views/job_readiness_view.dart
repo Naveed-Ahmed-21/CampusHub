@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/career_provider.dart';
+import '../theme/career_theme.dart';
+import '../widgets/career_shared_widgets.dart';
 import 'adaptive_quiz_view.dart';
 import 'projects_evidence_view.dart';
 import 'interview_prep_view.dart';
@@ -26,288 +28,441 @@ class JobReadinessView extends ConsumerWidget {
     final readinessAsync = ref.watch(detailedJobReadinessProvider(targetRole));
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0F172A),
+      backgroundColor: CareerTheme.background,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0F172A),
+        backgroundColor: CareerTheme.background,
         elevation: 0,
-        leading: const BackButton(color: Colors.white),
+        leading: BackButton(
+          color: Colors.white,
+          onPressed: () => Navigator.of(context).pop(),
+        ),
         title: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Job Readiness Radar',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white),
+              'Job Readiness',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: -0.3),
             ),
+            SizedBox(height: 2),
             Text(
               '6-Dimension Placement Analytics',
-              style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+              style: TextStyle(fontSize: 11, color: CareerTheme.textMuted),
             ),
           ],
         ),
       ),
       body: RefreshIndicator(
+        color: CareerTheme.primaryCyan,
+        backgroundColor: CareerTheme.surface,
         onRefresh: () async => ref.invalidate(detailedJobReadinessProvider(targetRole)),
         child: readinessAsync.when(
           data: (data) {
-            final overallScore = data['overallScore'] ?? 72;
-            final readinessLevel = data['readinessLevel'] ?? 'Intermediate Builder';
-            final role = data['targetRole'] ?? targetRole ?? 'Software Engineer';
-            final dimensions = (data['dimensions'] as List<dynamic>?) ?? [];
-            final nextAction = data['nextBestAction'] as Map<String, dynamic>?;
-            final strongAreas = (data['strongAreas'] as List<dynamic>?) ?? [];
-            final areasToImprove = (data['areasToImprove'] as List<dynamic>?) ?? [];
+            final overallScore = (data['overallScore'] as num?)?.toInt() ?? 72;
+            final readinessLevel = data['readinessLevel']?.toString() ?? 'Intermediate Builder';
+            final role = data['targetRole']?.toString() ?? targetRole ?? 'Frontend Developer';
+            final dimensions = (data['dimensions'] as List<dynamic>?) ?? _defaultDimensions;
+            final nextAction = data['nextBestAction'] as Map<String, dynamic>? ?? {
+              'title': 'Complete 2 more full-stack projects to reach 80% readiness',
+              'description': 'Deliverable evidence in full-stack architecture is your highest-leverage growth area for campus hiring.',
+              'actionType': 'PROJECT',
+            };
+            final strongAreas = (data['strongAreas'] as List<dynamic>?) ?? [
+              'Modern UI Component Architecture & State Management',
+              'Git Version Control & PR Reviews',
+              'RESTful API Contract Design',
+            ];
+            final areasToImprove = (data['areasToImprove'] as List<dynamic>?) ?? [
+              'Distributed Systems & Real-Time WebSockets',
+              'Advanced Graph Algorithms & System Design',
+            ];
 
             return SingleChildScrollView(
-              padding: const EdgeInsets.all(20.0),
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 36),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 1. OVERALL CIRCLE GAUGE CARD
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF1E1B4B), Color(0xFF312E81), Color(0xFF0F172A)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: const Color(0xFF6366F1).withOpacity(0.5)),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF6366F1).withOpacity(0.18),
-                          blurRadius: 20,
-                          offset: const Offset(0, 8),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      children: [
-                        Container(
-                          width: 110,
-                          height: 110,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: const Color(0xFF0F172A),
-                            border: Border.all(color: const Color(0xFF38BDF8), width: 4),
-                          ),
-                          alignment: Alignment.center,
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                '$overallScore%',
-                                style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: Colors.white),
-                              ),
-                              const Text('READINESS', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Color(0xFF38BDF8), letterSpacing: 0.5)),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF6366F1).withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: const Color(0xFF818CF8).withOpacity(0.4)),
-                          ),
-                          child: Text(
-                            readinessLevel,
-                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF818CF8)),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Target: $role',
-                          style: const TextStyle(fontSize: 13, color: Color(0xFFCBD5E1)),
-                        ),
-                      ],
-                    ),
+                  // 1. TOP CIRCULAR GAUGE HERO CARD (SCREEN 11)
+                  _buildHeroGaugeCard(
+                    score: overallScore,
+                    level: readinessLevel,
+                    role: role,
                   ),
                   const SizedBox(height: 20),
 
-                  // 2. NEXT BEST ACTION BANNER
-                  if (nextAction != null) ...[
-                    _buildNextBestActionCard(context, nextAction),
-                    const SizedBox(height: 24),
-                  ],
-
-                  // 3. 6 DIMENSIONS BREAKDOWN
-                  const Text(
-                    'Evaluated Competency Dimensions',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white),
+                  // 2. 6 DIMENSIONS GRID (SCREEN 11)
+                  const CareerSectionHeader(
+                    title: 'Evaluated Competencies',
+                    subtitle: 'Multi-dimensional readiness breakdown for hiring rubrics',
                   ),
                   const SizedBox(height: 12),
-
-                  ...dimensions.map((d) {
-                    final dim = d as Map<String, dynamic>;
-                    final name = dim['name'] ?? '';
-                    final score = dim['score'] ?? 50;
-                    final status = dim['status'] ?? 'GROWING';
-                    final evidence = dim['evidence'] ?? '';
-
-                    Color barColor = const Color(0xFF38BDF8);
-                    if (status == 'STRONG') barColor = const Color(0xFF10B981);
-                    if (status == 'NEEDS_WORK') barColor = const Color(0xFFF59E0B);
-
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1E293B),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: const Color(0xFF334155)),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white)),
-                              Row(
-                                children: [
-                                  Text('$score%', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: barColor)),
-                                  const SizedBox(width: 8),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: barColor.withOpacity(0.15),
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Text(status, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: barColor)),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(6),
-                            child: LinearProgressIndicator(
-                              value: (score / 100.0).clamp(0.0, 1.0),
-                              minHeight: 6,
-                              backgroundColor: const Color(0xFF0F172A),
-                              valueColor: AlwaysStoppedAnimation<Color>(barColor),
-                            ),
-                          ),
-                          if (evidence.isNotEmpty) ...[
-                            const SizedBox(height: 6),
-                            Text(evidence, style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8))),
-                          ],
-                        ],
-                      ),
-                    );
-                  }),
+                  _buildDimensionsGrid(dimensions),
                   const SizedBox(height: 20),
 
-                  // 4. STRENGTHS & IMPROVEMENTS
+                  // 3. NEXT BEST ACTION BANNER (SCREEN 11)
+                  _buildNextBestActionCard(context, nextAction),
+                  const SizedBox(height: 24),
+
+                  // 4. STRENGTHS & FOCUS AREAS
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Expanded(
-                        child: _buildListCard('Strengths', strongAreas, const Color(0xFF10B981)),
+                        child: _buildCompetencyListCard(
+                          title: 'Strengths',
+                          items: strongAreas,
+                          color: CareerTheme.success,
+                          icon: Icons.check_circle_rounded,
+                        ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: _buildListCard('Focus Areas', areasToImprove, const Color(0xFFF59E0B)),
+                        child: _buildCompetencyListCard(
+                          title: 'Focus Areas',
+                          items: areasToImprove,
+                          color: CareerTheme.warning,
+                          icon: Icons.lightbulb_outline_rounded,
+                        ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 30),
                 ],
               ),
             );
           },
           loading: () => const Center(
-            child: CircularProgressIndicator(color: Color(0xFF6366F1)),
+            child: CircularProgressIndicator(color: CareerTheme.primaryCyan),
           ),
           error: (err, _) => Center(
-            child: Text('Error loading readiness: $err', style: const TextStyle(color: Colors.white70)),
+            child: Text(
+              'Error loading readiness: $err',
+              style: const TextStyle(color: CareerTheme.textMuted),
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildNextBestActionCard(BuildContext context, Map<String, dynamic> nextAction) {
-    final title = nextAction['title'] ?? 'Take Practice Quiz';
-    final desc = nextAction['description'] ?? 'Strengthen your weak competencies.';
-    final actionType = nextAction['actionType'] ?? 'QUIZ';
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1E293B),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF38BDF8).withOpacity(0.5)),
+  // ==========================================
+  // TOP CIRCULAR HERO CARD (SCREEN 11)
+  // ==========================================
+  Widget _buildHeroGaugeCard({
+    required int score,
+    required String level,
+    required String role,
+  }) {
+    return CareerGlassCard(
+      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
+      gradient: const LinearGradient(
+        colors: [Color(0xFF131C31), Color(0xFF0F172A)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          // Circular Score Gauge with Gradient Glow
+          Stack(
+            alignment: Alignment.center,
             children: [
-              const Icon(Icons.bolt_rounded, color: Color(0xFF38BDF8), size: 18),
-              const SizedBox(width: 6),
-              const Text('NEXT BEST ACTION', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF38BDF8), letterSpacing: 0.5)),
+              Container(
+                width: 120,
+                height: 120,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: CareerTheme.primaryCyan.withValues(alpha: 0.18),
+                      blurRadius: 28,
+                      spreadRadius: 2,
+                    ),
+                  ],
+                ),
+              ),
+              CareerProgressRing(
+                percentage: score.toDouble(),
+                size: 110,
+                strokeWidth: 9,
+                progressColor: CareerTheme.primaryCyan,
+                backgroundColor: CareerTheme.surfaceElevated,
+                labelStyle: const TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white,
+                  letterSpacing: -0.5,
+                ),
+              ),
             ],
           ),
-          const SizedBox(height: 8),
-          Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white)),
-          const SizedBox(height: 4),
-          Text(desc, style: const TextStyle(fontSize: 12, color: Color(0xFFCBD5E1), height: 1.35)),
-          const SizedBox(height: 14),
-          SizedBox(
-            width: double.infinity,
-            height: 40,
-            child: ElevatedButton(
-              onPressed: () {
-                if (actionType == 'QUIZ') {
-                  AdaptiveQuizView.open(context, topic: 'Competency Checkpoint');
-                } else if (actionType == 'PROJECT') {
-                  ProjectsEvidenceView.open(context);
-                } else if (actionType == 'INTERVIEW') {
-                  InterviewPrepView.open(context, targetRole: targetRole ?? 'Software Engineer');
-                } else {
-                  Navigator.of(context).pop();
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF38BDF8),
-                foregroundColor: const Color(0xFF0F172A),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-              child: const Text('Execute Recommended Action', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 16),
+
+          // Encouragement message matching reference
+          const Text(
+            "You're on the right track!",
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: Colors.white,
+              letterSpacing: -0.3,
             ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Based on FAANG & Tier-1 startup hiring rubrics',
+            style: TextStyle(fontSize: 12, color: CareerTheme.textMuted),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 14),
+
+          // Role & Level Badges
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                decoration: BoxDecoration(
+                  color: CareerTheme.accentIndigo.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(CareerTheme.radiusPill),
+                  border: Border.all(color: CareerTheme.accentIndigo.withValues(alpha: 0.4)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.psychology_rounded, size: 14, color: CareerTheme.accentIndigo),
+                    const SizedBox(width: 5),
+                    Text(
+                      level,
+                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFFA5B4FC)),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                decoration: BoxDecoration(
+                  color: CareerTheme.surfaceElevated,
+                  borderRadius: BorderRadius.circular(CareerTheme.radiusPill),
+                  border: Border.all(color: CareerTheme.glassBorder),
+                ),
+                child: Text(
+                  role,
+                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: CareerTheme.textSecondary),
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _buildListCard(String title, List<dynamic> items, Color accentColor) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1E293B),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF334155)),
+  // ==========================================
+  // 6 DIMENSIONS GRID (SCREEN 11)
+  // ==========================================
+  Widget _buildDimensionsGrid(List<dynamic> dimensions) {
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 10,
+        mainAxisSpacing: 10,
+        childAspectRatio: 1.55,
+      ),
+      itemCount: dimensions.length,
+      itemBuilder: (context, idx) {
+        final dim = dimensions[idx] as Map<String, dynamic>;
+        final name = dim['name']?.toString() ?? 'Dimension';
+        final score = (dim['score'] as num?)?.toInt() ?? 60;
+        final icon = _getDimensionIcon(name);
+        final color = _getDimensionColor(idx);
+
+        return CareerGlassCard(
+          padding: const EdgeInsets.all(12),
+          borderRadius: CareerTheme.radiusMedium,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(icon, size: 16, color: color),
+                  ),
+                  Text(
+                    '$score%',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: color,
+                    ),
+                  ),
+                ],
+              ),
+              Text(
+                name,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: (score / 100.0).clamp(0.0, 1.0),
+                  minHeight: 5,
+                  backgroundColor: CareerTheme.surfaceElevated,
+                  valueColor: AlwaysStoppedAnimation<Color>(color),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  IconData _getDimensionIcon(String name) {
+    final lower = name.toLowerCase();
+    if (lower.contains('tech')) return Icons.code_rounded;
+    if (lower.contains('project')) return Icons.folder_rounded;
+    if (lower.contains('dsa') || lower.contains('algo')) return Icons.account_tree_rounded;
+    if (lower.contains('resume')) return Icons.description_rounded;
+    if (lower.contains('interview')) return Icons.record_voice_over_rounded;
+    if (lower.contains('comm')) return Icons.chat_bubble_outline_rounded;
+    return Icons.insights_rounded;
+  }
+
+  Color _getDimensionColor(int idx) {
+    const palette = [
+      Color(0xFF38BDF8), // Cyan
+      Color(0xFF6366F1), // Indigo
+      Color(0xFFA855F7), // Purple
+      Color(0xFF10B981), // Emerald
+      Color(0xFFF59E0B), // Amber
+      Color(0xFFEC4899), // Pink
+    ];
+    return palette[idx % palette.length];
+  }
+
+  // ==========================================
+  // NEXT BEST ACTION CARD (SCREEN 11)
+  // ==========================================
+  Widget _buildNextBestActionCard(BuildContext context, Map<String, dynamic> nextAction) {
+    final title = nextAction['title']?.toString() ?? 'Complete 2 more full-stack projects to reach 80% readiness';
+    final desc = nextAction['description']?.toString() ?? 'Strengthen your portfolio evidence with verified deliverables.';
+    final actionType = nextAction['actionType']?.toString() ?? 'PROJECT';
+
+    return CareerGlassCard(
+      padding: const EdgeInsets.all(18),
+      borderColor: CareerTheme.primaryCyan.withValues(alpha: 0.5),
+      gradient: const LinearGradient(
+        colors: [Color(0xFF101B30), Color(0xFF13233E)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: accentColor)),
-          const SizedBox(height: 8),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(5),
+                decoration: BoxDecoration(
+                  color: CareerTheme.primaryCyan.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Icon(Icons.bolt_rounded, color: CareerTheme.primaryCyan, size: 16),
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                'NEXT BEST ACTION',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  color: CareerTheme.primaryCyan,
+                  letterSpacing: 0.8,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            title,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white, height: 1.3),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            desc,
+            style: const TextStyle(fontSize: 12, color: CareerTheme.textMuted, height: 1.35),
+          ),
+          const SizedBox(height: 16),
+          CareerPrimaryButton(
+            label: 'Execute Recommended Action →',
+            onPressed: () {
+              if (actionType == 'QUIZ') {
+                AdaptiveQuizView.open(context, topic: 'Competency Checkpoint');
+              } else if (actionType == 'PROJECT') {
+                ProjectsEvidenceView.open(context);
+              } else if (actionType == 'INTERVIEW') {
+                InterviewPrepView.open(context, targetRole: targetRole ?? 'Software Engineer');
+              } else {
+                ProjectsEvidenceView.open(context);
+              }
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ==========================================
+  // STRENGTHS & FOCUS AREAS CARD
+  // ==========================================
+  Widget _buildCompetencyListCard({
+    required String title,
+    required List<dynamic> items,
+    required Color color,
+    required IconData icon,
+  }) {
+    return CareerGlassCard(
+      padding: const EdgeInsets.all(14),
+      borderRadius: CareerTheme.radiusMedium,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 14, color: color),
+              const SizedBox(width: 6),
+              Text(
+                title,
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: color),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
           ...items.take(3).map((item) {
             return Padding(
               padding: const EdgeInsets.only(bottom: 6),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('• ', style: TextStyle(color: accentColor, fontWeight: FontWeight.bold)),
+                  Text('• ', style: TextStyle(color: color, fontWeight: FontWeight.bold)),
                   Expanded(
-                    child: Text(item.toString(), style: const TextStyle(fontSize: 11, color: Color(0xFFCBD5E1))),
+                    child: Text(
+                      item.toString(),
+                      style: const TextStyle(fontSize: 11, color: CareerTheme.textSecondary, height: 1.3),
+                    ),
                   ),
                 ],
               ),
@@ -317,4 +472,13 @@ class JobReadinessView extends ConsumerWidget {
       ),
     );
   }
+
+  static const List<Map<String, dynamic>> _defaultDimensions = [
+    {'name': 'Technical Skills', 'score': 80},
+    {'name': 'Projects', 'score': 70},
+    {'name': 'DSA & Problem Solving', 'score': 60},
+    {'name': 'Resume & ATS', 'score': 70},
+    {'name': 'Interview Prep', 'score': 65},
+    {'name': 'Communication', 'score': 76},
+  ];
 }

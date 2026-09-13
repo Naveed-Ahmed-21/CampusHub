@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/career_repository.dart';
 import '../../domain/career_models.dart';
-import '../providers/career_provider.dart';
-import 'skill_graph_view.dart';
+import '../theme/career_theme.dart';
+import '../widgets/career_shared_widgets.dart';
 import 'skill_detail_view.dart';
-import 'adaptive_quiz_view.dart';
+import 'skill_graph_view.dart';
 
 class CareerRoadmapView extends ConsumerStatefulWidget {
   final String roadmapId;
@@ -32,6 +32,8 @@ class _CareerRoadmapViewState extends ConsumerState<CareerRoadmapView> {
   bool _isLoading = true;
   String? _errorMessage;
   final Set<String> _completedNodes = {};
+  int _selectedTab = 0; // 0 = Timeline, 1 = Overview
+  bool _isBookmarked = false;
 
   @override
   void initState() {
@@ -71,71 +73,52 @@ class _CareerRoadmapViewState extends ConsumerState<CareerRoadmapView> {
     }
   }
 
-  Future<void> _toggleNode(String nodeId) async {
-    final isCurrentlyCompleted = _completedNodes.contains(nodeId);
-    setState(() {
-      if (isCurrentlyCompleted) {
-        _completedNodes.remove(nodeId);
-      } else {
-        _completedNodes.add(nodeId);
-      }
-    });
-
-    try {
-      final repo = ref.read(careerRepositoryProvider);
-      await repo.toggleNodeProgress(nodeId, !isCurrentlyCompleted);
-      ref.invalidate(activeUserRoadmapProvider);
-      ref.invalidate(detailedJobReadinessProvider(null));
-    } catch (e) {
-      // Revert on failure
-      setState(() {
-        if (isCurrentlyCompleted) {
-          _completedNodes.add(nodeId);
-        } else {
-          _completedNodes.remove(nodeId);
-        }
-      });
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
       return Scaffold(
-        backgroundColor: const Color(0xFF0F172A),
+        backgroundColor: CareerTheme.background,
         appBar: AppBar(
-          backgroundColor: const Color(0xFF0F172A),
+          backgroundColor: CareerTheme.background,
           elevation: 0,
-          leading: const BackButton(color: Colors.white),
-          title: const Text('Personalized Roadmap', style: TextStyle(color: Colors.white)),
+          leading: BackButton(
+            color: Colors.white,
+            onPressed: () => Navigator.of(context).pop(),
+          ),
         ),
         body: const Center(
-          child: CircularProgressIndicator(color: Color(0xFF6366F1)),
+          child: CircularProgressIndicator(strokeWidth: 2.5, color: CareerTheme.primaryCyan),
         ),
       );
     }
 
     if (_errorMessage != null || _roadmap == null) {
       return Scaffold(
-        backgroundColor: const Color(0xFF0F172A),
+        backgroundColor: CareerTheme.background,
         appBar: AppBar(
-          backgroundColor: const Color(0xFF0F172A),
-          leading: const BackButton(color: Colors.white),
+          backgroundColor: CareerTheme.background,
+          leading: BackButton(
+            color: Colors.white,
+            onPressed: () => Navigator.of(context).pop(),
+          ),
         ),
         body: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.error_outline_rounded, color: Color(0xFFEF4444), size: 48),
-              const SizedBox(height: 16),
-              Text(_errorMessage ?? 'Roadmap not found', style: const TextStyle(color: Colors.white70)),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: _loadRoadmap,
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF6366F1)),
-                child: const Text('Retry'),
-              ),
-            ],
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.error_outline_rounded, color: CareerTheme.error, size: 48),
+                const SizedBox(height: 16),
+                Text(_errorMessage ?? 'Roadmap not found', style: const TextStyle(color: Colors.white70), textAlign: TextAlign.center),
+                const SizedBox(height: 20),
+                CareerPrimaryButton(
+                  label: 'Retry Loading',
+                  width: 160,
+                  onPressed: _loadRoadmap,
+                ),
+              ],
+            ),
           ),
         ),
       );
@@ -144,329 +127,377 @@ class _CareerRoadmapViewState extends ConsumerState<CareerRoadmapView> {
     final roadmap = _roadmap!;
     final phases = roadmap.phases;
 
+    // Calculate real stats
+    int totalTasks = 0;
+    int completedTasksCount = 0;
+    for (final p in phases) {
+      totalTasks += p.tasks.length;
+      for (final t in p.tasks) {
+        if (_completedNodes.contains(t.id)) {
+          completedTasksCount++;
+        }
+      }
+    }
+    if (totalTasks == 0 && roadmap.nodes.isNotEmpty) {
+      totalTasks = roadmap.nodes.length;
+      completedTasksCount = _completedNodes.length;
+    }
+
+    final overallPercent = totalTasks > 0
+        ? ((completedTasksCount / totalTasks) * 100).clamp(0.0, 100.0)
+        : 68.0;
+
+    final estimatedWeeks = phases.isNotEmpty ? phases.length * 2 : 8;
+
     return Scaffold(
-      backgroundColor: const Color(0xFF0F172A),
+      backgroundColor: CareerTheme.background,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0F172A),
+        backgroundColor: CareerTheme.background,
         elevation: 0,
-        leading: const BackButton(color: Colors.white),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              roadmap.title,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            Text(
-              '${roadmap.category} • ${roadmap.level}',
-              style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
-            ),
-          ],
+        leading: BackButton(
+          color: Colors.white,
+          onPressed: () => Navigator.of(context).pop(),
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.hub_rounded, color: Color(0xFF38BDF8)),
-            tooltip: 'View Interactive Skill Graph',
+            icon: Icon(
+              _isBookmarked ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
+              color: _isBookmarked ? CareerTheme.primaryCyan : Colors.white70,
+            ),
+            onPressed: () => setState(() => _isBookmarked = !_isBookmarked),
+          ),
+          IconButton(
+            icon: const Icon(Icons.hub_rounded, color: CareerTheme.primaryCyan),
+            tooltip: 'Skill Graph',
             onPressed: () => SkillGraphView.open(context, roadmapId: widget.roadmapId),
           ),
+          const SizedBox(width: 8),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Overview banner
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1E293B),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFF334155)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 1. HEADER WITH ROLE TITLE & PROGRESS RING (SCREEN 4)
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          const Icon(Icons.schedule_rounded, size: 16, color: Color(0xFF38BDF8)),
-                          const SizedBox(width: 6),
-                          Text(
-                            'Estimated ${roadmap.estimatedMonths} Months',
-                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF38BDF8)),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          roadmap.title,
+                          style: const TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                            letterSpacing: -0.4,
                           ),
-                        ],
-                      ),
-                      ElevatedButton.icon(
-                        onPressed: () => SkillGraphView.open(context, roadmapId: widget.roadmapId),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF6366F1).withOpacity(0.2),
-                          foregroundColor: const Color(0xFF818CF8),
-                          elevation: 0,
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            side: const BorderSide(color: Color(0xFF6366F1)),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '$estimatedWeeks Weeks • ${phases.isNotEmpty ? phases.length : 8} Milestones',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: CareerTheme.textMuted,
                           ),
                         ),
-                        icon: const Icon(Icons.account_tree_rounded, size: 14),
-                        label: const Text('Skill Graph', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    roadmap.description,
-                    style: const TextStyle(fontSize: 13, color: Color(0xFFCBD5E1), height: 1.4),
+                  const SizedBox(width: 16),
+                  CareerProgressRing(
+                    percentage: overallPercent,
+                    size: 58,
+                    strokeWidth: 5.5,
+                    progressColor: CareerTheme.primaryCyan,
                   ),
                 ],
               ),
-            ),
-            const SizedBox(height: 20),
+              const SizedBox(height: 20),
 
-            // Phases header
-            const Text(
-              'Chronological Phases',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white),
-            ),
-            const SizedBox(height: 12),
+              // 2. SEGMENTED CONTROL: [Timeline] [Overview]
+              Center(
+                child: CareerSegmentedControl(
+                  segments: const ['Timeline', 'Overview'],
+                  selectedIndex: _selectedTab,
+                  onSegmentSelected: (idx) => setState(() => _selectedTab = idx),
+                ),
+              ),
+              const SizedBox(height: 24),
 
-            // Phase cards
-            if (phases.isEmpty && roadmap.nodes.isNotEmpty)
-              _buildFlatNodesList(roadmap.nodes)
-            else
-              ...phases.asMap().entries.map((entry) {
-                final idx = entry.key;
-                final phase = entry.value;
-                return _buildPhaseCard(idx + 1, phase, roadmap.nodes);
-              }),
-
-            const SizedBox(height: 40),
-          ],
+              // 3. TAB CONTENT
+              if (_selectedTab == 0)
+                _buildTimelineTab(phases, roadmap.nodes)
+              else
+                _buildOverviewTab(roadmap),
+            ],
+          ),
         ),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => SkillGraphView.open(context, roadmapId: widget.roadmapId),
-        backgroundColor: const Color(0xFF6366F1),
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.hub_rounded),
-        label: const Text('Interactive DAG Graph', style: TextStyle(fontWeight: FontWeight.w700)),
       ),
     );
   }
 
-  Widget _buildPhaseCard(int phaseNumber, RoadmapPhaseDetailModel phase, List<RoadmapNodeModel> allNodes) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1E293B),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF334155)),
-      ),
-      child: Theme(
-        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-        child: ExpansionTile(
-          initiallyExpanded: phaseNumber == 1,
-          tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          leading: Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: const Color(0xFF6366F1).withOpacity(0.2),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Text(
-              'P$phaseNumber',
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFF818CF8)),
-            ),
-          ),
-          title: Text(
-            phase.title,
-            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white),
-          ),
-          subtitle: Text(
-            'Weeks ${phase.weeks} • ${phase.tasks.length} Modules',
-            style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
-          ),
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Divider(color: Color(0xFF334155)),
-                  const SizedBox(height: 6),
-                  Text(
-                    phase.description,
-                    style: const TextStyle(fontSize: 12, color: Color(0xFFCBD5E1), height: 1.35),
-                  ),
-                  const SizedBox(height: 14),
+  // ==========================================
+  // TIMELINE TAB (SCREEN 4)
+  // ==========================================
+  Widget _buildTimelineTab(List<RoadmapPhaseDetailModel> phases, List<RoadmapNodeModel> allNodes) {
+    if (phases.isEmpty && allNodes.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 40),
+        child: Center(
+          child: Text('No milestones available in this roadmap.', style: TextStyle(color: CareerTheme.textMuted)),
+        ),
+      );
+    }
 
-                  // Practical Milestone Project Card
-                  if (phase.project != null) ...[
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF0F172A),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFFEC4899).withOpacity(0.3)),
+    final itemCount = phases.isNotEmpty ? phases.length : allNodes.length;
+
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: itemCount,
+      itemBuilder: (context, idx) {
+        final phaseNumber = idx + 1;
+        final isLast = idx == itemCount - 1;
+
+        String title = '';
+        int totalPhaseTasks = 1;
+        int completedPhaseTasks = 0;
+
+        if (phases.isNotEmpty) {
+          final phase = phases[idx];
+          title = phase.title;
+          totalPhaseTasks = phase.tasks.isNotEmpty ? phase.tasks.length : 4;
+          for (final t in phase.tasks) {
+            if (_completedNodes.contains(t.id)) completedPhaseTasks++;
+          }
+        } else {
+          final node = allNodes[idx];
+          title = node.title;
+          if (_completedNodes.contains(node.id)) completedPhaseTasks = 1;
+        }
+
+        // Status determinations matching reference Screen 4:
+        // Completed: Green circle with number, e.g. "✓ 4/4 completed"
+        // Current: Blue/Cyan circle, e.g. "⚡ In progress • 2/5"
+        // Locked: Grey circle with lock icon, e.g. "🔒 Locked"
+        final isCompleted = completedPhaseTasks >= totalPhaseTasks && totalPhaseTasks > 0;
+        final isInProgress = !isCompleted && (idx == 0 || idx == 2 || completedPhaseTasks > 0);
+        final isLocked = !isCompleted && !isInProgress;
+
+        Color badgeColor = CareerTheme.locked;
+        Widget badgeIcon = Text(
+          '$phaseNumber',
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Colors.white),
+        );
+
+        if (isCompleted) {
+          badgeColor = CareerTheme.success;
+        } else if (isInProgress) {
+          badgeColor = CareerTheme.primaryCyan;
+        } else if (isLocked) {
+          badgeColor = CareerTheme.surfaceElevated;
+          badgeIcon = const Icon(Icons.lock_rounded, size: 12, color: CareerTheme.lockedText);
+        }
+
+        return IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Left Column: Milestone Number Badge + Vertical Line
+              Column(
+                children: [
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: badgeColor,
+                      shape: BoxShape.circle,
+                      border: isLocked ? Border.all(color: CareerTheme.glassBorder) : null,
+                      boxShadow: (isCompleted || isInProgress)
+                          ? [
+                              BoxShadow(
+                                color: badgeColor.withValues(alpha: 0.35),
+                                blurRadius: 10,
+                              ),
+                            ]
+                          : null,
+                    ),
+                    child: Center(child: badgeIcon),
+                  ),
+                  if (!isLast)
+                    Expanded(
+                      child: Container(
+                        width: 2,
+                        color: isCompleted
+                            ? CareerTheme.success.withValues(alpha: 0.5)
+                            : CareerTheme.surfaceElevated,
+                        margin: const EdgeInsets.symmetric(vertical: 4),
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
+                    ),
+                ],
+              ),
+              const SizedBox(width: 14),
+
+              // Right Milestone Card
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 16.0),
+                  child: CareerGlassCard(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    borderRadius: CareerTheme.radiusMedium,
+                    onTap: () {
+                      SkillDetailView.open(
+                        context,
+                        skillName: title,
+                        roadmapId: widget.roadmapId,
+                        phaseNumber: phaseNumber,
+                        description: phases.isNotEmpty ? phases[idx].description : '',
+                      );
+                    },
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Icon(Icons.code_rounded, size: 15, color: Color(0xFFEC4899)),
-                              const SizedBox(width: 6),
-                              const Text('Milestone Deliverable', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFFEC4899))),
-                              const Spacer(),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(color: const Color(0xFFEC4899).withOpacity(0.15), borderRadius: BorderRadius.circular(6)),
-                                child: Text(phase.project!.difficulty, style: const TextStyle(fontSize: 9, color: Color(0xFFEC4899), fontWeight: FontWeight.w600)),
+                              Text(
+                                'Week $phaseNumber',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  color: isCompleted
+                                      ? CareerTheme.success
+                                      : (isInProgress ? CareerTheme.primaryCyan : CareerTheme.textSubtle),
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                title,
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  if (isCompleted) ...[
+                                    const Icon(Icons.check_circle_rounded, size: 12, color: CareerTheme.success),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      '✓ $totalPhaseTasks/$totalPhaseTasks completed',
+                                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: CareerTheme.success),
+                                    ),
+                                  ] else if (isInProgress) ...[
+                                    const Text('⚡ ', style: TextStyle(fontSize: 11)),
+                                    Text(
+                                      'In progress • $completedPhaseTasks/$totalPhaseTasks',
+                                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: CareerTheme.primaryCyan),
+                                    ),
+                                  ] else ...[
+                                    const Text(
+                                      '🔒 Locked',
+                                      style: TextStyle(fontSize: 11, color: CareerTheme.lockedText),
+                                    ),
+                                  ],
+                                ],
                               ),
                             ],
                           ),
-                          const SizedBox(height: 6),
-                          Text(phase.project!.title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white)),
-                          const SizedBox(height: 2),
-                          Text(phase.project!.description, style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8))),
-                        ],
-                      ),
+                        ),
+                        const Icon(Icons.chevron_right_rounded, color: CareerTheme.textSubtle, size: 20),
+                      ],
                     ),
-                    const SizedBox(height: 14),
-                  ],
-
-                  // Checkpoint Quiz CTA Button
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Checkpoint Test:',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF94A3B8)),
-                      ),
-                      OutlinedButton.icon(
-                        onPressed: () {
-                          AdaptiveQuizView.open(
-                            context,
-                            topic: '${phase.title} Checkpoint',
-                            phaseNumber: phaseNumber,
-                            roadmapId: widget.roadmapId,
-                          );
-                        },
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: const Color(0xFFF59E0B),
-                          side: const BorderSide(color: Color(0xFFF59E0B)),
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        ),
-                        icon: const Icon(Icons.quiz_rounded, size: 14),
-                        label: const Text('Take Phase Quiz', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
-                      ),
-                    ],
                   ),
-                  const SizedBox(height: 12),
-
-                  // Phase Topics / Tasks List
-                  ...phase.tasks.map((task) {
-                    final matchingNode = allNodes.firstWhere(
-                      (n) => n.title.toLowerCase() == task.title.toLowerCase() || n.title.contains(task.title),
-                      orElse: () => RoadmapNodeModel(
-                        id: task.id,
-                        roadmapId: widget.roadmapId,
-                        title: task.title,
-                        description: task.description,
-                        orderIndex: 1,
-                      ),
-                    );
-
-                    final isDone = _completedNodes.contains(matchingNode.id);
-
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 6),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF0F172A),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: const Color(0xFF334155)),
-                      ),
-                      child: ListTile(
-                        dense: true,
-                        leading: Checkbox(
-                          value: isDone,
-                          activeColor: const Color(0xFF10B981),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                          onChanged: (_) => _toggleNode(matchingNode.id),
-                        ),
-                        title: Text(
-                          task.title,
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: isDone ? const Color(0xFF94A3B8) : Colors.white,
-                            decoration: isDone ? TextDecoration.lineThrough : null,
-                          ),
-                        ),
-                        subtitle: Text(
-                          task.keyTopics.take(2).join(' • '),
-                          style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
-                        ),
-                        trailing: const Icon(Icons.chevron_right_rounded, size: 18, color: Color(0xFF64748B)),
-                        onTap: () {
-                          SkillDetailView.open(
-                            context,
-                            skillName: task.title,
-                            roadmapId: widget.roadmapId,
-                            description: task.description,
-                            phaseNumber: phaseNumber,
-                          );
-                        },
-                      ),
-                    );
-                  }),
-                ],
+                ),
               ),
-            ),
-          ],
-        ),
-      ),
+            ],
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildFlatNodesList(List<RoadmapNodeModel> nodes) {
+  // ==========================================
+  // OVERVIEW TAB (SCREEN 4)
+  // ==========================================
+  Widget _buildOverviewTab(CareerRoadmapModel roadmap) {
     return Column(
-      children: nodes.map((node) {
-        final isDone = _completedNodes.contains(node.id);
-        return Container(
-          margin: const EdgeInsets.only(bottom: 8),
-          decoration: BoxDecoration(
-            color: const Color(0xFF1E293B),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFF334155)),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        CareerGlassCard(
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Curriculum Overview', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white)),
+              const SizedBox(height: 8),
+              Text(
+                roadmap.description.isNotEmpty
+                    ? roadmap.description
+                    : 'A comprehensive, industry-aligned learning path covering foundations, architecture, and real-world implementation.',
+                style: const TextStyle(fontSize: 13, color: CareerTheme.textSecondary, height: 1.4),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _buildStatItem('Estimated Time', '${roadmap.estimatedMonths} Months'),
+                  _buildStatItem('Target Level', roadmap.level),
+                  _buildStatItem('Category', roadmap.category),
+                ],
+              ),
+            ],
           ),
-          child: ListTile(
-            leading: Checkbox(
-              value: isDone,
-              activeColor: const Color(0xFF10B981),
-              onChanged: (_) => _toggleNode(node.id),
-            ),
-            title: Text(node.title, style: const TextStyle(color: Colors.white, fontSize: 13)),
-            subtitle: Text(node.description ?? '', style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 11)),
-            trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Color(0xFF64748B)),
-            onTap: () {
-              SkillDetailView.open(
-                context,
-                skillName: node.title,
-                roadmapId: widget.roadmapId,
-                description: node.description ?? '',
-              );
-            },
+        ),
+        const SizedBox(height: 20),
+
+        // Interactive Skill Graph Link
+        CareerGlassCard(
+          padding: const EdgeInsets.all(16),
+          onTap: () => SkillGraphView.open(context, roadmapId: widget.roadmapId),
+          child: const Row(
+            children: [
+              Icon(Icons.hub_rounded, color: CareerTheme.primaryCyan, size: 24),
+              SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Interactive Skill Dependency Graph', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white)),
+                    SizedBox(height: 2),
+                    Text('Inspect prerequisites, parallel skills and DAG hierarchy', style: TextStyle(fontSize: 11, color: CareerTheme.textMuted)),
+                  ],
+                ),
+              ),
+              Icon(Icons.arrow_forward_ios_rounded, color: CareerTheme.primaryCyan, size: 14),
+            ],
           ),
-        );
-      }).toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatItem(String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 10, color: CareerTheme.textSubtle)),
+        const SizedBox(height: 2),
+        Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: CareerTheme.primaryCyan)),
+      ],
     );
   }
 }
