@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/services/url_launcher_service.dart';
-import '../../data/career_repository.dart';
 import '../providers/career_provider.dart';
 
 class LearningWorkspaceView extends ConsumerStatefulWidget {
@@ -125,8 +124,8 @@ class _LearningWorkspaceViewState extends ConsumerState<LearningWorkspaceView> {
                       borderRadius: BorderRadius.circular(16),
                       gradient: LinearGradient(
                         colors: [
-                          const Color(0xFF0F172A).withOpacity(0.8),
-                          const Color(0xFF1E1B4B).withOpacity(0.9),
+                          const Color(0xFF0F172A).withValues(alpha: 0.8),
+                          const Color(0xFF1E1B4B).withValues(alpha: 0.9),
                         ],
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
@@ -139,7 +138,7 @@ class _LearningWorkspaceViewState extends ConsumerState<LearningWorkspaceView> {
                       Container(
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFEF4444).withOpacity(0.2),
+                          color: const Color(0xFFEF4444).withValues(alpha: 0.2),
                           shape: BoxShape.circle,
                           border: Border.all(color: const Color(0xFFEF4444)),
                         ),
@@ -206,7 +205,7 @@ class _LearningWorkspaceViewState extends ConsumerState<LearningWorkspaceView> {
                 decoration: BoxDecoration(
                   color: const Color(0xFF1E293B),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: isDone ? const Color(0xFF10B981).withOpacity(0.5) : const Color(0xFF334155)),
+                  border: Border.all(color: isDone ? const Color(0xFF10B981).withValues(alpha: 0.5) : const Color(0xFF334155)),
                 ),
                 child: CheckboxListTile(
                   value: isDone,
@@ -240,7 +239,7 @@ class _LearningWorkspaceViewState extends ConsumerState<LearningWorkspaceView> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF6366F1).withOpacity(0.15),
+                    color: const Color(0xFF6366F1).withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: const Text('Auto-saved', style: TextStyle(fontSize: 10, color: Color(0xFF818CF8), fontWeight: FontWeight.w600)),

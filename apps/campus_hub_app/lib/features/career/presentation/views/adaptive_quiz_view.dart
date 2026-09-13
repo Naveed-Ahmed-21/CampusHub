@@ -294,7 +294,7 @@ class _AdaptiveQuizViewState extends ConsumerState<AdaptiveQuizView> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF6366F1).withOpacity(0.15),
+                    color: const Color(0xFF6366F1).withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
@@ -323,7 +323,7 @@ class _AdaptiveQuizViewState extends ConsumerState<AdaptiveQuizView> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF38BDF8).withOpacity(0.15),
+                          color: const Color(0xFF38BDF8).withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
@@ -352,7 +352,7 @@ class _AdaptiveQuizViewState extends ConsumerState<AdaptiveQuizView> {
               return Container(
                 margin: const EdgeInsets.only(bottom: 10),
                 decoration: BoxDecoration(
-                  color: isChosen ? const Color(0xFF6366F1).withOpacity(0.15) : const Color(0xFF1E293B),
+                  color: isChosen ? const Color(0xFF6366F1).withValues(alpha: 0.15) : const Color(0xFF1E293B),
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(
                     color: isChosen ? const Color(0xFF6366F1) : const Color(0xFF334155),

@@ -35,25 +35,32 @@ class _CareerHubHomeViewState extends ConsumerState<CareerHubHomeView> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: const Color(0xFF6366F1).withOpacity(0.2),
+                color: const Color(0xFF6366F1).withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0xFF6366F1).withOpacity(0.4)),
+                border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.4)),
               ),
               child: const Icon(Icons.rocket_launch_rounded, color: Color(0xFF818CF8), size: 20),
             ),
-            const SizedBox(width: 12),
-            const Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Career Hub',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white),
-                ),
-                Text(
-                  'AI-Powered Career & Learning Workspace',
-                  style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
-                ),
-              ],
+            const SizedBox(width: 10),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Career Hub',
+                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: Colors.white),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    'AI-Powered Career & Learning Workspace',
+                    style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -143,10 +150,10 @@ class _CareerHubHomeViewState extends ConsumerState<CareerHubHomeView> {
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: const Color(0xFF6366F1).withOpacity(0.35)),
+            border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.35)),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF6366F1).withOpacity(0.12),
+                color: const Color(0xFF6366F1).withValues(alpha: 0.12),
                 blurRadius: 20,
                 offset: const Offset(0, 8),
               ),
@@ -158,34 +165,42 @@ class _CareerHubHomeViewState extends ConsumerState<CareerHubHomeView> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF4338CA).withOpacity(0.6),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFF818CF8).withOpacity(0.3)),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.stars_rounded, color: Color(0xFFFBBF24), size: 14),
-                        const SizedBox(width: 5),
-                        Text(
-                          hasRoadmap ? 'Active Career Track' : 'Unassigned Direction',
-                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.white),
-                        ),
-                      ],
+                  Flexible(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF4338CA).withValues(alpha: 0.6),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFF818CF8).withValues(alpha: 0.3)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.stars_rounded, color: Color(0xFFFBBF24), size: 14),
+                          const SizedBox(width: 5),
+                          Flexible(
+                            child: Text(
+                              hasRoadmap ? 'Active Career Track' : 'Unassigned Direction',
+                              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.white),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
+                  const SizedBox(width: 8),
                   InkWell(
                     onTap: () => CareerPathfinderView.open(context),
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF0F172A).withOpacity(0.5),
+                        color: const Color(0xFF0F172A).withValues(alpha: 0.5),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: const Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(Icons.tune_rounded, color: Color(0xFF38BDF8), size: 13),
                           SizedBox(width: 4),
@@ -200,6 +215,8 @@ class _CareerHubHomeViewState extends ConsumerState<CareerHubHomeView> {
               Text(
                 targetRole,
                 style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: Colors.white),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: 6),
               Text(
@@ -207,6 +224,8 @@ class _CareerHubHomeViewState extends ConsumerState<CareerHubHomeView> {
                     ? 'Phase ${active.currentPhaseNumber}: ${active.currentPhaseTitle.isNotEmpty ? active.currentPhaseTitle : "Foundations"}'
                     : 'Take the dynamic 7-stage Pathfinder to generate your roadmap.',
                 style: const TextStyle(fontSize: 13, color: Color(0xFFCBD5E1)),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: 18),
 
@@ -214,8 +233,19 @@ class _CareerHubHomeViewState extends ConsumerState<CareerHubHomeView> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('Curriculum Progress ($progress%)', style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8))),
-                  Text('Job Readiness: $readinessScore%', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF38BDF8))),
+                  Flexible(
+                    child: Text(
+                      'Curriculum Progress ($progress%)',
+                      style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Readiness: $readinessScore%',
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF38BDF8)),
+                  ),
                 ],
               ),
               const SizedBox(height: 8),
@@ -234,7 +264,7 @@ class _CareerHubHomeViewState extends ConsumerState<CareerHubHomeView> {
               Row(
                 children: [
                   Expanded(
-                    child: ElevatedButton.icon(
+                    child: ElevatedButton(
                       onPressed: () {
                         if (hasRoadmap) {
                           CareerRoadmapView.open(context, roadmapId: roadmapId);
@@ -245,31 +275,53 @@ class _CareerHubHomeViewState extends ConsumerState<CareerHubHomeView> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF6366F1),
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         elevation: 0,
                       ),
-                      icon: Icon(hasRoadmap ? Icons.map_rounded : Icons.explore_rounded, size: 16),
-                      label: Text(
-                        hasRoadmap ? 'View Roadmap' : 'Discover Career',
-                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(hasRoadmap ? Icons.map_rounded : Icons.explore_rounded, size: 16),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              hasRoadmap ? 'View Roadmap' : 'Discover Career',
+                              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: OutlinedButton.icon(
+                    child: OutlinedButton(
                       onPressed: () => JobReadinessView.open(context, targetRole: targetRole),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: const Color(0xFF38BDF8),
                         side: const BorderSide(color: Color(0xFF38BDF8)),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
-                      icon: const Icon(Icons.insights_rounded, size: 16),
-                      label: const Text(
-                        'Readiness (72%)',
-                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.insights_rounded, size: 16),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              'Readiness ($readinessScore%)',
+                              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -308,14 +360,14 @@ class _CareerHubHomeViewState extends ConsumerState<CareerHubHomeView> {
       decoration: BoxDecoration(
         color: const Color(0xFF1E293B),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF38BDF8).withOpacity(0.3)),
+        border: Border.all(color: const Color(0xFF38BDF8).withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: const Color(0xFF38BDF8).withOpacity(0.15),
+              color: const Color(0xFF38BDF8).withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(10),
             ),
             child: const Icon(Icons.bolt_rounded, color: Color(0xFF38BDF8), size: 22),
@@ -327,17 +379,24 @@ class _CareerHubHomeViewState extends ConsumerState<CareerHubHomeView> {
               children: [
                 Row(
                   children: [
-                    const Text('Next Best Action', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF38BDF8), letterSpacing: 0.5)),
+                    const Flexible(
+                      child: Text(
+                        'Next Best Action',
+                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF38BDF8), letterSpacing: 0.5),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
                     const SizedBox(width: 6),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                      decoration: BoxDecoration(color: const Color(0xFF10B981).withOpacity(0.2), borderRadius: BorderRadius.circular(4)),
+                      decoration: BoxDecoration(color: const Color(0xFF10B981).withValues(alpha: 0.2), borderRadius: BorderRadius.circular(4)),
                       child: const Text('Recommended', style: TextStyle(fontSize: 9, color: Color(0xFF10B981), fontWeight: FontWeight.w600)),
                     ),
                   ],
                 ),
                 const SizedBox(height: 3),
-                Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white)),
+                Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white), maxLines: 1, overflow: TextOverflow.ellipsis),
                 const SizedBox(height: 2),
                 Text(desc, style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)), maxLines: 2, overflow: TextOverflow.ellipsis),
               ],
@@ -424,7 +483,7 @@ class _CareerHubHomeViewState extends ConsumerState<CareerHubHomeView> {
         crossAxisCount: 2,
         mainAxisSpacing: 12,
         crossAxisSpacing: 12,
-        childAspectRatio: 1.28,
+        childAspectRatio: 1.12,
       ),
       itemCount: items.length,
       itemBuilder: (context, index) {
@@ -433,7 +492,7 @@ class _CareerHubHomeViewState extends ConsumerState<CareerHubHomeView> {
           onTap: item.onTap,
           borderRadius: BorderRadius.circular(16),
           child: Container(
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: const Color(0xFF1E293B),
               borderRadius: BorderRadius.circular(16),
@@ -444,7 +503,7 @@ class _CareerHubHomeViewState extends ConsumerState<CareerHubHomeView> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Container(
-                  padding: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(7),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(colors: item.gradient),
                     borderRadius: BorderRadius.circular(10),
@@ -453,6 +512,7 @@ class _CareerHubHomeViewState extends ConsumerState<CareerHubHomeView> {
                 ),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
                       item.title,
@@ -491,18 +551,27 @@ class _CareerHubHomeViewState extends ConsumerState<CareerHubHomeView> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Row(
-                children: [
-                  Icon(Icons.auto_stories_rounded, color: Color(0xFF38BDF8), size: 18),
-                  SizedBox(width: 8),
-                  Text('Verified Documentation Library', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white)),
-                ],
+              const Expanded(
+                child: Row(
+                  children: [
+                    Icon(Icons.auto_stories_rounded, color: Color(0xFF38BDF8), size: 18),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Verified Documentation Library',
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
               ),
+              const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(color: const Color(0xFF38BDF8).withOpacity(0.15), borderRadius: BorderRadius.circular(8)),
+                decoration: BoxDecoration(color: const Color(0xFF38BDF8).withValues(alpha: 0.15), borderRadius: BorderRadius.circular(8)),
                 child: const Text('6 Curated Books', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFF38BDF8))),
               ),
             ],

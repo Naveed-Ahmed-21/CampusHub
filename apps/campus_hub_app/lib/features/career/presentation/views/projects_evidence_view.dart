@@ -341,6 +341,7 @@ class _ProjectsEvidenceViewState extends ConsumerState<ProjectsEvidenceView> {
                             if (dialogCtx.mounted) {
                               Navigator.of(dialogCtx).pop();
                             }
+                            // ignore: use_build_context_synchronously
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                 content: Text('Project Evidence Submitted & Verified!'),
@@ -350,6 +351,7 @@ class _ProjectsEvidenceViewState extends ConsumerState<ProjectsEvidenceView> {
                           } catch (e) {
                             setModalState(() => isSubmitting = false);
                             if (!mounted) return;
+                            // ignore: use_build_context_synchronously
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(content: Text('Submission error: $e')),
                             );
