@@ -84,6 +84,85 @@ class _SkillGraphViewState extends ConsumerState<SkillGraphView> {
   // GRAPH CANVAS (SCREEN 9)
   // ==========================================
   Widget _buildGraphCanvas(SkillGraphModel graph) {
+    if (graph.nodes.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.hub_rounded, size: 48, color: CareerTheme.primaryCyan),
+            SizedBox(height: 12),
+            Text('No skills found in this roadmap', style: TextStyle(color: Colors.white70)),
+          ],
+        ),
+      );
+    }
+
+    // 1. Build adjacency list and calculate in-degree for DAG layers
+    final inDegree = <String, int>{};
+    final adj = <String, List<String>>{};
+
+    for (final node in graph.nodes) {
+      final key = node.title.toLowerCase().trim();
+      inDegree[key] = 0;
+      adj[key] = [];
+    }
+
+    for (final edge in graph.edges) {
+      final src = edge.sourceSkill.toLowerCase().trim();
+      final tgt = edge.targetSkill.toLowerCase().trim();
+      if (inDegree.containsKey(tgt)) {
+        inDegree[tgt] = (inDegree[tgt] ?? 0) + 1;
+      }
+      if (adj.containsKey(src)) {
+        adj[src]!.add(tgt);
+      }
+    }
+
+    // 2. Compute DAG layers (depth)
+    final nodeLevel = <String, int>{};
+    final queue = <String>[];
+
+    for (final node in graph.nodes) {
+      final key = node.title.toLowerCase().trim();
+      if ((inDegree[key] ?? 0) == 0) {
+        nodeLevel[key] = 0;
+        queue.add(key);
+      }
+    }
+
+    while (queue.isNotEmpty) {
+      final curr = queue.removeAt(0);
+      final currLvl = nodeLevel[curr] ?? 0;
+      for (final nxt in adj[curr] ?? <String>[]) {
+        final existingLvl = nodeLevel[nxt];
+        final candidateLvl = currLvl + 1;
+        if (existingLvl == null || candidateLvl > existingLvl) {
+          nodeLevel[nxt] = candidateLvl;
+          queue.add(nxt);
+        }
+      }
+    }
+
+    // 3. Group nodes into layers
+    final layersMap = <int, List<SkillGraphNode>>{};
+    for (int i = 0; i < graph.nodes.length; i++) {
+      final node = graph.nodes[i];
+      final key = node.title.toLowerCase().trim();
+      final lvl = nodeLevel[key] ?? (i ~/ 2);
+      layersMap.putIfAbsent(lvl, () => []).add(node);
+    }
+
+    final sortedLevels = layersMap.keys.toList()..sort();
+
+    // Identify the active "current" node: first uncompleted node
+    SkillGraphNode? activeCurrentNode;
+    for (final node in graph.nodes) {
+      if (!node.isCompleted) {
+        activeCurrentNode = node;
+        break;
+      }
+    }
+
     return InteractiveViewer(
       boundaryMargin: const EdgeInsets.all(80),
       minScale: 0.6,
@@ -94,50 +173,55 @@ class _SkillGraphViewState extends ConsumerState<SkillGraphView> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Root Node: Domain (e.g. Frontend Development)
+              // Root Node: Domain / Roadmap Title
               _buildNodeBadge(
-                title: 'Frontend Development',
+                title: graph.roadmapTitle.isNotEmpty
+                    ? graph.roadmapTitle
+                    : (graph.category.isNotEmpty ? graph.category : 'Career Roadmap'),
                 status: 'current',
                 isRoot: true,
               ),
               _buildVerticalConnector(),
 
-              // Level 1: Core Primitives (HTML/CSS -> JavaScript -> React)
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  _buildNodeBadge(title: 'HTML/CSS', status: 'completed'),
-                  _buildHorizontalConnector(),
-                  _buildNodeBadge(title: 'JavaScript', status: 'completed'),
-                  _buildHorizontalConnector(),
-                  _buildNodeBadge(title: 'React', status: 'current'),
-                ],
-              ),
-              _buildVerticalConnector(),
+              // Dynamic DAG Layers
+              for (int l = 0; l < sortedLevels.length; l++) ...[
+                Builder(
+                  builder: (context) {
+                    final lvl = sortedLevels[l];
+                    final nodesInLevel = layersMap[lvl]!;
+                    final isLastLevel = l == sortedLevels.length - 1;
 
-              // Central Hub: React
-              _buildNodeBadge(title: 'React Core', status: 'current'),
-              _buildVerticalConnector(),
+                    return Wrap(
+                      alignment: WrapAlignment.center,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 12,
+                      runSpacing: 10,
+                      children: [
+                        for (int i = 0; i < nodesInLevel.length; i++) ...[
+                          Builder(
+                            builder: (context) {
+                              final node = nodesInLevel[i];
+                              final isCurrent = activeCurrentNode != null && activeCurrentNode.id == node.id;
+                              final status = node.isCompleted
+                                  ? 'completed'
+                                  : (isCurrent ? 'current' : 'locked');
 
-              // Level 2: Advanced Branches (Next.js, State Mgmt, API Integration)
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  _buildNodeBadge(title: 'Next.js', status: 'locked'),
-                  const SizedBox(width: 12),
-                  _buildNodeBadge(title: 'State Mgmt', status: 'current'),
-                  const SizedBox(width: 12),
-                  _buildNodeBadge(title: 'API Integration', status: 'locked'),
-                ],
-              ),
-              _buildVerticalConnector(),
-
-              // Level 3: Capstone Deliverable (Full Stack Project)
-              _buildNodeBadge(
-                title: 'Full Stack Project',
-                status: 'locked',
-                isCapstone: true,
-              ),
+                              return _buildNodeBadge(
+                                title: node.title,
+                                status: status,
+                                isCapstone: isLastLevel && (nodesInLevel.length == 1 || i == nodesInLevel.length - 1),
+                              );
+                            },
+                          ),
+                          if (nodesInLevel.length > 1 && i < nodesInLevel.length - 1)
+                            _buildHorizontalConnector(),
+                        ],
+                      ],
+                    );
+                  },
+                ),
+                if (l < sortedLevels.length - 1) _buildVerticalConnector(),
+              ],
             ],
           ),
         ),
@@ -275,6 +359,32 @@ class _SkillGraphViewState extends ConsumerState<SkillGraphView> {
                       Text(node.title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white)),
                       const SizedBox(height: 2),
                       Text(node.description, style: const TextStyle(fontSize: 11, color: CareerTheme.textMuted), maxLines: 1, overflow: TextOverflow.ellipsis),
+                      Builder(
+                        builder: (_) {
+                          final prereqs = graph.edges
+                              .where((e) => e.targetSkill.trim().toLowerCase() == node.title.trim().toLowerCase())
+                              .map((e) => e.sourceSkill)
+                              .toList();
+                          if (prereqs.isEmpty) return const SizedBox.shrink();
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 4.0),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.subdirectory_arrow_right_rounded, size: 12, color: CareerTheme.primaryCyan),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: Text(
+                                    'Prerequisite: ${prereqs.join(", ")}',
+                                    style: TextStyle(fontSize: 10, color: CareerTheme.primaryCyan.withValues(alpha: 0.85), fontWeight: FontWeight.w500),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
                     ],
                   ),
                 ),

@@ -759,8 +759,14 @@ export class CareerService {
       const selected =
         userAnswers[idx] !== undefined
           ? userAnswers[idx]
-          : userAnswers[String(idx)];
-      const isCorrect = Number(selected) === q.correctIndex;
+          : userAnswers[String(idx)] !== undefined
+          ? userAnswers[String(idx)]
+          : userAnswers[`q_${idx}`] !== undefined
+          ? userAnswers[`q_${idx}`]
+          : (q as any).id && userAnswers[(q as any).id] !== undefined
+          ? userAnswers[(q as any).id]
+          : undefined;
+      const isCorrect = selected !== undefined && Number(selected) === q.correctIndex;
       if (isCorrect) score += 1;
       feedback.push({
         question: q.question,

@@ -23,6 +23,14 @@ const pathfinderQuestionSchema = z.object({
   reason: z.string(),
 });
 
+export const contradictionSchema = z.object({
+  hasContradiction: z.boolean(),
+  contradictionDescription: z.string().nullable().optional(),
+  conflictingThemes: z.array(z.string()).default([]),
+  suggestedClarification: z.string().nullable().optional(),
+});
+
+
 export const careerAnalysisSchema = z.object({
   primaryDirection: z.object({
     title: z.string(),
@@ -163,24 +171,34 @@ export class CareerPathfinderService {
     // 1. Analyze answer & extract evidence
     collectedEvidence.push(`Answered: "${answerText}" to "${currentQ.question}"`);
 
-    // Contradiction detection heuristic
-    const lowerAnswer = answerText.toLowerCase();
-    const historyText = questionHistory.map((q) => q.answer.toLowerCase()).join(' ');
-
+    // Semantic contradiction detection
     let contradictionFound: string | null = null;
-    if (lowerAnswer.includes('hate server') && historyText.includes('backend')) {
-      contradictionFound = 'Expressed interest in Backend earlier but indicated dislike for server-side code.';
-    } else if (lowerAnswer.includes('pure software') && historyText.includes('hardware only')) {
-      contradictionFound = 'Switched from hardware-exclusive focus to pure software.';
+    let suggestedClarification: string | null = null;
+
+    if (questionHistory.length >= 2) {
+      const priorHistory = questionHistory.slice(0, -1);
+      const contradictionResult = await this.detectSemanticContradiction(
+        currentQ.question,
+        answerText,
+        priorHistory
+      );
+      if (contradictionResult.hasContradiction && contradictionResult.description) {
+        contradictionFound = contradictionResult.description;
+        suggestedClarification = contradictionResult.suggestedClarification;
+        contradictions.push({
+          step: questionHistory.length,
+          issue: contradictionFound,
+          suggestedClarification: suggestedClarification,
+          detectedAt: new Date().toISOString(),
+        });
+      }
     }
 
-    if (contradictionFound) {
-      contradictions.push({
-        step: questionHistory.length,
-        issue: contradictionFound,
-        detectedAt: new Date().toISOString(),
-      });
-    }
+    // Dynamic career hypotheses scoring
+    const careerHypotheses = this.computeActiveCareerHypotheses(
+      session.user.department?.name || 'Engineering',
+      questionHistory
+    );
 
     const currentStep = questionHistory.length;
     const totalSteps = 8;
@@ -202,6 +220,7 @@ export class CareerPathfinderService {
           question_history: questionHistory,
           collected_evidence: collectedEvidence,
           contradictions: contradictions,
+          career_hypotheses: careerHypotheses as any,
           career_analysis: finalAnalysis as any,
           completed: true,
         },
@@ -227,7 +246,7 @@ export class CareerPathfinderService {
       totalSteps,
       stage: nextStage,
       history: questionHistory,
-      contradiction: contradictionFound,
+      contradiction: suggestedClarification || contradictionFound,
       preferredLanguage: session.preferred_language,
     });
 
@@ -239,6 +258,7 @@ export class CareerPathfinderService {
         question_history: questionHistory,
         collected_evidence: collectedEvidence,
         contradictions: contradictions,
+        career_hypotheses: careerHypotheses as any,
       },
     });
 
@@ -247,6 +267,142 @@ export class CareerPathfinderService {
       session: updated,
       nextQuestion,
     };
+  }
+
+  /**
+   * Semantic Contradiction Detector using LLM with semantic polarity fallback
+   */
+  private async detectSemanticContradiction(
+    currentQuestion: string,
+    currentAnswer: string,
+    history: Array<{ question: string; answer: string }>
+  ): Promise<{ hasContradiction: boolean; description: string | null; suggestedClarification: string | null }> {
+    if (history.length < 1) {
+      return { hasContradiction: false, description: null, suggestedClarification: null };
+    }
+
+    const historySummary = history
+      .map((h, i) => `Turn ${i + 1}: Q: "${h.question}" -> A: "${h.answer}"`)
+      .join('\n');
+
+    const prompt = `You are EVA, an expert Career Architect and consistency auditor at CampusHub.
+Analyze whether the latest student response introduces a genuine semantic contradiction or mutually conflicting career preference with their previous statements.
+
+Previous Responses:
+${historySummary}
+
+Latest Question: "${currentQuestion}"
+Latest Answer: "${currentAnswer}"
+
+Evaluation Rules:
+1. Genuine contradictions involve mutually exclusive stances (e.g. saying they want to focus on backend/server systems then saying they dislike server-side code/APIs; or insisting on pure hardware then claiming they only want web development).
+2. Natural exploration, multifaceted interests, or wanting to learn both frontend and backend are NOT contradictions.
+3. If a genuine contradiction exists, describe it clearly in 1-2 sentences and propose a clarifying question.
+
+Return strictly JSON matching this structure:
+{
+  "hasContradiction": boolean,
+  "contradictionDescription": string or null,
+  "conflictingThemes": string[],
+  "suggestedClarification": string or null
+}`;
+
+    try {
+      const result = await aiProvider.generateStructured(prompt, contradictionSchema);
+      if (result.hasContradiction && result.contradictionDescription) {
+        return {
+          hasContradiction: true,
+          description: result.contradictionDescription,
+          suggestedClarification: result.suggestedClarification || null,
+        };
+      }
+    } catch (err) {
+      logger.warn({ err }, 'Semantic contradiction AI analysis fallback to semantic polarity');
+      const curLower = currentAnswer.toLowerCase();
+      const prevAnswers = history.map((h) => h.answer.toLowerCase()).join(' ');
+
+      // Polarity 1: Backend preference vs Backend aversion
+      const backendDislike =
+        (curLower.includes('server') || curLower.includes('backend') || curLower.includes('database')) &&
+        (curLower.includes('dislike') || curLower.includes('hate') || curLower.includes('avoid') || curLower.includes('no server'));
+      const backendPrior =
+        prevAnswers.includes('backend') || prevAnswers.includes('server') || prevAnswers.includes('cloud api');
+      if (backendDislike && backendPrior) {
+        return {
+          hasContradiction: true,
+          description: 'Previously expressed strong interest in backend engineering, but now indicated dislike or aversion toward server-side development.',
+          suggestedClarification: 'Would you prefer focusing on frontend visual design, full-stack integration, or client-side mobile applications?',
+        };
+      }
+
+      // Polarity 2: Pure Hardware vs Pure Web
+      const hardwareDislike =
+        (curLower.includes('hardware') || curLower.includes('circuits') || curLower.includes('microcontroller')) &&
+        (curLower.includes('hate') || curLower.includes('dislike') || curLower.includes('avoid') || curLower.includes('no hardware'));
+      const hardwarePrior =
+        prevAnswers.includes('iot') || prevAnswers.includes('embedded') || prevAnswers.includes('hardware');
+      if (hardwareDislike && hardwarePrior) {
+        return {
+          hasContradiction: true,
+          description: 'Previously prioritized hardware and embedded systems, but now expressed aversion to hardware.',
+          suggestedClarification: 'Would you prefer transitioning to pure software engineering such as cloud, mobile, or web?',
+        };
+      }
+    }
+
+    return { hasContradiction: false, description: null, suggestedClarification: null };
+  }
+
+  /**
+   * Dynamically tracks and updates candidate career hypotheses across conversation turns
+   */
+  private computeActiveCareerHypotheses(
+    _department: string,
+    history: Array<{ question: string; answer: string }>
+  ): Array<{ career: string; confidence: number; reason: string }> {
+    const combined = history.map((h) => `${h.question} ${h.answer}`).join(' ').toLowerCase();
+
+    const candidates = [
+      {
+        career: 'Full-Stack Web Engineer',
+        keywords: ['web', 'react', 'node', 'full-stack', 'frontend', 'javascript', 'html', 'css', 'api'],
+      },
+      {
+        career: 'Backend & Cloud Architect',
+        keywords: ['backend', 'distributed', 'microservices', 'database', 'sql', 'high-throughput', 'cloud', 'aws'],
+      },
+      {
+        career: 'Cross-Platform Mobile Engineer',
+        keywords: ['mobile', 'flutter', 'dart', 'android', 'ios', 'apps'],
+      },
+      {
+        career: 'AI & Machine Learning Engineer',
+        keywords: ['ai', 'machine learning', 'data', 'deep learning', 'llm', 'python', 'analytics', 'models'],
+      },
+      {
+        career: 'IoT & Embedded Systems Developer',
+        keywords: ['iot', 'embedded', 'firmware', 'esp32', 'arduino', 'sensors', 'hardware', 'c++', 'microcontroller'],
+      },
+      {
+        career: 'Cybersecurity & DevSecOps Engineer',
+        keywords: ['security', 'ethical hacking', 'devsecops', 'network', 'penetration', 'linux'],
+      },
+    ];
+
+    const scored = candidates.map((cand) => {
+      let matchCount = 0;
+      for (const kw of cand.keywords) {
+        if (combined.includes(kw)) matchCount += 1;
+      }
+      const score = Math.min(0.95, Math.max(0.35, 0.40 + matchCount * 0.12));
+      return {
+        career: cand.career,
+        confidence: Math.round(score * 100) / 100,
+        reason: `Matched ${matchCount} domain indicators across conversation turns.`,
+      };
+    });
+
+    return scored.sort((a, b) => b.confidence - a.confidence).slice(0, 3);
   }
 
   private generateDepartmentInitialQuestion(department: string): PathfinderQuestionPayload {

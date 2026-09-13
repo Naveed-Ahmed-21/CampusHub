@@ -8,6 +8,7 @@ import { CareerGitHubService } from './services/career.github.service';
 import { CareerYouTubeService } from './services/career.youtube.service';
 import { CareerAdaptiveQuizService } from './services/career.adaptive-quiz.service';
 import { JobReadinessService } from './services/career.job-readiness.service';
+import { CareerDAGService } from './services/career.dag.service';
 import { prisma } from '../../config/database';
 
 export class CareerController {
@@ -480,7 +481,7 @@ export class CareerController {
 
   getRoadmapGraph = asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
-    const roadmap = await prisma.careerRoadmap.findUnique({
+    let roadmap = await prisma.careerRoadmap.findUnique({
       where: { id },
       include: {
         nodes: {
@@ -494,7 +495,21 @@ export class CareerController {
       return ResponseUtil.error(res, 'Roadmap not found', 404, 'NOT_FOUND');
     }
 
-    const nodes = roadmap.nodes.map((node) => ({
+    // Auto-heal if 0 dependencies exist but nodes exist
+    if (roadmap.skill_dependencies.length === 0 && roadmap.nodes.length > 0) {
+      await CareerDAGService.autoHealRoadmapDependencies(id);
+      roadmap = await prisma.careerRoadmap.findUnique({
+        where: { id },
+        include: {
+          nodes: {
+            orderBy: { order_index: 'asc' },
+          },
+          skill_dependencies: true,
+        },
+      });
+    }
+
+    const nodes = (roadmap?.nodes || []).map((node) => ({
       id: node.id,
       title: node.title,
       description: node.description || '',
@@ -502,7 +517,7 @@ export class CareerController {
       orderIndex: node.order_index,
     }));
 
-    const edges = roadmap.skill_dependencies.map((dep) => ({
+    const edges = (roadmap?.skill_dependencies || []).map((dep) => ({
       id: dep.id,
       sourceSkill: dep.source_skill,
       targetSkill: dep.target_skill,
@@ -510,7 +525,22 @@ export class CareerController {
       confidence: dep.confidence,
     }));
 
-    ResponseUtil.success(res, { nodes, edges, roadmapTitle: roadmap.title, category: roadmap.category, phases: roadmap.phases_json }, 'Roadmap skill graph retrieved');
+    const validation = CareerDAGService.validateDAG(nodes, edges as any);
+
+    ResponseUtil.success(
+      res,
+      {
+        nodes,
+        edges,
+        dependencies: edges,
+        topologicalOrder: validation.topologicalOrder,
+        isDAG: validation.isDAG,
+        roadmapTitle: roadmap?.title,
+        category: roadmap?.category,
+        phases: roadmap?.phases_json,
+      },
+      'Roadmap skill graph retrieved'
+    );
   });
 
   searchGitHubResources = asyncHandler(async (req: Request, res: Response) => {

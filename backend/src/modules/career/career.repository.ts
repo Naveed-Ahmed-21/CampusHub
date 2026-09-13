@@ -1,5 +1,6 @@
 import { prisma } from '../../config/database';
 import { CreateWeeklyGoalDto, SubmitMiniProjectDto } from './career.types';
+import { CareerDAGService } from './services/career.dag.service';
 
 export class CareerRepository {
   // Roadmaps
@@ -254,6 +255,31 @@ export class CareerRepository {
           },
         });
       }
+    }
+
+    // 3b. Generate and persist SkillDependencies DAG
+    try {
+      const createdNodes = await prisma.roadmapNode.findMany({
+        where: { roadmap_id: roadmap.id },
+        orderBy: { order_index: 'asc' },
+      });
+      const dagNodes = createdNodes.map((n) => ({
+        id: n.id,
+        title: n.title,
+        description: n.description || '',
+        orderIndex: n.order_index,
+      }));
+      const dependencies = CareerDAGService.generateDependenciesForRoadmap(
+        roadmap.id,
+        dagNodes,
+        data.phasesJson as any[],
+        data.skillMapJson as any[]
+      );
+      if (dependencies.length > 0) {
+        await CareerDAGService.persistDependencies(roadmap.id, dependencies);
+      }
+    } catch (dagErr) {
+      // Safe fallback - roadmap remains intact
     }
 
     // 4. Initialize UserRoadmapProgress
