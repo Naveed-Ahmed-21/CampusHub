@@ -341,7 +341,14 @@ class _CareerAnalysisResultViewState extends ConsumerState<CareerAnalysisResultV
                         children: [
                           SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)),
                           SizedBox(width: 12),
-                          Text('Generating Custom Curriculum Graph...', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                          Flexible(
+                            child: Text(
+                              'Generating Custom Curriculum Graph...',
+                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                            ),
+                          ),
                         ],
                       )
                     : Row(
@@ -349,9 +356,13 @@ class _CareerAnalysisResultViewState extends ConsumerState<CareerAnalysisResultV
                         children: [
                           const Icon(Icons.route_rounded, size: 20),
                           const SizedBox(width: 10),
-                          Text(
-                            'Generate Roadmap for $_selectedRole',
-                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                          Flexible(
+                            child: Text(
+                              'Generate Roadmap for $_selectedRole',
+                              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                            ),
                           ),
                         ],
                       ),

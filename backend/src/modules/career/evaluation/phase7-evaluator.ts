@@ -242,7 +242,7 @@ export class Phase7Evaluator {
       repos.every((r) => r.url.startsWith('https://github.com/') && r.stars >= 0 && r.name.length > 0);
 
     // 2. YouTube verification
-    const videos = CareerYouTubeService.getEducationalVideos('Data Structures and Algorithms', 'English', 3);
+    const videos = await CareerYouTubeService.getEducationalVideos('Data Structures and Algorithms', 'English', 3);
     const youtubeValid =
       videos.length > 0 &&
       videos[0].language.toLowerCase() === 'english' &&

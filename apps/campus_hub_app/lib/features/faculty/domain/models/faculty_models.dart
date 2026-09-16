@@ -37,6 +37,9 @@ class FacultyInfo {
   final String designation;
   final String department;
   final String? avatarUrl;
+  final String officeRoom;
+  final String officeHours;
+  final String specialization;
 
   const FacultyInfo({
     required this.id,
@@ -45,6 +48,9 @@ class FacultyInfo {
     required this.designation,
     required this.department,
     this.avatarUrl,
+    this.officeRoom = 'Room 304, Tech Block',
+    this.officeHours = 'Mon - Thu: 2:00 PM - 4:00 PM',
+    this.specialization = 'Distributed Systems & Cloud Computing',
   });
 
   factory FacultyInfo.fromJson(Map<String, dynamic> json) {
@@ -55,6 +61,9 @@ class FacultyInfo {
       designation: json['designation'] as String? ?? 'Associate Professor',
       department: json['department'] as String? ?? 'Department of Computer Science',
       avatarUrl: json['avatarUrl'] as String?,
+      officeRoom: json['officeRoom'] as String? ?? 'Room 304, Tech Block',
+      officeHours: json['officeHours'] as String? ?? 'Mon - Thu: 2:00 PM - 4:00 PM',
+      specialization: json['specialization'] as String? ?? 'Distributed Systems & Cloud Computing',
     );
   }
 }
@@ -88,6 +97,11 @@ class FacultyStats {
 class FacultySubject {
   final String id;
   final String? facultyId;
+  final String? facultyName;
+  final String? facultyEmail;
+  final String? facultyDesignation;
+  final String? facultyOfficeRoom;
+  final String? facultyOfficeHours;
   final String code;
   final String name;
   final String department;
@@ -95,6 +109,7 @@ class FacultySubject {
   final String section;
   final int credits;
   final String? description;
+  final String academicYear;
   final int resourcesCount;
   final int announcementsCount;
   final int studentsCount;
@@ -104,6 +119,11 @@ class FacultySubject {
   const FacultySubject({
     required this.id,
     this.facultyId,
+    this.facultyName,
+    this.facultyEmail,
+    this.facultyDesignation,
+    this.facultyOfficeRoom,
+    this.facultyOfficeHours,
     required this.code,
     required this.name,
     required this.department,
@@ -111,6 +131,7 @@ class FacultySubject {
     required this.section,
     required this.credits,
     this.description,
+    this.academicYear = '2024-2025',
     required this.resourcesCount,
     required this.announcementsCount,
     required this.studentsCount,
@@ -122,6 +143,11 @@ class FacultySubject {
     return FacultySubject(
       id: json['id'] as String? ?? '',
       facultyId: json['facultyId'] as String?,
+      facultyName: json['facultyName'] as String?,
+      facultyEmail: json['facultyEmail'] as String?,
+      facultyDesignation: json['facultyDesignation'] as String?,
+      facultyOfficeRoom: json['facultyOfficeRoom'] as String?,
+      facultyOfficeHours: json['facultyOfficeHours'] as String?,
       code: json['code'] as String? ?? '',
       name: json['name'] as String? ?? '',
       department: json['department'] as String? ?? 'Computer Science',
@@ -129,6 +155,7 @@ class FacultySubject {
       section: json['section'] as String? ?? 'A',
       credits: (json['credits'] as num?)?.toInt() ?? 3,
       description: json['description'] as String?,
+      academicYear: json['academicYear'] as String? ?? '2024-2025',
       resourcesCount: (json['resourcesCount'] as num?)?.toInt() ?? 0,
       announcementsCount: (json['announcementsCount'] as num?)?.toInt() ?? 0,
       studentsCount: (json['studentsCount'] as num?)?.toInt() ?? 0,
@@ -149,6 +176,14 @@ class SubjectResource {
   final String? description;
   final String fileUrl;
   final String fileType;
+  final String? unit;
+  final String? topic;
+  final String resourceType;
+  final String visibility;
+  final String? thumbnailUrl;
+  final String academicYear;
+  final int downloadCount;
+  final int viewCount;
   final String uploadedByName;
   final DateTime createdAt;
 
@@ -159,6 +194,14 @@ class SubjectResource {
     this.description,
     required this.fileUrl,
     required this.fileType,
+    this.unit,
+    this.topic,
+    this.resourceType = 'NOTES',
+    this.visibility = 'PUBLIC',
+    this.thumbnailUrl,
+    this.academicYear = '2024-2025',
+    this.downloadCount = 0,
+    this.viewCount = 0,
     required this.uploadedByName,
     required this.createdAt,
   });
@@ -171,6 +214,14 @@ class SubjectResource {
       description: json['description'] as String?,
       fileUrl: json['fileUrl'] as String? ?? '',
       fileType: json['fileType'] as String? ?? 'PDF',
+      unit: json['unit'] as String?,
+      topic: json['topic'] as String?,
+      resourceType: json['resourceType'] as String? ?? json['resource_type'] as String? ?? 'NOTES',
+      visibility: json['visibility'] as String? ?? 'PUBLIC',
+      thumbnailUrl: json['thumbnailUrl'] as String? ?? json['thumbnail_url'] as String?,
+      academicYear: json['academicYear'] as String? ?? json['academic_year'] as String? ?? '2024-2025',
+      downloadCount: (json['downloadCount'] as num?)?.toInt() ?? (json['download_count'] as num?)?.toInt() ?? 0,
+      viewCount: (json['viewCount'] as num?)?.toInt() ?? (json['view_count'] as num?)?.toInt() ?? 0,
       uploadedByName: json['uploadedByName'] as String? ?? 'Faculty',
       createdAt: json['createdAt'] != null
           ? DateTime.tryParse(json['createdAt'].toString()) ?? DateTime.now()
@@ -311,6 +362,71 @@ class FacultyEventSummary {
       startTime: json['startTime'] as String? ?? '',
       venue: json['venue'] as String? ?? '',
       scope: json['scope'] as String? ?? 'GENERAL',
+    );
+  }
+}
+
+class FacultyProfileModel {
+  final String id;
+  final String userId;
+  final String name;
+  final String email;
+  final String? avatarUrl;
+  final String designation;
+  final String qualification;
+  final String department;
+  final String specialization;
+  final String bio;
+  final String officeRoom;
+  final String officeHours;
+  final List<String> expertise;
+  final List<Map<String, dynamic>> publications;
+  final String? linkedinUrl;
+  final String? googleScholar;
+  final int subjectsCount;
+  final int menteesCount;
+
+  const FacultyProfileModel({
+    required this.id,
+    required this.userId,
+    required this.name,
+    required this.email,
+    this.avatarUrl,
+    required this.designation,
+    required this.qualification,
+    required this.department,
+    required this.specialization,
+    required this.bio,
+    required this.officeRoom,
+    required this.officeHours,
+    this.expertise = const [],
+    this.publications = const [],
+    this.linkedinUrl,
+    this.googleScholar,
+    this.subjectsCount = 0,
+    this.menteesCount = 0,
+  });
+
+  factory FacultyProfileModel.fromJson(Map<String, dynamic> json) {
+    return FacultyProfileModel(
+      id: json['id'] as String? ?? '',
+      userId: json['userId'] as String? ?? '',
+      name: json['name'] as String? ?? 'Faculty Member',
+      email: json['email'] as String? ?? '',
+      avatarUrl: json['avatarUrl'] as String?,
+      designation: json['designation'] as String? ?? 'Associate Professor',
+      qualification: json['qualification'] as String? ?? 'Ph.D., M.Tech',
+      department: json['department'] as String? ?? 'Department of Computer Science',
+      specialization: json['specialization'] as String? ?? 'Distributed Systems',
+      bio: json['bio'] as String? ?? '',
+      officeRoom: json['officeRoom'] as String? ?? 'Room 304, Block B',
+      officeHours: json['officeHours'] as String? ?? 'Mon - Thu: 2:00 PM - 4:00 PM',
+      expertise: (json['expertise'] as List<dynamic>? ?? []).map((e) => e.toString()).toList(),
+      publications: (json['publications'] as List<dynamic>? ?? []).map((e) => e as Map<String, dynamic>).toList(),
+      linkedinUrl: json['linkedinUrl'] as String?,
+      googleScholar: json['googleScholar'] as String?,
+      subjectsCount: (json['subjectsCount'] as num?)?.toInt() ?? 0,
+      menteesCount: (json['menteesCount'] as num?)?.toInt() ?? 0,
     );
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/career_repository.dart';
 import '../../domain/career_models.dart';
+import '../providers/career_provider.dart';
 import '../theme/career_theme.dart';
 import '../widgets/career_shared_widgets.dart';
 import 'skill_detail_view.dart';
@@ -70,6 +71,68 @@ class _CareerRoadmapViewState extends ConsumerState<CareerRoadmapView> {
         _isLoading = false;
         _errorMessage = 'Failed to load roadmap: $e';
       });
+    }
+  }
+
+  Future<void> _confirmDeleteRoadmap() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E293B),
+        title: const Text('Delete Roadmap?', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        content: Text(
+          'Are you sure you want to delete "${_roadmap?.title ?? 'this roadmap'}"? All progress associated with this track will be removed.',
+          style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel', style: TextStyle(color: Color(0xFF94A3B8))),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFEF4444),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      final repo = ref.read(careerRepositoryProvider);
+      final targetId = widget.roadmapId.trim().isNotEmpty ? widget.roadmapId : (_roadmap?.id ?? '');
+      await repo.deleteRoadmap(targetId);
+      ref.invalidate(activeUserRoadmapProvider);
+      ref.invalidate(userRoadmapsProvider);
+      ref.invalidate(careerRoadmapsProvider);
+      ref.invalidate(userCareerProgressProvider);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Roadmap deleted successfully.'),
+            backgroundColor: Color(0xFF10B981),
+          ),
+        );
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to delete roadmap: $e'),
+            backgroundColor: const Color(0xFFEF4444),
+          ),
+        );
+      }
     }
   }
 
@@ -147,7 +210,9 @@ class _CareerRoadmapViewState extends ConsumerState<CareerRoadmapView> {
         ? ((completedTasksCount / totalTasks) * 100).clamp(0.0, 100.0)
         : 0.0;
 
-    final estimatedWeeks = phases.isNotEmpty ? phases.length * 2 : 8;
+    final estimatedWeeks = phases.isNotEmpty
+        ? phases.fold<int>(0, (sum, p) => sum + p.weeks)
+        : (roadmap.estimatedMonths > 0 ? roadmap.estimatedMonths * 4 : 16);
 
     return Scaffold(
       backgroundColor: CareerTheme.background,
@@ -170,6 +235,11 @@ class _CareerRoadmapViewState extends ConsumerState<CareerRoadmapView> {
             icon: const Icon(Icons.hub_rounded, color: CareerTheme.primaryCyan),
             tooltip: 'Skill Graph',
             onPressed: () => SkillGraphView.open(context, roadmapId: widget.roadmapId),
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete_outline_rounded, color: CareerTheme.error),
+            tooltip: 'Delete Roadmap',
+            onPressed: _confirmDeleteRoadmap,
           ),
           const SizedBox(width: 8),
         ],
@@ -259,6 +329,18 @@ class _CareerRoadmapViewState extends ConsumerState<CareerRoadmapView> {
 
     final itemCount = phases.isNotEmpty ? phases.length : allNodes.length;
 
+    final phaseWeekRanges = <int, String>{};
+    if (phases.isNotEmpty) {
+      int runningWeek = 1;
+      for (int i = 0; i < phases.length; i++) {
+        final pWeeks = phases[i].weeks > 0 ? phases[i].weeks : 1;
+        final start = runningWeek;
+        final end = runningWeek + pWeeks - 1;
+        runningWeek = end + 1;
+        phaseWeekRanges[i] = pWeeks > 1 ? 'Weeks $start – $end ($pWeeks wks)' : 'Week $start';
+      }
+    }
+
     return ListView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -266,6 +348,9 @@ class _CareerRoadmapViewState extends ConsumerState<CareerRoadmapView> {
       itemBuilder: (context, idx) {
         final phaseNumber = idx + 1;
         final isLast = idx == itemCount - 1;
+        final weekLabel = phases.isNotEmpty
+            ? (phaseWeekRanges[idx] ?? 'Week $phaseNumber')
+            : 'Milestone $phaseNumber';
 
         String title = '';
         int totalPhaseTasks = 1;
@@ -369,7 +454,7 @@ class _CareerRoadmapViewState extends ConsumerState<CareerRoadmapView> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Week $phaseNumber',
+                                weekLabel,
                                 style: TextStyle(
                                   fontSize: 10,
                                   fontWeight: FontWeight.w700,

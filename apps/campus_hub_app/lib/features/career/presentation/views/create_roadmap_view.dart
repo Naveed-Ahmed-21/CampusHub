@@ -219,8 +219,8 @@ class _CreateRoadmapViewState extends ConsumerState<CreateRoadmapView> {
                       child: Slider(
                         value: _timeframeWeeks,
                         min: 1,
-                        max: 16,
-                        divisions: 15,
+                        max: 24,
+                        divisions: 23,
                         onChanged: (val) => setState(() => _timeframeWeeks = val),
                       ),
                     ),
@@ -230,7 +230,7 @@ class _CreateRoadmapViewState extends ConsumerState<CreateRoadmapView> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text('1 week', style: TextStyle(fontSize: 11, color: CareerTheme.textSubtle)),
-                          Text('16 weeks', style: TextStyle(fontSize: 11, color: CareerTheme.textSubtle)),
+                          Text('24 weeks', style: TextStyle(fontSize: 11, color: CareerTheme.textSubtle)),
                         ],
                       ),
                     ),
@@ -305,6 +305,7 @@ class _CreateRoadmapViewState extends ConsumerState<CreateRoadmapView> {
                       const Text('Your Department', style: TextStyle(fontSize: 11, color: CareerTheme.textMuted)),
                       const SizedBox(height: 6),
                       DropdownButtonFormField<String>(
+                        isExpanded: true,
                         initialValue: _selectedDepartment,
                         dropdownColor: CareerTheme.surfaceSecondary,
                         style: const TextStyle(fontSize: 13, color: Colors.white),
@@ -320,7 +321,10 @@ class _CreateRoadmapViewState extends ConsumerState<CreateRoadmapView> {
                           ),
                         ),
                         items: _departments.map((d) {
-                          return DropdownMenuItem(value: d, child: Text(d, overflow: TextOverflow.ellipsis));
+                          return DropdownMenuItem(
+                            value: d,
+                            child: Text(d, overflow: TextOverflow.ellipsis, maxLines: 1),
+                          );
                         }).toList(),
                         onChanged: (val) => setState(() => _selectedDepartment = val!),
                       ),
@@ -330,6 +334,7 @@ class _CreateRoadmapViewState extends ConsumerState<CreateRoadmapView> {
                       const Text('Learning Focus', style: TextStyle(fontSize: 11, color: CareerTheme.textMuted)),
                       const SizedBox(height: 6),
                       DropdownButtonFormField<String>(
+                        isExpanded: true,
                         initialValue: _selectedFocus,
                         dropdownColor: CareerTheme.surfaceSecondary,
                         style: const TextStyle(fontSize: 13, color: Colors.white),
@@ -345,7 +350,10 @@ class _CreateRoadmapViewState extends ConsumerState<CreateRoadmapView> {
                           ),
                         ),
                         items: _focusOptions.map((f) {
-                          return DropdownMenuItem(value: f, child: Text(f));
+                          return DropdownMenuItem(
+                            value: f,
+                            child: Text(f, overflow: TextOverflow.ellipsis, maxLines: 1),
+                          );
                         }).toList(),
                         onChanged: (val) => setState(() => _selectedFocus = val!),
                       ),
@@ -355,6 +363,7 @@ class _CreateRoadmapViewState extends ConsumerState<CreateRoadmapView> {
                       const Text('Preferred Language', style: TextStyle(fontSize: 11, color: CareerTheme.textMuted)),
                       const SizedBox(height: 6),
                       DropdownButtonFormField<String>(
+                        isExpanded: true,
                         initialValue: _selectedLanguage,
                         dropdownColor: CareerTheme.surfaceSecondary,
                         style: const TextStyle(fontSize: 13, color: Colors.white),
@@ -370,7 +379,10 @@ class _CreateRoadmapViewState extends ConsumerState<CreateRoadmapView> {
                           ),
                         ),
                         items: _languages.map((l) {
-                          return DropdownMenuItem(value: l, child: Text(l));
+                          return DropdownMenuItem(
+                            value: l,
+                            child: Text(l, overflow: TextOverflow.ellipsis, maxLines: 1),
+                          );
                         }).toList(),
                         onChanged: (val) => setState(() => _selectedLanguage = val!),
                       ),

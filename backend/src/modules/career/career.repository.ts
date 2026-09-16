@@ -371,7 +371,6 @@ export class CareerRepository {
   }
 
   async deleteRoadmap(roadmapId: string, userId: string) {
-    // Soft delete / archive or remove
     const roadmap = await prisma.careerRoadmap.findUnique({ where: { id: roadmapId } });
     if (!roadmap) return null;
 
@@ -379,10 +378,51 @@ export class CareerRepository {
       throw new Error('Unauthorized to delete this roadmap');
     }
 
-    return prisma.careerRoadmap.update({
-      where: { id: roadmapId },
-      data: { status: 'ARCHIVED' },
+    // 1. Delete node progress records for nodes in this roadmap
+    const nodes = await prisma.roadmapNode.findMany({
+      where: { roadmap_id: roadmapId },
+      select: { id: true },
     });
+    if (nodes.length > 0) {
+      await prisma.userNodeProgress.deleteMany({
+        where: {
+          user_id: userId,
+          node_id: { in: nodes.map((n) => n.id) },
+        },
+      });
+    }
+
+    // 2. Delete user progress on this roadmap
+    await prisma.userRoadmapProgress.deleteMany({
+      where: { user_id: userId, roadmap_id: roadmapId },
+    });
+
+    // 3. If custom roadmap authored by user, delete it completely
+    if (roadmap.user_id === userId) {
+      await prisma.careerRoadmap.delete({
+        where: { id: roadmapId },
+      });
+    } else {
+      // System template roadmap - archive status
+      await prisma.careerRoadmap.update({
+        where: { id: roadmapId },
+        data: { status: 'ARCHIVED' },
+      });
+    }
+
+    // 4. If this user has other roadmaps, activate the most recent one
+    const remaining = await prisma.userRoadmapProgress.findFirst({
+      where: { user_id: userId },
+      orderBy: { updated_at: 'desc' },
+    });
+    if (remaining) {
+      await prisma.userRoadmapProgress.update({
+        where: { id: remaining.id },
+        data: { is_active: true },
+      });
+    }
+
+    return { success: true, deletedRoadmapId: roadmapId };
   }
 
   async setActiveRoadmap(userId: string, roadmapId: string) {
@@ -438,7 +478,7 @@ export class CareerRepository {
   }
 
   async getActiveUserRoadmap(userId: string) {
-    return prisma.userRoadmapProgress.findFirst({
+    let active = await prisma.userRoadmapProgress.findFirst({
       where: { user_id: userId, is_active: true, status: 'ACTIVE' },
       include: {
         roadmap: {
@@ -452,6 +492,47 @@ export class CareerRepository {
       },
       orderBy: { updated_at: 'desc' },
     });
+
+    if (!active) {
+      const anyProgress = await prisma.userRoadmapProgress.findFirst({
+        where: { user_id: userId, status: { not: 'ARCHIVED' } },
+        include: {
+          roadmap: {
+            include: {
+              nodes: {
+                orderBy: { order_index: 'asc' },
+                include: { resources: true },
+              },
+            },
+          },
+        },
+        orderBy: { updated_at: 'desc' },
+      });
+
+      if (anyProgress) {
+        await prisma.userRoadmapProgress.update({
+          where: { id: anyProgress.id },
+          data: { is_active: true },
+        });
+        active = anyProgress;
+      } else {
+        const authored = await prisma.careerRoadmap.findFirst({
+          where: { user_id: userId, status: { not: 'ARCHIVED' } },
+          include: {
+            nodes: {
+              orderBy: { order_index: 'asc' },
+              include: { resources: true },
+            },
+          },
+          orderBy: { updated_at: 'desc' },
+        });
+        if (authored) {
+          active = (await this.setActiveRoadmap(userId, authored.id)) as any;
+        }
+      }
+    }
+
+    return active;
   }
 
   async upsertActiveRoadmap(

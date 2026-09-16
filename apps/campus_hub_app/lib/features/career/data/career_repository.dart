@@ -26,8 +26,23 @@ class CareerRepository {
   }
 
   Future<CareerRoadmapModel> getRoadmapDetails(String id) async {
-    final response = await _dio.get('/api/v1/career/roadmaps/$id');
-    return CareerRoadmapModel.fromJson(response.data['data']);
+    final cleanId = id.trim();
+    if (cleanId.isEmpty || cleanId == 'null') {
+      final userRoadmaps = await getUserRoadmaps();
+      if (userRoadmaps.isNotEmpty) {
+        return getRoadmapDetails(userRoadmaps.first.id);
+      }
+      final roadmaps = await getRoadmaps();
+      if (roadmaps.isNotEmpty) return roadmaps.first;
+      throw StateError('No roadmaps available');
+    }
+    final response = await _dio.get('/api/v1/career/roadmaps/$cleanId');
+    final data = response.data['data'];
+    if (data is List) {
+      if (data.isEmpty) throw StateError('Roadmap not found');
+      return CareerRoadmapModel.fromJson(data.first as Map<String, dynamic>);
+    }
+    return CareerRoadmapModel.fromJson(data as Map<String, dynamic>);
   }
 
   Future<DuplicateCheckResultModel> checkDuplicate(String targetRole) async {
@@ -636,6 +651,11 @@ class CareerRepository {
     return DynamicPathfinderSessionModel.fromJson(response.data['data']);
   }
 
+  Future<DynamicPathfinderSessionModel> stepBackPathfinderSessionV2(String sessionId) async {
+    final response = await _dio.post('/api/v1/career/pathfinder/session/$sessionId/previous');
+    return DynamicPathfinderSessionModel.fromJson(response.data['data']['session']);
+  }
+
   Future<CareerRoadmapModel> generatePersonalizedRoadmap({
     required String targetRole,
     String? department,
@@ -770,12 +790,48 @@ class CareerRepository {
     return ProjectEvidenceModel.fromJson(response.data['data']);
   }
 
+  Future<void> deleteProjectEvidence(String id) async {
+    await _dio.delete('/api/v1/career/projects/$id');
+  }
+
+  Future<void> deleteInterviewSession(String sessionId) async {
+    await _dio.delete('/api/v1/career/interview/session/$sessionId');
+  }
+
   Future<Map<String, dynamic>> getDetailedJobReadiness({String? targetRole}) async {
     final response = await _dio.get(
       '/api/v1/career/job-readiness/detailed',
       queryParameters: targetRole != null ? {'target_role': targetRole} : null,
     );
     return (response.data['data'] as Map<String, dynamic>?) ?? {};
+  }
+
+  Future<List<Map<String, dynamic>>> getYouTubePlaylists({
+    required String topic,
+    String language = 'English',
+    int limit = 3,
+  }) async {
+    final response = await _dio.get(
+      '/api/v1/career/resources/youtube/playlists',
+      queryParameters: {
+        'topic': topic,
+        'language': language,
+        'limit': limit,
+      },
+    );
+    final list = (response.data['data'] as List<dynamic>?) ?? [];
+    return list.map((item) => item as Map<String, dynamic>).toList();
+  }
+
+  Future<RoadmapNodeContextModel> getRoadmapNodeContext({
+    required String roadmapId,
+    String? nodeId,
+  }) async {
+    final path = (nodeId != null && nodeId.isNotEmpty)
+        ? '/api/v1/career/roadmaps/$roadmapId/nodes/$nodeId/context'
+        : '/api/v1/career/roadmaps/$roadmapId/context';
+    final response = await _dio.get(path);
+    return RoadmapNodeContextModel.fromJson(response.data['data'] as Map<String, dynamic>);
   }
 }
 

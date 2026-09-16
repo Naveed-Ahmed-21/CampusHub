@@ -214,6 +214,8 @@ model User {
   subject_enrollments    SubjectEnrollment[]
   mentored_students      StudentMentorship[]         @relation("FacultyMentor")
   student_mentors        StudentMentorship[]         @relation("StudentMentee")
+  faculty_profile        FacultyProfile?
+  faculty_assignments    FacultySubject[]            @relation("FacultySubjectAssignments")
   stories                Story[]
   story_views            StoryView[]
 
@@ -1185,15 +1187,17 @@ model Subject {
   section       String   @default("A") @db.VarChar(20)
   credits       Int      @default(3)
   description   String?  @db.Text
+  academic_year String?  @default("2024-2025") @db.VarChar(50)
   created_at    DateTime @default(now())
   updated_at    DateTime @updatedAt
 
   college       College               @relation(fields: [college_id], references: [id], onDelete: Cascade)
   department    Department?           @relation(fields: [department_id], references: [id], onDelete: SetNull)
-  faculty       User                  @relation("FacultySubjects", fields: [faculty_id], references: [id], onDelete: Cascade)
-  resources     SubjectResource[]
-  announcements SubjectAnnouncement[]
-  enrollments   SubjectEnrollment[]
+  faculty             User                  @relation("FacultySubjects", fields: [faculty_id], references: [id], onDelete: Cascade)
+  resources           SubjectResource[]
+  announcements       SubjectAnnouncement[]
+  enrollments         SubjectEnrollment[]
+  faculty_assignments FacultySubject[]
 
   @@unique([college_id, code, semester, section])
   @@index([faculty_id])
@@ -1209,13 +1213,62 @@ model SubjectResource {
   description    String?  @db.Text
   file_url       String   @db.Text
   file_type      String   @db.VarChar(100)
+  unit           String?  @db.VarChar(100)
+  topic          String?  @db.VarChar(255)
+  resource_type  String   @default("NOTES") @db.VarChar(50)
+  visibility     String   @default("PUBLIC") @db.VarChar(50)
+  thumbnail_url  String?  @db.Text
+  academic_year  String?  @default("2024-2025") @db.VarChar(50)
+  download_count Int      @default(0)
+  view_count     Int      @default(0)
   created_at     DateTime @default(now())
+  updated_at     DateTime @default(now()) @updatedAt
 
   subject     Subject @relation(fields: [subject_id], references: [id], onDelete: Cascade)
   uploaded_by User    @relation(fields: [uploaded_by_id], references: [id], onDelete: Cascade)
 
   @@index([subject_id])
+  @@index([subject_id, unit])
+  @@index([resource_type])
   @@map("subject_resources")
+}
+
+model FacultyProfile {
+  id              String   @id @default(uuid()) @db.Uuid
+  user_id         String   @unique @db.Uuid
+  designation     String?  @default("Associate Professor") @db.VarChar(100)
+  qualification   String?  @default("Ph.D., M.Tech") @db.VarChar(255)
+  department_name String?  @db.VarChar(100)
+  specialization  String?  @db.VarChar(255)
+  bio             String?  @db.Text
+  office_room     String?  @default("Room 304, Block B") @db.VarChar(100)
+  office_hours    String?  @default("Mon - Thu: 2:00 PM - 4:00 PM") @db.VarChar(255)
+  publications    Json?    @default("[]")
+  expertise       String[] @default([])
+  linkedin_url    String?  @db.Text
+  google_scholar  String?  @db.Text
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("faculty_profiles")
+}
+
+model FacultySubject {
+  id         String   @id @default(uuid()) @db.Uuid
+  faculty_id String   @db.Uuid
+  subject_id String   @db.Uuid
+  role       String   @default("PRIMARY") @db.VarChar(50)
+  created_at DateTime @default(now())
+
+  faculty User    @relation("FacultySubjectAssignments", fields: [faculty_id], references: [id], onDelete: Cascade)
+  subject Subject @relation(fields: [subject_id], references: [id], onDelete: Cascade)
+
+  @@unique([faculty_id, subject_id])
+  @@index([subject_id])
+  @@index([faculty_id])
+  @@map("faculty_subjects")
 }
 
 model SubjectAnnouncement {

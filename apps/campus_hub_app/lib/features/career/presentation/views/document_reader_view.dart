@@ -246,47 +246,50 @@ class _DocumentReaderViewState extends ConsumerState<DocumentReaderView> {
                     final ch = widget.document.chapters[i];
                     final isSelected = i == _currentChapterIndex;
 
-                    return ListTile(
-                      dense: true,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      leading: CircleAvatar(
-                        radius: 14,
-                        backgroundColor: isSelected
-                            ? Colors.indigo
-                            : _textColor.withValues(alpha: 0.1),
-                        child: Text(
-                          '${ch.chapterNumber}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: isSelected ? Colors.white : _textColor,
+                    return Material(
+                      color: Colors.transparent,
+                      child: ListTile(
+                        dense: true,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        leading: CircleAvatar(
+                          radius: 14,
+                          backgroundColor: isSelected
+                              ? Colors.indigo
+                              : _textColor.withValues(alpha: 0.1),
+                          child: Text(
+                            '${ch.chapterNumber}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: isSelected ? Colors.white : _textColor,
+                            ),
                           ),
                         ),
-                      ),
-                      title: Text(
-                        ch.title,
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                          color: isSelected ? Colors.indigoAccent : _textColor,
+                        title: Text(
+                          ch.title,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                            color: isSelected ? Colors.indigoAccent : _textColor,
+                          ),
                         ),
-                      ),
-                      subtitle: Text(
-                        '${ch.estimatedMinutes} min read • ${ch.summary}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: _textColor.withValues(alpha: 0.6),
+                        subtitle: Text(
+                          '${ch.estimatedMinutes} min read • ${ch.summary}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: _textColor.withValues(alpha: 0.6),
+                          ),
                         ),
+                        trailing: isSelected
+                            ? const Icon(Icons.check_circle, color: Colors.indigoAccent, size: 18)
+                            : null,
+                        onTap: () {
+                          Navigator.pop(ctx);
+                          _switchChapter(i);
+                        },
                       ),
-                      trailing: isSelected
-                          ? const Icon(Icons.check_circle, color: Colors.indigoAccent, size: 18)
-                          : null,
-                      onTap: () {
-                        Navigator.pop(ctx);
-                        _switchChapter(i);
-                      },
                     );
                   },
                 ),

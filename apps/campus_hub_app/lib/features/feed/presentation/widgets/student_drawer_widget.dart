@@ -52,6 +52,19 @@ class StudentDrawerWidget extends ConsumerWidget {
     );
   }
 
+  void _navigate(BuildContext context, String path, {bool isPush = false}) {
+    Navigator.pop(context);
+    try {
+      final currentRoute = GoRouterState.of(context).uri.path;
+      if (currentRoute == path) return;
+    } catch (_) {}
+    if (isPush) {
+      context.push(path);
+    } else {
+      context.go(path);
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authControllerProvider).asData?.value;
@@ -155,101 +168,76 @@ class StudentDrawerWidget extends ConsumerWidget {
                     icon: Icons.notifications_outlined,
                     label: 'Notifications',
                     badgeCount: unreadNotifications,
-                    onTap: () {
-                      Navigator.pop(context);
-                      context.push('/notifications');
-                    },
+                    onTap: () => _navigate(context, '/notifications'),
                   ),
                   _buildMenuItem(
                     context,
                     icon: Icons.chat_bubble_outline,
                     label: 'Messages',
                     badgeCount: unreadChats,
-                    onTap: () {
-                      Navigator.pop(context);
-                      context.push('/chat');
-                    },
+                    onTap: () => _navigate(context, '/chat'),
                   ),
                   const Divider(height: 16),
                   _buildMenuItem(
                     context,
                     icon: Icons.groups_outlined,
                     label: 'My Clubs',
-                    onTap: () {
-                      Navigator.pop(context);
-                      context.push('/clubs');
-                    },
+                    onTap: () => _navigate(context, '/clubs'),
                   ),
                   _buildMenuItem(
                     context,
                     icon: Icons.event_outlined,
                     label: 'Events',
-                    onTap: () {
-                      Navigator.pop(context);
-                      context.push('/events');
-                    },
+                    onTap: () => _navigate(context, '/events'),
                   ),
                   _buildMenuItem(
                     context,
                     icon: Icons.menu_book_outlined,
                     label: 'Roadmap & Resources',
-                    onTap: () {
-                      Navigator.pop(context);
-                      context.push('/career');
-                    },
+                    onTap: () => _navigate(context, '/career'),
                   ),
                   _buildMenuItem(
                     context,
                     icon: Icons.business_center_outlined,
                     label: 'Placement Corner',
-                    onTap: () {
-                      Navigator.pop(context);
-                      context.push('/placement');
-                    },
+                    onTap: () => _navigate(context, '/placement'),
                   ),
                   _buildMenuItem(
                     context,
-                    icon: Icons.folder_open_outlined,
-                    label: 'Study Materials',
-                    onTap: () {
-                      Navigator.pop(context);
-                      context.push('/career');
-                    },
+                    icon: Icons.menu_book_outlined,
+                    label: 'Academic Subjects & Resources',
+                    onTap: () => _navigate(context, '/academics'),
+                  ),
+                  _buildMenuItem(
+                    context,
+                    icon: Icons.badge_outlined,
+                    label: 'Faculty & Mentors Directory',
+                    onTap: () => _navigate(context, '/academics/faculty', isPush: true),
                   ),
                   _buildMenuItem(
                     context,
                     icon: Icons.explore_outlined,
                     label: 'Career Guidance',
-                    onTap: () {
-                      Navigator.pop(context);
-                      context.push('/career');
-                    },
+                    onTap: () => _navigate(context, '/career'),
                   ),
                   const Divider(height: 16),
                   _buildMenuItem(
                     context,
                     icon: Icons.settings_outlined,
                     label: 'Settings',
-                    onTap: () {
-                      Navigator.pop(context);
-                      context.push('/settings');
-                    },
+                    onTap: () => _navigate(context, '/settings', isPush: true),
                   ),
                   _buildMenuItem(
                     context,
                     icon: Icons.help_outline,
                     label: 'Help & Support',
-                    onTap: () {
-                      Navigator.pop(context);
-                    },
+                    onTap: () => _navigate(context, '/help', isPush: true),
                   ),
                   _buildMenuItem(
                     context,
                     icon: Icons.info_outline,
                     label: 'About CampusHub',
-                    onTap: () {
-                      Navigator.pop(context);
-                    },
+                    onTap: () => _navigate(context, '/about', isPush: true),
                   ),
                   const SizedBox(height: 8),
                   _buildMenuItem(

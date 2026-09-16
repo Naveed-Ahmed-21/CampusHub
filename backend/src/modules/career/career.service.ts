@@ -27,6 +27,8 @@ import { CareerContextBuilder } from './ai/career.context-builder';
 import { CareerIntentDetector } from './ai/career.intent-detector';
 import { ResourceResearcher } from './ai/career.resource-researcher';
 import { JobReadinessEngine } from './career.readiness-engine';
+import { CareerYouTubeService, ResourceContext } from './services/career.youtube.service';
+import { CareerGitHubService } from './services/career.github.service';
 
 export class CareerService {
   private readonly aiService: CareerAIService;
@@ -1515,24 +1517,50 @@ export class CareerService {
 
   async startInterviewSession(userId: string, roadmapId?: string, targetRole?: string, mode: 'TEXT' | 'VOICE' | 'VIDEO' = 'TEXT') {
     let resolvedRole = targetRole;
-    if (!resolvedRole && roadmapId) {
-      const r = await prisma.careerRoadmap.findUnique({ where: { id: roadmapId } });
-      resolvedRole = r?.target_role || r?.title;
-    }
-    if (!resolvedRole) {
+    let roadmapTitle = '';
+    let currentSkill = '';
+    let activeRoadmapId = roadmapId;
+
+    if (!activeRoadmapId) {
       const active = await prisma.userRoadmapProgress.findFirst({
         where: { user_id: userId, is_active: true },
         include: { roadmap: true },
       });
-      resolvedRole = active?.target_role || active?.roadmap?.target_role || 'Full-Stack Developer';
+      activeRoadmapId = active?.roadmap_id;
+      if (!resolvedRole) {
+        resolvedRole = active?.target_role || active?.roadmap?.target_role || active?.roadmap?.title;
+      }
+      roadmapTitle = active?.roadmap?.title || '';
     }
 
-    const initialQ = careerAIOrchestrator.generateInitialInterviewQuestion(resolvedRole, []);
+    if (activeRoadmapId) {
+      const r = await prisma.careerRoadmap.findUnique({
+        where: { id: activeRoadmapId },
+        select: { title: true, target_role: true, phases_json: true },
+      });
+      if (r) {
+        roadmapTitle = r.title;
+        if (!resolvedRole) resolvedRole = r.target_role || r.title;
+        const phases = (r.phases_json as any[]) || [];
+        if (phases.length > 0) {
+          currentSkill = phases[0]?.skills?.[0] || phases[0]?.title || '';
+        }
+      }
+    }
+
+    if (!resolvedRole) resolvedRole = 'Software Engineer';
+
+    const initialQ = careerAIOrchestrator.generateInitialInterviewQuestion(
+      resolvedRole,
+      [],
+      currentSkill,
+      roadmapTitle
+    );
 
     const session = await prisma.interviewSession.create({
       data: {
         user_id: userId,
-        roadmap_id: roadmapId,
+        roadmap_id: activeRoadmapId || null,
         target_role: resolvedRole,
         mode,
         status: 'IN_PROGRESS',
@@ -1591,7 +1619,7 @@ export class CareerService {
 
     const expectedConcepts: string[] = (currentTurn.expected_concepts as string[]) || [];
 
-    const evalResult = careerAIOrchestrator.evaluateInterviewTurn(
+    const evalResult = await careerAIOrchestrator.evaluateInterviewTurn(
       currentTurn.question,
       studentAnswer,
       expectedConcepts,
@@ -1859,4 +1887,299 @@ export class CareerService {
 
     return { success: true, message: 'Career hub data reset successfully' };
   }
+
+  async deleteInterviewSession(userId: string, sessionId: string) {
+    const session = await prisma.interviewSession.findUnique({
+      where: { id: sessionId },
+    });
+    if (!session || session.user_id !== userId) {
+      throw new NotFoundError('Interview session not found');
+    }
+    await prisma.interviewSession.delete({
+      where: { id: sessionId },
+    });
+    return { success: true, message: 'Interview session deleted successfully' };
+  }
+
+  async deleteProjectEvidence(userId: string, evidenceId: string) {
+    const project = await prisma.projectEvidence.findUnique({
+      where: { id: evidenceId },
+    });
+    if (!project || project.user_id !== userId) {
+      throw new NotFoundError('Project evidence not found');
+    }
+    await prisma.projectEvidence.delete({
+      where: { id: evidenceId },
+    });
+    return { success: true, message: 'Project evidence deleted successfully' };
+  }
+
+  async getRoadmapNodeContext(userId: string, roadmapId: string, nodeId?: string) {
+    const roadmap = await prisma.careerRoadmap.findUnique({
+      where: { id: roadmapId },
+      include: {
+        nodes: { orderBy: { order_index: 'asc' } },
+        skill_dependencies: true,
+      },
+    });
+
+    if (!roadmap) {
+      throw new NotFoundError('Roadmap not found');
+    }
+
+    // Resolve target node
+    let targetNode = roadmap.nodes.find((n) => n.id === nodeId);
+    if (!targetNode && roadmap.nodes.length > 0) {
+      const completedProgress = await prisma.userNodeProgress.findMany({
+        where: { user_id: userId, is_completed: true, node_id: { in: roadmap.nodes.map((n) => n.id) } },
+      });
+      const completedIds = new Set(completedProgress.map((p) => p.node_id));
+      targetNode = roadmap.nodes.find((n) => !completedIds.has(n.id)) || roadmap.nodes[0];
+    }
+
+    const phases = (roadmap.phases_json as any[]) || [];
+    const nodeIndex = targetNode ? targetNode.order_index : 1;
+    const phaseIndex = Math.min(
+      phases.length,
+      Math.max(1, Math.ceil(nodeIndex / Math.max(1, Math.ceil(roadmap.nodes.length / (phases.length || 1)))))
+    );
+    const currentPhase =
+      phases.find((p) => p.phase_number === phaseIndex || p.phaseNumber === phaseIndex) ||
+      phases[0] || {
+        phaseNumber: 1,
+        title: 'Core Fundamentals',
+        description: 'Foundational principles and architecture.',
+        skills: [targetNode?.title || 'Core Engineering'],
+      };
+
+    const nodeTitle = targetNode?.title || currentPhase.title || 'Technical Milestone';
+    const skillName = currentPhase.skills?.[0] || nodeTitle;
+    const topic = nodeTitle;
+    const learningObjective =
+      targetNode?.description ||
+      currentPhase.description ||
+      `Master ${topic} as part of the ${roadmap.target_role || roadmap.title} track.`;
+
+    const resourceContext: ResourceContext = {
+      roadmapId: roadmap.id,
+      roadmapNodeId: targetNode?.id,
+      careerGoal: roadmap.goal || roadmap.target_role || roadmap.title,
+      targetRole: roadmap.target_role || roadmap.title,
+      phase: currentPhase.title,
+      skill: skillName,
+      topic,
+      learningObjective,
+      preferredLanguage: roadmap.learning_language || 'English',
+      limit: 6,
+    };
+
+    const [videos, playlists, repos] = await Promise.all([
+      CareerYouTubeService.getEducationalVideos(resourceContext, roadmap.learning_language || 'English', 6),
+      CareerYouTubeService.getEducationalPlaylists(resourceContext, roadmap.learning_language || 'English', 3),
+      CareerGitHubService.searchRepositories(topic, 4, roadmap.learning_language || 'English'),
+    ]);
+
+    const [userNodeProgress, studentSkill, userRoadmapProgress] = await Promise.all([
+      targetNode
+        ? prisma.userNodeProgress.findUnique({
+            where: { user_id_node_id: { user_id: userId, node_id: targetNode.id } },
+          })
+        : null,
+      prisma.studentSkill.findFirst({
+        where: {
+          user_id: userId,
+          skill_name: { contains: skillName.split(' ')[0] || skillName, mode: 'insensitive' },
+        },
+        include: { evidences: { orderBy: { created_at: 'desc' }, take: 3 } },
+      }),
+      prisma.userRoadmapProgress.findUnique({
+        where: { user_id_roadmap_id: { user_id: userId, roadmap_id: roadmapId } },
+      }),
+    ]);
+
+    const prerequisites = roadmap.skill_dependencies
+      .filter((d) => d.target_skill.toLowerCase() === skillName.toLowerCase())
+      .map((d) => d.source_skill);
+
+    const docs = resolveOfficialDocumentation(topic);
+
+    const practiceTask = {
+      title: `${topic} Hands-on Implementation`,
+      description: `Build and test a functional component or script demonstrating ${topic}. Verify correct handling of edge cases, asynchronous flows, and errors.`,
+      expectedOutput: `A verified executable module or script demonstrating ${topic} with tests or clear console output.`,
+      hints: [
+        `Review the official documentation and starter repository before implementing.`,
+        `Start by setting up the minimal interface or config parameters.`,
+        `Test the module locally and verify logs.`,
+      ],
+      starterCode: `// Starter template for ${topic}\n// Implement your solution below\n`,
+      difficulty: targetNode?.estimated_hours && targetNode.estimated_hours > 6 ? 'Intermediate' : 'Beginner',
+    };
+
+    const initialInterview = careerAIOrchestrator.generateInitialInterviewQuestion(
+      roadmap.target_role || roadmap.title,
+      [],
+      skillName,
+      roadmap.title
+    );
+
+    return {
+      roadmap: {
+        id: roadmap.id,
+        title: roadmap.title,
+        targetRole: roadmap.target_role || roadmap.title,
+        category: roadmap.category,
+        level: roadmap.level,
+        preferredLanguage: roadmap.learning_language || 'English',
+        totalNodes: roadmap.nodes.length,
+      },
+      careerGoal: roadmap.goal || roadmap.target_role || roadmap.title,
+      phase: {
+        phaseNumber: currentPhase.phase_number || currentPhase.phaseNumber || 1,
+        title: currentPhase.title,
+        description: currentPhase.description,
+        skills: currentPhase.skills || [skillName],
+      },
+      node: targetNode
+        ? {
+            id: targetNode.id,
+            title: targetNode.title,
+            description: targetNode.description,
+            orderIndex: targetNode.order_index,
+            estimatedHours: targetNode.estimated_hours || 4,
+            isCompleted: userNodeProgress?.is_completed || false,
+          }
+        : null,
+      skill: skillName,
+      topic,
+      learningObjective,
+      prerequisites,
+      studentLevel: studentSkill?.proficiency_level || 'Beginner',
+      confidenceScore: studentSkill?.confidence_score || 50,
+      evidenceCount: studentSkill?.evidence_count || 0,
+      progress: {
+        progressPercent: userRoadmapProgress?.progress_percent || 0.0,
+        streakDays: userRoadmapProgress?.streak_days || 1,
+        isCompleted: userNodeProgress?.is_completed || false,
+      },
+      resources: {
+        videos,
+        playlists,
+        documentation: [
+          {
+            title: docs.title,
+            domain: docs.domain,
+            url: docs.url,
+            description: docs.description,
+          },
+        ],
+        github: repos,
+      },
+      practiceTask,
+      quizAvailability: {
+        available: true,
+        numQuestions: 10,
+        checkpointTitle: `${topic} Technical Checkpoint`,
+      },
+      interviewContext: {
+        initialQuestion: initialInterview.question,
+        expectedConcepts: initialInterview.expectedConcepts,
+      },
+    };
+  }
+
+  async getYouTubePlaylists(topic: string, language: string = 'English', limit: number = 3) {
+    return CareerYouTubeService.getEducationalPlaylists(topic, language, limit);
+  }
+}
+
+function resolveOfficialDocumentation(topic: string) {
+  const t = topic.toLowerCase();
+  if (t.includes('flutter')) {
+    return {
+      title: 'Official Flutter Documentation',
+      domain: 'docs.flutter.dev',
+      url: 'https://docs.flutter.dev',
+      description: 'Official Flutter documentation: widgets, rendering engine, navigation & Riverpod patterns.',
+    };
+  }
+  if (t.includes('dart')) {
+    return {
+      title: 'Official Dart Language Tour',
+      domain: 'dart.dev',
+      url: 'https://dart.dev',
+      description: 'Official Dart language tour: async/await, streams, sound null safety & isolates.',
+    };
+  }
+  if (t.includes('esp') || t.includes('arduino') || t.includes('iot') || t.includes('embedded') || t.includes('microcontroller') || t.includes('gpio')) {
+    return {
+      title: 'Espressif ESP-IDF & ESP32 Programming Guide',
+      domain: 'docs.espressif.com',
+      url: 'https://docs.espressif.com/projects/esp-idf/en/latest/',
+      description: 'Official Espressif IoT documentation: GPIO pinout, FreeRTOS tasks, Wi-Fi, BLE & peripheral drivers.',
+    };
+  }
+  if (t.includes('cyber') || t.includes('security') || t.includes('owasp') || t.includes('penetration')) {
+    return {
+      title: 'OWASP Application Security Guide & Cheat Sheets',
+      domain: 'owasp.org',
+      url: 'https://owasp.org/www-project-top-ten/',
+      description: 'Official OWASP Top 10 security standards: vulnerability descriptions, attack prevention & mitigation.',
+    };
+  }
+  if (t.includes('wireshark') || t.includes('packet')) {
+    return {
+      title: 'Wireshark Official User Guide',
+      domain: 'wireshark.org',
+      url: 'https://www.wireshark.org/docs/wsug_html_chunked/',
+      description: 'Deep network packet analysis, capture filters, protocol dissection, and traffic troubleshooting.',
+    };
+  }
+  if (t.includes('ai') || t.includes('data science') || t.includes('machine learning') || t.includes('pandas') || t.includes('scikit')) {
+    return {
+      title: 'Scikit-Learn & Pandas Scientific Computing Docs',
+      domain: 'scikit-learn.org',
+      url: 'https://scikit-learn.org/stable/',
+      description: 'Official machine learning documentation: estimators, pipelines, model evaluation & preprocessing.',
+    };
+  }
+  if (t.includes('docker') || t.includes('container') || t.includes('kubernetes') || t.includes('devops')) {
+    return {
+      title: 'Docker Documentation & Best Practices',
+      domain: 'docs.docker.com',
+      url: 'https://docs.docker.com',
+      description: 'Official Docker documentation: multi-stage builds, container virtualization & compose networking.',
+    };
+  }
+  if (t.includes('node') || t.includes('express') || t.includes('backend')) {
+    return {
+      title: 'Node.js API Reference & Runtime Specs',
+      domain: 'nodejs.org',
+      url: 'https://nodejs.org/docs/latest/api/',
+      description: 'Official Node.js documentation: event loop, streams, worker threads & HTTP module APIs.',
+    };
+  }
+  if (t.includes('postgres') || t.includes('sql') || t.includes('database')) {
+    return {
+      title: 'PostgreSQL Official Documentation',
+      domain: 'postgresql.org',
+      url: 'https://www.postgresql.org/docs/',
+      description: 'Official PostgreSQL docs: ACID transactions, indexing, query planner & JSONB operations.',
+    };
+  }
+  if (t.includes('civil') || t.includes('bim') || t.includes('revit') || t.includes('cad')) {
+    return {
+      title: 'Autodesk Revit & BIM Architecture Guide',
+      domain: 'help.autodesk.com',
+      url: 'https://help.autodesk.com/view/RVT/2026/ENU/',
+      description: 'Official Revit documentation: BIM modeling, parametric family creation & construction documentation.',
+    };
+  }
+  const firstWord = encodeURIComponent(topic.toLowerCase().split(' ')[0] || 'general');
+  return {
+    title: `${topic} Technical Reference`,
+    domain: 'devdocs.io',
+    url: `https://devdocs.io/${firstWord}`,
+    description: 'Fast, searchable technical API reference and architectural guides.',
+  };
 }

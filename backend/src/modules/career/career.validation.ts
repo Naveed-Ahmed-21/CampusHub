@@ -317,13 +317,23 @@ export const generatePersonalizedRoadmapSchema = z.object({
   }),
 });
 
+const normalizeUrl = (val: unknown) => {
+  if (!val || typeof val !== 'string') return '';
+  const trimmed = val.trim();
+  if (!trimmed) return '';
+  if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) {
+    return `https://${trimmed}`;
+  }
+  return trimmed;
+};
+
 export const createProjectEvidenceSchema = z.object({
   body: z.object({
     title: z.string().min(2, 'Title is required').max(255),
     description: z.string().min(5, 'Description is required').max(3000),
-    github_url: z.string().url('Invalid GitHub URL').optional().or(z.literal('')),
-    demo_url: z.string().url('Invalid live demo URL').optional().or(z.literal('')),
-    tech_stack: z.array(z.string()).optional(),
+    github_url: z.string().optional().nullable().transform(normalizeUrl),
+    demo_url: z.string().optional().nullable().transform(normalizeUrl),
+    tech_stack: z.array(z.string()).optional().default([]),
   }),
 });
 

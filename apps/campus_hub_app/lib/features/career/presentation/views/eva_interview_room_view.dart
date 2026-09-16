@@ -151,13 +151,18 @@ class _EvaInterviewRoomViewState extends ConsumerState<EvaInterviewRoomView>
   }
 
   Future<void> _submitCurrentAnswer() async {
-    _timer?.cancel();
-    final answer = _answerController.text.trim().isNotEmpty
-        ? _answerController.text.trim()
-        : (_isMicActive
-            ? 'Candidate explained key architecture principles, trade-offs, and design patterns.'
-            : 'No answer provided.');
+    final answer = _answerController.text.trim();
+    if (answer.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter or speak your answer before submitting.'),
+          backgroundColor: Color(0xFFF59E0B),
+        ),
+      );
+      return;
+    }
 
+    _timer?.cancel();
     setState(() {
       _roomState = InterviewRoomState.evaluating;
       _isMicActive = false;
@@ -276,10 +281,13 @@ class _EvaInterviewRoomViewState extends ConsumerState<EvaInterviewRoomView>
         ),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Text(
               '${widget.targetRole} Mock Interview',
               style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
             Row(
               children: [
@@ -292,9 +300,13 @@ class _EvaInterviewRoomViewState extends ConsumerState<EvaInterviewRoomView>
                   ),
                 ),
                 const SizedBox(width: 6),
-                const Text(
-                  'EVA AI Studio • Branching Evaluator',
-                  style: TextStyle(fontSize: 11, color: Colors.white60),
+                const Flexible(
+                  child: Text(
+                    'EVA AI Studio • Branching Evaluator',
+                    style: TextStyle(fontSize: 11, color: Colors.white60),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ],
             ),

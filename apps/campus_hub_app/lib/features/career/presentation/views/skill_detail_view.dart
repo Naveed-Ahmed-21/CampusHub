@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/services/url_launcher_service.dart';
+import '../../domain/career_models.dart';
 import '../providers/career_provider.dart';
 import '../theme/career_theme.dart';
 import '../widgets/career_shared_widgets.dart';
 import 'adaptive_quiz_view.dart';
+import 'learning_workspace_view.dart';
 import 'projects_evidence_view.dart';
 
 class SkillDetailView extends ConsumerStatefulWidget {
@@ -49,19 +51,68 @@ class _SkillDetailViewState extends ConsumerState<SkillDetailView> {
   bool _isBookmarked = false;
   late final Set<int> _completedTopicIndices;
 
-  final List<String> _keyTopics = [
-    'What is core architecture?',
-    'Components & Lifecycles',
-    'State, Props & Mutability',
-    'Event Handling & Streams',
-    'Edge Cases & Performance',
-  ];
+  List<String> get _keyTopics => _resolveKeyTopics(widget.skillName);
+
+  List<String> _resolveKeyTopics(String skill) {
+    final s = skill.toLowerCase();
+    if (s.contains('python') || s.contains('pandas') || s.contains('numpy') || s.contains('data') || s.contains('ai') || s.contains('machine')) {
+      return [
+        'Core Foundations & Execution Model',
+        'Data Ingestion, Cleaning & Transformation',
+        'Feature Engineering & Matrix Mathematics',
+        'Model Training, Hyperparameters & Evaluation',
+        'Production Inference, Serialization & Deployment',
+      ];
+    }
+    if (s.contains('cyber') || s.contains('security') || s.contains('linux') || s.contains('network') || s.contains('wireshark') || s.contains('owasp')) {
+      return [
+        'Threat Modeling & Perimeter Defense',
+        'Network Packet Inspection & Protocol Analysis',
+        'OWASP Vulnerabilities, Exploitation & Patches',
+        'Zero-Trust Architecture & IAM Controls',
+        'Incident Response & Automated Log Auditing',
+      ];
+    }
+    if (s.contains('flutter') || s.contains('dart') || s.contains('mobile') || s.contains('android') || s.contains('ios')) {
+      return [
+        'Widget Tree Composition & Render Mechanics',
+        'Reactive State Management & Rebuild Isolation',
+        'Asynchronous Streams, Isolates & Native Channels',
+        'Offline Cache, Local SQLite & Secure Storage',
+        'Production Profiling, Memory Leaks & Tree-shaking',
+      ];
+    }
+    if (s.contains('cloud') || s.contains('docker') || s.contains('kubernetes') || s.contains('aws') || s.contains('devops')) {
+      return [
+        'Containerization & OCI Runtime Specification',
+        'Orchestration, Pod Scheduling & Service Mesh',
+        'CI/CD Pipeline Automation & Branch Protection',
+        'Infrastructure as Code (Terraform/CloudFormation)',
+        'Observability, Distributed Tracing & High Availability',
+      ];
+    }
+    if (s.contains('sql') || s.contains('database') || s.contains('postgres') || s.contains('redis')) {
+      return [
+        'Relational Schema Design & Normalization',
+        'B-Tree Indexing, Query Plans & EXPLAIN ANALYZE',
+        'ACID Transactions, MVCC & Isolation Levels',
+        'Connection Pooling & Read Replica Topologies',
+        'Caching Layers, Write-Through & Invalidation Policies',
+      ];
+    }
+    return [
+      'Core Architecture & Runtime Model',
+      'Fundamental Principles & Design Patterns',
+      'State Management & Data Flow Contracts',
+      'Integration Testing, Debugging & Error Handling',
+      'Production Hardening & Performance Optimization',
+    ];
+  }
 
   @override
   void initState() {
     super.initState();
-    // Default 2 completed for realistic demonstration
-    _completedTopicIndices = {0, 1};
+    _completedTopicIndices = <int>{};
   }
 
   void _toggleTopic(int index) {
@@ -76,9 +127,9 @@ class _SkillDetailViewState extends ConsumerState<SkillDetailView> {
 
   @override
   Widget build(BuildContext context) {
-    final youtubeAsync = ref.watch(
-      youTubeResourcesProvider({'topic': widget.skillName, 'language': 'English'}),
-    );
+    final resourceQuery = ResourceQuery(topic: widget.skillName, language: 'English');
+    final youtubeAsync = ref.watch(youTubeResourcesProvider(resourceQuery));
+    final playlistsAsync = ref.watch(youTubePlaylistsProvider(resourceQuery));
     final githubAsync = ref.watch(gitHubResourcesProvider(widget.skillName));
 
     final completedCount = _completedTopicIndices.length;
@@ -188,7 +239,7 @@ class _SkillDetailViewState extends ConsumerState<SkillDetailView> {
               else if (_selectedTabIndex == 1)
                 _buildPracticeTab()
               else
-                _buildResourcesTab(githubAsync, youtubeAsync),
+                _buildResourcesTab(githubAsync, youtubeAsync, playlistsAsync),
             ],
           ),
         ),
@@ -212,6 +263,7 @@ class _SkillDetailViewState extends ConsumerState<SkillDetailView> {
             final views = video?['views'] ?? '4.2M views';
             final duration = video?['duration'] ?? '2:15:30';
             final url = video?['url'] ?? 'https://www.youtube.com/results?search_query=${Uri.encodeComponent(widget.skillName)}';
+            final thumbnailUrl = video?['thumbnailUrl'] as String?;
 
             return CareerGlassCard(
               padding: EdgeInsets.zero,
@@ -224,6 +276,7 @@ class _SkillDetailViewState extends ConsumerState<SkillDetailView> {
                   Container(
                     height: 160,
                     width: double.infinity,
+                    clipBehavior: Clip.antiAlias,
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
                         colors: [Color(0xFF0F172A), Color(0xFF1E1B4B)],
@@ -235,6 +288,20 @@ class _SkillDetailViewState extends ConsumerState<SkillDetailView> {
                     child: Stack(
                       alignment: Alignment.center,
                       children: [
+                        if (thumbnailUrl != null && thumbnailUrl.isNotEmpty)
+                          Positioned.fill(
+                            child: Image.network(
+                              thumbnailUrl,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                            ),
+                          ),
+                        // Dark overlay for contrast
+                        Positioned.fill(
+                          child: Container(
+                            color: Colors.black.withValues(alpha: 0.35),
+                          ),
+                        ),
                         // Red YouTube Play Icon
                         Container(
                           width: 54,
@@ -294,6 +361,22 @@ class _SkillDetailViewState extends ConsumerState<SkillDetailView> {
                             ),
                           ],
                         ),
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFEF4444),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              elevation: 0,
+                            ),
+                            icon: const Icon(Icons.play_circle_fill_rounded, size: 16),
+                            label: const Text('Watch on YouTube', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                            onPressed: () => UrlLauncherService.openUrl(context, url),
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -301,17 +384,65 @@ class _SkillDetailViewState extends ConsumerState<SkillDetailView> {
               ),
             );
           },
-          loading: () => Container(
-            height: 180,
-            decoration: BoxDecoration(
-              color: CareerTheme.surface,
-              borderRadius: BorderRadius.circular(CareerTheme.radiusLarge),
-            ),
-            child: const Center(
-              child: CircularProgressIndicator(strokeWidth: 2, color: CareerTheme.primaryCyan),
+          loading: () => CareerGlassCard(
+            padding: const EdgeInsets.all(16),
+            borderRadius: CareerTheme.radiusLarge,
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEF4444).withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.play_arrow_rounded, color: Color(0xFFEF4444), size: 24),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${widget.skillName} Video Guide',
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white),
+                      ),
+                      const SizedBox(height: 2),
+                      const Text('Loading verified lecture...', style: TextStyle(fontSize: 11, color: CareerTheme.textMuted)),
+                    ],
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => UrlLauncherService.openUrl(
+                    context,
+                    'https://www.youtube.com/results?search_query=${Uri.encodeComponent(widget.skillName)}',
+                  ),
+                  child: const Text('Search YT', style: TextStyle(color: CareerTheme.primaryCyan, fontSize: 12)),
+                ),
+              ],
             ),
           ),
-          error: (_, __) => const SizedBox.shrink(),
+          error: (_, __) => CareerGlassCard(
+            padding: const EdgeInsets.all(16),
+            borderRadius: CareerTheme.radiusLarge,
+            onTap: () => UrlLauncherService.openUrl(
+              context,
+              'https://www.youtube.com/results?search_query=${Uri.encodeComponent(widget.skillName)}',
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.smart_display_rounded, color: Color(0xFFEF4444), size: 24),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Watch ${widget.skillName} tutorials on YouTube',
+                    style: const TextStyle(fontSize: 13, color: Colors.white, fontWeight: FontWeight.w600),
+                  ),
+                ),
+                const Icon(Icons.open_in_new_rounded, color: CareerTheme.primaryCyan, size: 16),
+              ],
+            ),
+          ),
         ),
         const SizedBox(height: 24),
 
@@ -335,31 +466,36 @@ class _SkillDetailViewState extends ConsumerState<SkillDetailView> {
                     : CareerTheme.glassBorder,
               ),
             ),
-            child: ListTile(
-              dense: true,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
-              leading: GestureDetector(
-                onTap: () => _toggleTopic(idx),
-                child: Icon(
-                  isCompleted ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
-                  color: isCompleted ? CareerTheme.success : CareerTheme.lockedText,
-                  size: 20,
-                ),
-              ),
-              title: Text(
-                topic,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  color: isCompleted ? Colors.white : CareerTheme.textSecondary,
-                  decoration: isCompleted ? TextDecoration.lineThrough : null,
-                  decorationColor: CareerTheme.textSubtle,
-                ),
-              ),
-              trailing: isCompleted
-                  ? const Text('✓', style: TextStyle(color: CareerTheme.success, fontWeight: FontWeight.w700))
-                  : null,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(CareerTheme.radiusMedium),
               onTap: () => _toggleTopic(idx),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                child: Row(
+                  children: [
+                    Icon(
+                      isCompleted ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+                      color: isCompleted ? CareerTheme.success : CareerTheme.lockedText,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        topic,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: isCompleted ? Colors.white : CareerTheme.textSecondary,
+                          decoration: isCompleted ? TextDecoration.lineThrough : null,
+                          decorationColor: CareerTheme.textSubtle,
+                        ),
+                      ),
+                    ),
+                    if (isCompleted)
+                      const Text('✓', style: TextStyle(color: CareerTheme.success, fontWeight: FontWeight.w700)),
+                  ],
+                ),
+              ),
             ),
           );
         }),
@@ -475,6 +611,26 @@ class _SkillDetailViewState extends ConsumerState<SkillDetailView> {
                 ),
                 child: const Text('Launch Adaptive Quiz', style: TextStyle(fontWeight: FontWeight.w700)),
               ),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: () {
+                  LearningWorkspaceView.open(
+                    context,
+                    topic: widget.skillName,
+                    phaseNumber: widget.phaseNumber,
+                    roadmapId: widget.roadmapId,
+                  );
+                },
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  side: const BorderSide(color: CareerTheme.glassBorder),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  minimumSize: const Size(double.infinity, 46),
+                ),
+                icon: const Icon(Icons.laptop_chromebook_rounded, size: 16, color: CareerTheme.primaryCyan),
+                label: const Text('Open Interactive Learning Workspace', style: TextStyle(fontWeight: FontWeight.w600)),
+              ),
             ],
           ),
         ),
@@ -488,6 +644,7 @@ class _SkillDetailViewState extends ConsumerState<SkillDetailView> {
   Widget _buildResourcesTab(
     AsyncValue<List<Map<String, dynamic>>> githubAsync,
     AsyncValue<List<Map<String, dynamic>>> youtubeAsync,
+    AsyncValue<List<Map<String, dynamic>>> playlistsAsync,
   ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -495,35 +652,40 @@ class _SkillDetailViewState extends ConsumerState<SkillDetailView> {
         // 1. Official Documentation Section
         const Text('Official Documentation', style: CareerTheme.sectionHeader),
         const SizedBox(height: 10),
-        CareerGlassCard(
-          padding: const EdgeInsets.all(14),
-          borderRadius: CareerTheme.radiusMedium,
-          onTap: () => UrlLauncherService.openUrl(context, 'https://react.dev'),
-          child: Row(
-            children: [
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: CareerTheme.primaryCyan.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(Icons.menu_book_rounded, color: CareerTheme.primaryCyan, size: 20),
+        Builder(
+          builder: (context) {
+            final docs = CareerDocsResolver.resolve(widget.skillName);
+            return CareerGlassCard(
+              padding: const EdgeInsets.all(14),
+              borderRadius: CareerTheme.radiusMedium,
+              onTap: () => UrlLauncherService.openUrl(context, docs.url),
+              child: Row(
+                children: [
+                  Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: CareerTheme.primaryCyan.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.menu_book_rounded, color: CareerTheme.primaryCyan, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Official Documentation (${docs.domain})', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white)),
+                        const SizedBox(height: 2),
+                        Text(docs.description, style: const TextStyle(fontSize: 11, color: CareerTheme.textMuted)),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.open_in_new_rounded, color: CareerTheme.primaryCyan, size: 16),
+                ],
               ),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Official Documentation', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white)),
-                    SizedBox(height: 2),
-                    Text('react.dev • Guides, hooks & API reference', style: TextStyle(fontSize: 11, color: CareerTheme.textMuted)),
-                  ],
-                ),
-              ),
-              const Icon(Icons.open_in_new_rounded, color: CareerTheme.primaryCyan, size: 16),
-            ],
-          ),
+            );
+          },
         ),
         const SizedBox(height: 20),
 
@@ -586,14 +748,22 @@ class _SkillDetailViewState extends ConsumerState<SkillDetailView> {
         const Text('Related Playlists', style: CareerTheme.sectionHeader),
         const SizedBox(height: 10),
 
-        youtubeAsync.when(
-          data: (videos) {
-            final playlists = videos.skip(1).take(2).toList();
+        playlistsAsync.when(
+          data: (playlists) {
+            final items = playlists.isNotEmpty
+                ? playlists.take(3).toList()
+                : (youtubeAsync.value?.skip(1).take(2).toList() ?? []);
+
+            if (items.isEmpty) {
+              return const SizedBox.shrink();
+            }
+
             return Column(
-              children: playlists.map((v) {
-                final title = v['title'] ?? 'Full Course Playlist';
-                final channel = v['channel'] ?? 'freeCodeCamp';
+              children: items.map((v) {
+                final title = v['title'] ?? 'Comprehensive Engineering Playlist';
+                final channel = v['channel'] ?? 'Curated Educational Partner';
                 final url = v['url'] ?? '';
+                final itemCount = v['itemCount'] ?? v['item_count'];
 
                 return Container(
                   margin: const EdgeInsets.only(bottom: 8),
@@ -618,7 +788,12 @@ class _SkillDetailViewState extends ConsumerState<SkillDetailView> {
                             children: [
                               Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white), maxLines: 1, overflow: TextOverflow.ellipsis),
                               const SizedBox(height: 2),
-                              Text('$channel • Curated Educational Series', style: const TextStyle(fontSize: 11, color: CareerTheme.textMuted)),
+                              Text(
+                                itemCount != null
+                                    ? '$channel • $itemCount videos'
+                                    : '$channel • Curated Series',
+                                style: const TextStyle(fontSize: 11, color: CareerTheme.textMuted),
+                              ),
                             ],
                           ),
                         ),

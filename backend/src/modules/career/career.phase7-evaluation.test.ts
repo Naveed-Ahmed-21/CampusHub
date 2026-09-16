@@ -262,10 +262,10 @@ describe('CAMPUSHUB CAREER HUB v2.0 — PHASE 7 PRODUCTION ACCEPTANCE & EVALUATI
         expect(repo.stars).toBeGreaterThanOrEqual(0);
         expect(repo.name.length).toBeGreaterThan(0);
       }
-    });
+    }, 15000);
 
-    it('verifies YouTube resources match topic and prioritize preferred language without hallucinated links', () => {
-      const videos = CareerYouTubeService.getEducationalVideos('Data Structures and Algorithms', 'English', 3);
+    it('verifies YouTube resources match topic and prioritize preferred language without hallucinated links', async () => {
+      const videos = await CareerYouTubeService.getEducationalVideos('Data Structures and Algorithms', 'English', 3);
       expect(videos.length).toBeGreaterThan(0);
       expect(videos[0].language.toLowerCase()).toBe('english');
       for (const vid of videos) {
@@ -273,7 +273,7 @@ describe('CAMPUSHUB CAREER HUB v2.0 — PHASE 7 PRODUCTION ACCEPTANCE & EVALUATI
         expect(vid.title.length).toBeGreaterThan(0);
         expect(vid.isVerified).toBe(true);
       }
-    });
+    }, 15000);
 
     it('provides graceful fallback when AI provider or network times out without crashing', async () => {
       const fallbackRepos = CareerGitHubService.getCuratedFallback('NonExistentTech');

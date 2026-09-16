@@ -35,6 +35,7 @@ export interface SubjectDTO {
   section: string;
   credits: number;
   description?: string;
+  academicYear?: string;
   resourcesCount: number;
   announcementsCount: number;
   studentsCount: number;
@@ -50,6 +51,7 @@ export interface CreateSubjectDTO {
   section?: string;
   credits?: number;
   description?: string;
+  academicYear?: string;
 }
 
 export interface SubjectResourceDTO {
@@ -59,9 +61,18 @@ export interface SubjectResourceDTO {
   description?: string;
   fileUrl: string;
   fileType: string;
+  unit?: string | null;
+  topic?: string | null;
+  resourceType: string;
+  visibility: string;
+  thumbnailUrl?: string | null;
+  academicYear?: string | null;
+  downloadCount: number;
+  viewCount: number;
   uploadedById: string;
   uploadedByName: string;
   createdAt: Date;
+  updatedAt?: Date;
 }
 
 export interface CreateSubjectResourceDTO {
@@ -69,6 +80,12 @@ export interface CreateSubjectResourceDTO {
   description?: string;
   fileUrl: string;
   fileType: string;
+  unit?: string;
+  topic?: string;
+  resourceType?: string;
+  visibility?: string;
+  thumbnailUrl?: string;
+  academicYear?: string;
 }
 
 export interface SubjectAnnouncementDTO {
@@ -109,4 +126,48 @@ export interface MenteeStudentDTO {
   email: string;
   avatarUrl?: string | null;
   hasPortfolio: boolean;
+}
+
+export interface FacultyProfileDTO {
+  id: string;
+  userId: string;
+  name: string;
+  email: string;
+  avatarUrl?: string | null;
+  designation: string;
+  qualification: string;
+  department: string;
+  specialization: string;
+  bio: string;
+  officeRoom: string;
+  officeHours: string;
+  expertise: string[];
+  publications: Array<{
+    title: string;
+    venue: string;
+    link?: string;
+  }>;
+  linkedinUrl?: string | null;
+  googleScholar?: string | null;
+  subjectsCount: number;
+  menteesCount: number;
+}
+
+export interface UpdateFacultyProfileDTO {
+  designation?: string;
+  qualification?: string;
+  departmentName?: string;
+  specialization?: string;
+  bio?: string;
+  officeRoom?: string;
+  officeHours?: string;
+  expertise?: string[];
+  publications?: Array<{
+    title: string;
+    venue: string;
+    link?: string;
+  }>;
+  avatarUrl?: string;
+  linkedinUrl?: string;
+  googleScholar?: string;
 }

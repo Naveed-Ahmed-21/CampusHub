@@ -39,6 +39,7 @@ class FacultyRemoteDataSource {
     int? credits,
     String? description,
     String? departmentName,
+    String? academicYear,
   }) async {
     final response = await _dio.post(
       '/api/v1/faculty/subjects',
@@ -50,6 +51,7 @@ class FacultyRemoteDataSource {
         'credits': credits ?? 3,
         if (description != null) 'description': description,
         if (departmentName != null) 'departmentName': departmentName,
+        if (academicYear != null) 'academicYear': academicYear,
       },
     );
     final data = response.data['data'] as Map<String, dynamic>;
@@ -62,6 +64,12 @@ class FacultyRemoteDataSource {
     String? description,
     required String fileUrl,
     required String fileType,
+    String? unit,
+    String? topic,
+    String? resourceType,
+    String? visibility,
+    String? thumbnailUrl,
+    String? academicYear,
   }) async {
     final response = await _dio.post(
       '/api/v1/faculty/subjects/$subjectId/resources',
@@ -70,10 +78,52 @@ class FacultyRemoteDataSource {
         if (description != null) 'description': description,
         'fileUrl': fileUrl,
         'fileType': fileType,
+        if (unit != null) 'unit': unit,
+        if (topic != null) 'topic': topic,
+        if (resourceType != null) 'resourceType': resourceType,
+        if (visibility != null) 'visibility': visibility,
+        if (thumbnailUrl != null) 'thumbnailUrl': thumbnailUrl,
+        if (academicYear != null) 'academicYear': academicYear,
       },
     );
     final data = response.data['data'] as Map<String, dynamic>;
     return SubjectResource.fromJson(data);
+  }
+
+  Future<SubjectResource> updateSubjectResource({
+    required String subjectId,
+    required String resourceId,
+    String? title,
+    String? description,
+    String? fileUrl,
+    String? fileType,
+    String? unit,
+    String? topic,
+    String? resourceType,
+    String? visibility,
+  }) async {
+    final response = await _dio.put(
+      '/api/v1/faculty/subjects/$subjectId/resources/$resourceId',
+      data: {
+        if (title != null) 'title': title,
+        if (description != null) 'description': description,
+        if (fileUrl != null) 'fileUrl': fileUrl,
+        if (fileType != null) 'fileType': fileType,
+        if (unit != null) 'unit': unit,
+        if (topic != null) 'topic': topic,
+        if (resourceType != null) 'resourceType': resourceType,
+        if (visibility != null) 'visibility': visibility,
+      },
+    );
+    final data = response.data['data'] as Map<String, dynamic>;
+    return SubjectResource.fromJson(data);
+  }
+
+  Future<void> deleteSubjectResource({
+    required String subjectId,
+    required String resourceId,
+  }) async {
+    await _dio.delete('/api/v1/faculty/subjects/$subjectId/resources/$resourceId');
   }
 
   Future<SubjectAnnouncement> createSubjectAnnouncement({
@@ -102,5 +152,17 @@ class FacultyRemoteDataSource {
     final response = await _dio.get('/api/v1/faculty/mentees');
     final list = response.data['data'] as List<dynamic>? ?? [];
     return list.map((e) => MenteeStudent.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  Future<FacultyProfileModel> getProfile() async {
+    final response = await _dio.get('/api/v1/faculty/profile');
+    final data = response.data['data'] as Map<String, dynamic>;
+    return FacultyProfileModel.fromJson(data);
+  }
+
+  Future<FacultyProfileModel> updateProfile(Map<String, dynamic> payload) async {
+    final response = await _dio.put('/api/v1/faculty/profile', data: payload);
+    final data = response.data['data'] as Map<String, dynamic>;
+    return FacultyProfileModel.fromJson(data);
   }
 }

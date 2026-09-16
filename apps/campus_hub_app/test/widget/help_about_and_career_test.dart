@@ -6,6 +6,8 @@ import 'package:campus_hub_app/features/settings/presentation/views/about_view.d
 import 'package:campus_hub_app/features/career/domain/career_models.dart';
 import 'package:campus_hub_app/features/career/presentation/widgets/eva_ai_avatar.dart';
 import 'package:campus_hub_app/features/career/presentation/widgets/phase_challenge_dialog.dart';
+import 'package:campus_hub_app/features/career/presentation/views/user_roadmaps_list_view.dart';
+import 'package:campus_hub_app/features/career/presentation/providers/career_provider.dart';
 
 void main() {
   group('Career Domain Models Serialization Tests', () {
@@ -337,6 +339,95 @@ void main() {
 
       expect(find.text('Export to Portfolio'), findsOneWidget);
       expect(find.text('Confirm & Add to Portfolio'), findsOneWidget);
+    });
+  });
+
+  group('UserRoadmapsListView Widget Tests', () {
+    testWidgets('Renders all active and saved roadmaps with active indicator', (tester) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      final mockRoadmaps = [
+        UserRoadmapItemModel(
+          id: 'rdm_fullstack',
+          title: 'Full Stack Development',
+          targetRole: 'Full Stack Developer',
+          category: 'Engineering',
+          description: 'Web development with Node.js and React',
+          level: 'Intermediate',
+          estimatedMonths: 4,
+          isActive: true,
+          progressPercent: 65.0,
+          currentFocus: 'Phase 2: Backend Architecture',
+        ),
+        UserRoadmapItemModel(
+          id: 'rdm_cybersecurity',
+          title: 'Cybersecurity Specialist',
+          targetRole: 'Cybersecurity Specialist',
+          category: 'Security',
+          description: 'Network Defense and Analysis',
+          level: 'Beginner',
+          estimatedMonths: 3,
+          isActive: false,
+          progressPercent: 25.0,
+          currentFocus: 'Phase 1: Security Fundamentals',
+        ),
+      ];
+
+      final mockActiveState = ActiveRoadmapState(
+        roadmapId: 'rdm_fullstack',
+        targetRole: 'Full Stack Developer',
+        level: 'Intermediate',
+        weeklyHours: 10,
+        currentFocus: 'Phase 2: Backend Architecture',
+        todayGoal: 'Complete REST API module',
+        progressPercent: 65.0,
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            userRoadmapsProvider.overrideWith((ref) => Future.value(mockRoadmaps)),
+            activeUserRoadmapProvider.overrideWith((ref) => Future.value(mockActiveState)),
+          ],
+          child: const MaterialApp(
+            home: UserRoadmapsListView(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('My Learning Roadmaps'), findsOneWidget);
+      expect(find.text('Full Stack Developer'), findsWidgets);
+      expect(find.text('Cybersecurity Specialist'), findsOneWidget);
+      expect(find.text('ACTIVE'), findsOneWidget);
+      expect(find.text('Set Active'), findsOneWidget);
+      expect(find.text('Tracks (2)'), findsOneWidget);
+      expect(find.text('View Roadmap'), findsNWidgets(2));
+    });
+
+    testWidgets('Renders empty state when user has no roadmaps', (tester) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            userRoadmapsProvider.overrideWith((ref) => Future.value([])),
+            activeUserRoadmapProvider.overrideWith((ref) => Future.value(null)),
+          ],
+          child: const MaterialApp(
+            home: UserRoadmapsListView(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('My Learning Roadmaps'), findsOneWidget);
+      expect(find.text('No Roadmaps Created Yet'), findsOneWidget);
+      expect(find.text('Generate First Roadmap'), findsOneWidget);
     });
   });
 }

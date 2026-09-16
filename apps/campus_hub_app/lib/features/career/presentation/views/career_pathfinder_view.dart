@@ -92,7 +92,7 @@ class _CareerPathfinderViewState extends ConsumerState<CareerPathfinderView> {
         answer: answerText,
       );
 
-      final isCompleted = result['isCompleted'] == true;
+      final isCompleted = result['isCompleted'] == true || result['session']?['completed'] == true;
       if (isCompleted && result['analysis'] != null) {
         if (mounted) {
           CareerAnalysisResultView.open(
@@ -100,8 +100,16 @@ class _CareerPathfinderViewState extends ConsumerState<CareerPathfinderView> {
             analysisData: result['analysis'] as Map<String, dynamic>,
           );
         }
+      } else if (result['session'] != null) {
+        final updated = DynamicPathfinderSessionModel.fromJson(result['session'] as Map<String, dynamic>);
+        setState(() {
+          _session = updated;
+          _selectedOption = null;
+          _customInputController.clear();
+          _isSubmitting = false;
+        });
       } else {
-        // Refresh session to get next dynamic question
+        // Fallback: refresh session to get next dynamic question
         final updated = await repo.getPathfinderSessionV2(_session!.id);
         setState(() {
           _session = updated;
@@ -114,6 +122,30 @@ class _CareerPathfinderViewState extends ConsumerState<CareerPathfinderView> {
       setState(() {
         _isSubmitting = false;
         _errorMessage = 'Submission error: $e';
+      });
+    }
+  }
+
+  Future<void> _stepBack() async {
+    if (_session == null || _session!.step <= 1) return;
+    setState(() {
+      _isSubmitting = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final repo = ref.read(careerRepositoryProvider);
+      final updated = await repo.stepBackPathfinderSessionV2(_session!.id);
+      setState(() {
+        _session = updated;
+        _selectedOption = null;
+        _customInputController.clear();
+        _isSubmitting = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isSubmitting = false;
+        _errorMessage = 'Navigation error: $e';
       });
     }
   }
@@ -300,32 +332,43 @@ class _CareerPathfinderViewState extends ConsumerState<CareerPathfinderView> {
                     width: isSelected ? 1.5 : 1.0,
                   ),
                 ),
-                child: ListTile(
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(12),
                   onTap: () {
                     setState(() {
                       _selectedOption = option;
                       _customInputController.clear();
                     });
                   },
-                  leading: Radio<String>(
-                    value: option,
-                    // ignore: deprecated_member_use
-                    groupValue: _selectedOption,
-                    activeColor: const Color(0xFF6366F1),
-                    // ignore: deprecated_member_use
-                    onChanged: (val) {
-                      setState(() {
-                        _selectedOption = val;
-                        _customInputController.clear();
-                      });
-                    },
-                  ),
-                  title: Text(
-                    option,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                      color: isSelected ? Colors.white : const Color(0xFFE2E8F0),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                    child: Row(
+                      children: [
+                        Radio<String>(
+                          value: option,
+                          // ignore: deprecated_member_use
+                          groupValue: _selectedOption,
+                          activeColor: const Color(0xFF6366F1),
+                          // ignore: deprecated_member_use
+                          onChanged: (val) {
+                            setState(() {
+                              _selectedOption = val;
+                              _customInputController.clear();
+                            });
+                          },
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            option,
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                              color: isSelected ? Colors.white : const Color(0xFFE2E8F0),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -369,34 +412,65 @@ class _CareerPathfinderViewState extends ConsumerState<CareerPathfinderView> {
             const SizedBox(height: 28),
 
             // Action Buttons
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton(
-                onPressed: _isSubmitting ? null : _submitAnswer,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF6366F1),
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                child: _isSubmitting
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                      )
-                    : Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            step >= totalSteps ? 'Generate Final Analysis' : 'Next Step',
-                            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-                          ),
-                          const SizedBox(width: 8),
-                          const Icon(Icons.arrow_forward_rounded, size: 18),
-                        ],
+            Row(
+              children: [
+                if (step > 1) ...[
+                  Expanded(
+                    flex: 1,
+                    child: SizedBox(
+                      height: 48,
+                      child: OutlinedButton(
+                        onPressed: _isSubmitting ? null : _stepBack,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFF94A3B8),
+                          side: const BorderSide(color: Color(0xFF334155)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.arrow_back_rounded, size: 18),
+                            SizedBox(width: 6),
+                            Text('Previous', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                          ],
+                        ),
                       ),
-              ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                ],
+                Expanded(
+                  flex: step > 1 ? 2 : 1,
+                  child: SizedBox(
+                    height: 48,
+                    child: ElevatedButton(
+                      onPressed: _isSubmitting ? null : _submitAnswer,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF6366F1),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: _isSubmitting
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                            )
+                          : Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  step >= totalSteps ? 'Generate Final Analysis' : 'Next Step',
+                                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                                ),
+                                const SizedBox(width: 8),
+                                const Icon(Icons.arrow_forward_rounded, size: 18),
+                              ],
+                            ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),

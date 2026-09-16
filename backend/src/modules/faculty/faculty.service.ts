@@ -9,6 +9,8 @@ import {
   SubjectAnnouncementDTO,
   ClassScheduleSlotDTO,
   MenteeStudentDTO,
+  FacultyProfileDTO,
+  UpdateFacultyProfileDTO,
 } from './faculty.types';
 import { NotFoundError, ForbiddenError } from '../../shared/utils/custom-error.util';
 
@@ -34,7 +36,7 @@ export class FacultyService {
         id: facultyId,
         name: 'Faculty Member',
         email: 'faculty@campushub.edu',
-        designation: 'Faculty Member',
+        designation: 'Associate Professor',
         department: 'Academic Department',
       },
       stats: {
@@ -62,7 +64,19 @@ export class FacultyService {
     subjectId: string,
     userId: string,
     userRole: string
-  ): Promise<SubjectDTO & { facultyId: string; resources: SubjectResourceDTO[]; announcements: SubjectAnnouncementDTO[] }> {
+  ): Promise<
+    SubjectDTO & {
+      facultyId: string;
+      facultyName: string;
+      facultyEmail: string;
+      facultyAvatarUrl?: string | null;
+      facultyDesignation?: string;
+      facultyOfficeRoom?: string;
+      facultyOfficeHours?: string;
+      resources: SubjectResourceDTO[];
+      announcements: SubjectAnnouncementDTO[];
+    }
+  > {
     const subject = await this.repository.findSubjectById(subjectId);
     if (!subject) {
       throw new NotFoundError(`Subject with ID ${subjectId} not found`);
@@ -82,6 +96,25 @@ export class FacultyService {
     }
 
     return await this.repository.createSubjectResource(facultyId, subjectId, dto);
+  }
+
+  async updateSubjectResource(
+    facultyId: string,
+    subjectId: string,
+    resourceId: string,
+    dto: Partial<CreateSubjectResourceDTO>,
+    userRole: string
+  ): Promise<SubjectResourceDTO> {
+    const subject = await this.getSubjectDetails(subjectId, facultyId, userRole);
+    if (subject.facultyId !== facultyId && !this.isElevatedRole(userRole)) {
+      throw new ForbiddenError('You are not authorized to modify resources for this subject');
+    }
+
+    const updated = await this.repository.updateSubjectResource(resourceId, dto);
+    if (!updated) {
+      throw new NotFoundError(`Resource with ID ${resourceId} not found`);
+    }
+    return updated;
   }
 
   async deleteSubjectResource(
@@ -124,6 +157,18 @@ export class FacultyService {
 
   async getMentees(facultyId: string, collegeId: string): Promise<MenteeStudentDTO[]> {
     return await this.repository.getMentees(facultyId, collegeId);
+  }
+
+  async getFacultyProfile(facultyId: string): Promise<FacultyProfileDTO> {
+    const profile = await this.repository.getFacultyProfile(facultyId);
+    if (!profile) {
+      throw new NotFoundError(`Faculty profile for ID ${facultyId} not found`);
+    }
+    return profile;
+  }
+
+  async updateFacultyProfile(facultyId: string, dto: UpdateFacultyProfileDTO): Promise<FacultyProfileDTO> {
+    return await this.repository.updateFacultyProfile(facultyId, dto);
   }
 
   private generateScheduleSlotsFromSubjects(subjects: SubjectDTO[]): ClassScheduleSlotDTO[] {

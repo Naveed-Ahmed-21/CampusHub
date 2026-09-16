@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import { AIProvider, aiProvider } from '../../../shared/ai/ai.provider';
 import { BuiltCareerContext } from './career.context-builder';
 import { CareerAIIntent } from './career.intent-detector';
@@ -667,95 +668,206 @@ export class CareerAIOrchestrator {
   // ==========================================
   // 3. INTERVIEW AGENT (1-ON-1 BRANCHING EVA MOCK)
   // ==========================================
-  generateInitialInterviewQuestion(targetRole: string, completedPhases: string[]): { question: string; expectedConcepts: string[] } {
-    const roleLower = targetRole.toLowerCase();
+  generateInitialInterviewQuestion(
+    targetRole: string,
+    completedPhases: string[] = [],
+    currentSkill?: string,
+    roadmapTitle?: string
+  ): { question: string; expectedConcepts: string[] } {
+    const combined = `${targetRole} ${currentSkill || ''} ${roadmapTitle || ''}`.toLowerCase();
 
-    if (roleLower.includes('flutter')) {
+    if (combined.includes('iot') || combined.includes('embedded') || combined.includes('microcontroller') || combined.includes('esp32')) {
       return {
         question:
-          "Hi! I'm EVA, your AI technical interviewer. Let's begin.\n\n" +
-          "Tell me about a Flutter project or component you recently built. Specifically, what state management solution did you use, and why did you pick that approach over standard setState?",
-        expectedConcepts: ['state management', 'rebuilds', 'Riverpod or Bloc or Provider', 'separation of concerns'],
+          "Hi! I'm EVA, your technical interviewer. Let's begin your Embedded Systems & IoT technical interview.\n\n" +
+          "Could you walk me through how you configure and debounce GPIO input interrupts on an ESP32 or ARM microcontroller? How do you prevent blocking the FreeRTOS scheduler inside an Interrupt Service Routine (ISR)?",
+        expectedConcepts: ['GPIO interrupts', 'hardware debouncing', 'ISR execution latency', 'FreeRTOS queue or task notification', 'volatile qualifier'],
       };
     }
 
-    if (roleLower.includes('backend') || roleLower.includes('distributed')) {
+    if (combined.includes('cyber') || combined.includes('security') || combined.includes('devsecops') || combined.includes('penetration')) {
       return {
         question:
-          "Hi! I'm EVA, your AI technical interviewer. Let's get started.\n\n" +
-          "When designing a RESTful API that handles user authentication and session management, how do you handle JWT access and refresh token rotation? What happens when a token expires?",
-        expectedConcepts: ['JWT', 'access token', 'refresh token', 'expiry', 'HTTP 401', 'rotation', 'security'],
+          "Hi! I'm EVA, your technical interviewer. Let's begin your Cybersecurity & DevSecOps assessment.\n\n" +
+          "Suppose you discovered an authenticated SQL injection and a Reflected XSS vulnerability during a security audit. Walk me through how you demonstrate the vulnerability, patch both issues at the root cause, and automate regression scanning in your CI/CD pipeline.",
+        expectedConcepts: ['parameterized queries', 'context-aware output encoding', 'CSP headers', 'SAST/DAST automation', 'least privilege'],
+      };
+    }
+
+    if (combined.includes('ai') || combined.includes('machine learning') || combined.includes('data science') || combined.includes('deep learning')) {
+      return {
+        question:
+          "Hi! I'm EVA, your AI technical interviewer. Let's start your Data Science & Machine Learning interview.\n\n" +
+          "When deploying a predictive model or Retrieval-Augmented Generation (RAG) system to production, what evaluation metrics and monitoring strategies do you implement to detect data drift and hallucinations? How do you address severe class imbalance during training?",
+        expectedConcepts: ['data drift', 'precision vs recall vs F1', 'RAG grounding', 'vector similarity threshold', 'SMOTE or class weights'],
+      };
+    }
+
+    if (combined.includes('flutter') || combined.includes('dart') || combined.includes('mobile')) {
+      return {
+        question:
+          "Hi! I'm EVA, your AI technical interviewer. Let's begin your Mobile Engineering interview.\n\n" +
+          "In a production Flutter application consuming asynchronous streams and REST APIs, how do you architect state management using Riverpod to isolate widget rebuilds and avoid UI jank? How do you handle background isolates and offline cache synchronization?",
+        expectedConcepts: ['Riverpod StateNotifier / Notifier', 'rebuild isolation', 'Dart background isolates', 'offline SQLite/cache', 'Dio interceptors'],
+      };
+    }
+
+    if (combined.includes('cloud') || combined.includes('docker') || combined.includes('kubernetes') || combined.includes('devops')) {
+      return {
+        question:
+          "Hi! I'm EVA, your AI technical interviewer. Let's begin your Cloud & DevOps Engineering interview.\n\n" +
+          "When designing a containerized microservice deployment on Kubernetes, how do you structure multi-stage Dockerfiles for minimal footprint, configure rolling updates without downtime, and manage zero-trust secret injection?",
+        expectedConcepts: ['multi-stage builds', 'Kubernetes readiness/liveness probes', 'rolling update strategy', 'secrets management', 'resource limits'],
+      };
+    }
+
+    if (combined.includes('backend') || combined.includes('distributed') || combined.includes('node') || combined.includes('database')) {
+      return {
+        question:
+          "Hi! I'm EVA, your AI technical interviewer. Let's get started with your Backend Engineering interview.\n\n" +
+          "When designing a RESTful API handling high concurrent traffic, how do you implement secure JWT access and refresh token rotation? Furthermore, how do you design database indexing and Redis caching to resolve N+1 query bottlenecks?",
+        expectedConcepts: ['JWT rotation', 'refresh token revocation', 'Redis cache invalidation', 'B-Tree indexing', 'N+1 query resolution'],
+      };
+    }
+
+    if (combined.includes('civil') || combined.includes('bim') || combined.includes('mechanical') || combined.includes('cad')) {
+      return {
+        question:
+          "Hi! I'm EVA, your technical interviewer. Let's begin your Engineering Design & Modeling assessment.\n\n" +
+          "When coordinating multi-disciplinary 3D BIM models or mechanical assemblies, how do you enforce parametric constraints, resolve spatial clash detections, and automate bill-of-materials generation?",
+        expectedConcepts: ['parametric modeling', 'spatial clash detection', 'geometric tolerances', 'BIM LOD standards', 'coordination workflow'],
       };
     }
 
     return {
       question:
         `Hi! I'm EVA, your AI interviewer. Let's begin your technical interview for ${targetRole}.\n\n` +
-        "Can you walk me through the overall architecture of the most challenging software project you've engineered recently? What was the hardest bug you resolved?",
-      expectedConcepts: ['architecture', 'data flow', 'debugging', 'testing', 'tradeoffs'],
+        "Can you walk me through the overall system architecture of a core project you've engineered recently? What was the hardest bug or bottleneck you resolved, and how did you verify your implementation with automated tests?",
+      expectedConcepts: ['system architecture', 'data flow', 'debugging methodology', 'automated testing', 'tradeoffs'],
     };
   }
 
-  evaluateInterviewTurn(
+  async evaluateInterviewTurn(
     question: string,
     studentAnswer: string,
     expectedConcepts: string[],
     turnIndex: number,
     totalTurns: number
-  ): InterviewTurnEvaluation {
-    const answerLower = studentAnswer.toLowerCase();
-
-    const detected: string[] = [];
-    const missing: string[] = [];
-
-    for (const concept of expectedConcepts) {
-      const words = concept.toLowerCase().split(' ');
-      if (words.some((w) => answerLower.includes(w))) {
-        detected.push(concept);
-      } else {
-        missing.push(concept);
-      }
-    }
-
-    // Score calculation based on detected concepts and answer substance
-    const detectedRatio = expectedConcepts.length > 0 ? detected.length / expectedConcepts.length : 0.7;
-    const lengthBonus = Math.min(20, Math.floor(studentAnswer.trim().split(/\s+/).length / 4));
-    const score = Math.min(100, Math.max(35, Math.round(detectedRatio * 70 + lengthBonus)));
-
-    // Contextual feedback
-    let feedback = '';
-    if (missing.length === 0) {
-      feedback = "Solid explanation! You clearly hit the key architectural concepts and explained the rationale well.";
-    } else {
-      feedback =
-        `Good start. You mentioned ${detected.join(', ') || 'the surface details'}, but you didn't touch on ${missing.join(', ')}. In real interviews, interviewers look closely for these nuances.`;
-    }
-
+  ): Promise<InterviewTurnEvaluation> {
+    const trimmed = studentAnswer.trim();
+    const answerLower = trimmed.toLowerCase();
     const isFinished = turnIndex >= totalTurns - 1;
-    let followUpQuestion: string | undefined;
 
-    if (!isFinished) {
-      if (answerLower.includes('riverpod')) {
-        followUpQuestion =
-          "You mentioned Riverpod prevents unnecessary rebuilds. Can you explain how `ref.watch` behaves differently from `ref.read`, and why watching inside an `onPressed` callback is considered an anti-pattern?";
-      } else if (answerLower.includes('refresh') || answerLower.includes('token') || answerLower.includes('jwt')) {
-        followUpQuestion =
-          "Good. If an attacker intercepts the refresh token from client storage, what defensive mechanisms (such as token family reuse detection or HttpOnly cookies) can you implement to mitigate unauthorized access?";
-      } else {
-        followUpQuestion =
-          "Interesting. How do you handle error states and asynchronous failures gracefully so the user doesn't see a broken interface or infinite spinner?";
-      }
+    // 1. Detect clearly non-answers, gibberish, or refusals
+    const gibberishRegex = /^(idk|dont know|don't know|no idea|dunno|skip|nothing|asdf|qwerty|test|hello|hi|hey|ok|okay|bye|none)$/i;
+    const words = trimmed.split(/\s+/).filter(Boolean);
+    const isNonAnswer = words.length < 3 || gibberishRegex.test(trimmed);
+
+    if (isNonAnswer) {
+      return {
+        feedback:
+          'Your answer did not contain a technical explanation. In technical placement interviews, clearly explaining your approach and system trade-offs is essential.',
+        score: 0,
+        expectedConcepts,
+        detectedConcepts: [],
+        missingConcepts: expectedConcepts,
+        followUpQuestion: !isFinished
+          ? `Let's break it down: Can you explain the core fundamentals of ${expectedConcepts[0] || 'this architecture'}?`
+          : undefined,
+        isFinished,
+      };
     }
 
-    return {
-      feedback,
-      score,
-      expectedConcepts,
-      detectedConcepts: detected,
-      missingConcepts: missing,
-      followUpQuestion,
-      isFinished,
-    };
+    // 2. Real AI Evaluation using AIProvider
+    try {
+      const systemPrompt =
+        'You are EVA, an expert technical interviewer evaluating a student candidate in a technical interview.\n' +
+        'Evaluate the candidate response against the question and expected concepts.\n' +
+        'Be rigorous, realistic, and constructive:\n' +
+        '- Award 0-25 if the answer is completely off-topic, nonsense, or fundamentally inaccurate.\n' +
+        '- Award 30-65 if the answer is surface-level, missing critical mechanics, or partially flawed.\n' +
+        '- Award 70-89 for solid answers demonstrating clear technical understanding and trade-offs.\n' +
+        '- Award 90-100 only for exceptional, production-grade answers with architectural depth.\n' +
+        '- Identify which expected concepts were demonstrated and which were missing.\n' +
+        '- Provide constructive feedback (2-3 sentences) on strengths and actionable improvements.';
+
+      const prompt =
+        `Interview Question: "${question}"\n` +
+        `Expected Concepts: ${expectedConcepts.join(', ')}\n` +
+        `Candidate's Response: "${trimmed}"\n\n` +
+        `Current turn: ${turnIndex + 1} of ${totalTurns}.`;
+
+      const schema = z.object({
+        score: z.number().int().min(0).max(100),
+        feedback: z.string().min(10),
+        detectedConcepts: z.array(z.string()),
+        missingConcepts: z.array(z.string()),
+        followUpQuestion: z.string().optional(),
+      });
+
+      const aiResult = await this.provider.generateStructured(prompt, schema, systemPrompt);
+
+      let followUp = aiResult.followUpQuestion;
+      if (!isFinished && (!followUp || followUp.trim().length === 0)) {
+        if (aiResult.missingConcepts.length > 0) {
+          followUp = `Good. How would you handle ${aiResult.missingConcepts[0]} in this architecture?`;
+        } else {
+          followUp = 'What are the main latency, scalability, or security trade-offs of that approach?';
+        }
+      }
+
+      return {
+        feedback: aiResult.feedback,
+        score: aiResult.score,
+        expectedConcepts,
+        detectedConcepts: aiResult.detectedConcepts,
+        missingConcepts: aiResult.missingConcepts,
+        followUpQuestion: !isFinished ? followUp : undefined,
+        isFinished,
+      };
+    } catch (err) {
+      // 3. Robust fallback evaluation if AI provider is offline or times out
+      const detected: string[] = [];
+      const missing: string[] = [];
+
+      for (const concept of expectedConcepts) {
+        const parts = concept.toLowerCase().split(' ');
+        if (parts.some((w) => w.length > 2 && answerLower.includes(w))) {
+          detected.push(concept);
+        } else {
+          missing.push(concept);
+        }
+      }
+
+      const ratio = expectedConcepts.length > 0 ? detected.length / expectedConcepts.length : 0.5;
+      const lengthBonus = Math.min(15, Math.floor(words.length / 8));
+      const calculatedScore = detected.length === 0
+        ? Math.min(15, lengthBonus)
+        : Math.min(100, Math.round(ratio * 75 + lengthBonus));
+
+      const feedback = missing.length === 0
+        ? 'Solid explanation! You covered the key architectural concepts and explained the rationale well.'
+        : `You touched on ${detected.join(', ') || 'the surface details'}, but missed key nuances like ${missing.join(', ')}. Focus on real-world edge cases.`;
+
+      let followUpQuestion: string | undefined;
+      if (!isFinished) {
+        if (missing.length > 0) {
+          followUpQuestion = `Can you expand on how ${missing[0]} would impact the performance and reliability of this solution?`;
+        } else {
+          followUpQuestion = 'How do you handle error states and asynchronous failures gracefully in this workflow?';
+        }
+      }
+
+      return {
+        feedback,
+        score: calculatedScore,
+        expectedConcepts,
+        detectedConcepts: detected,
+        missingConcepts: missing,
+        followUpQuestion,
+        isFinished,
+      };
+    }
   }
 
   compileFinalInterviewReport(

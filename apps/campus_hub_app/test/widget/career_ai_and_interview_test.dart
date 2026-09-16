@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-// import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:campus_hub_app/features/career/domain/career_models.dart';
 import 'package:campus_hub_app/features/career/presentation/widgets/journey_map_widget.dart';
+import 'package:campus_hub_app/features/career/presentation/providers/career_provider.dart';
+import 'package:campus_hub_app/features/career/presentation/views/learning_workspace_view.dart';
 // import 'package:campus_hub_app/features/career/presentation/widgets/roadmap_changes_dialog.dart';
 
 void main() {
@@ -296,6 +298,211 @@ void main() {
       // Tap Phase 2 card
       await tester.tap(find.text('Core Backend & Storage'));
       expect(tappedPhase, 2);
+    });
+
+    test('ResourceQuery equality and hashCode prevent infinite re-fetch loop', () {
+      const q1 = ResourceQuery(topic: 'Flutter State Management', language: 'English', limit: 6);
+      const q2 = ResourceQuery(topic: 'Flutter State Management', language: 'English', limit: 6);
+      const q3 = ResourceQuery(topic: 'Cybersecurity OWASP', language: 'English', limit: 6);
+
+      expect(q1 == q2, true);
+      expect(q1.hashCode, q2.hashCode);
+      expect(q1 == q3, false);
+    });
+
+    test('NodeContextQuery equality and hashCode work correctly', () {
+      const nq1 = NodeContextQuery(roadmapId: 'road-101', nodeId: 'node-201');
+      const nq2 = NodeContextQuery(roadmapId: 'road-101', nodeId: 'node-201');
+      const nq3 = NodeContextQuery(roadmapId: 'road-101', nodeId: 'node-202');
+
+      expect(nq1 == nq2, true);
+      expect(nq1.hashCode, nq2.hashCode);
+      expect(nq1 == nq3, false);
+    });
+
+    test('RoadmapNodeContextModel deserializes full structured context', () {
+      final json = {
+        'roadmap': {
+          'id': 'road-123',
+          'title': 'Full-Stack Web Development',
+          'targetRole': 'Modern Full-Stack & Cloud Engineer',
+          'category': 'Engineering',
+          'level': 'Beginner',
+          'preferredLanguage': 'English',
+          'totalNodes': 8,
+        },
+        'careerGoal': 'Modern Full-Stack & Cloud Engineer',
+        'phase': {
+          'phaseNumber': 1,
+          'title': 'Core Web Foundations',
+          'description': 'HTTP, semantic HTML, DOM APIs, and CSS Grid/Flexbox.',
+          'skills': ['HTML & CSS Architecture'],
+        },
+        'node': {
+          'id': 'node-1',
+          'title': 'Node.js Event Loop & Microtasks',
+          'description': 'Master libuv event phases, microtasks queue, and async execution.',
+          'orderIndex': 1,
+          'estimatedHours': 4,
+          'isCompleted': false,
+        },
+        'skill': 'Node.js Event Loop',
+        'topic': 'Node.js Event Loop & Microtasks',
+        'learningObjective': 'Understand call stack, event loop tick phases, and process.nextTick priority.',
+        'prerequisites': ['JavaScript Execution Context', 'Asynchronous Callbacks'],
+        'studentLevel': 'Beginner',
+        'confidenceScore': 65,
+        'evidenceCount': 2,
+        'progress': {
+          'progressPercent': 0.15,
+          'streakDays': 3,
+          'isCompleted': false,
+        },
+        'resources': {
+          'videos': [
+            {
+              'id': 'k_D7p_w-NnU',
+              'title': 'Event Loop in 100 Seconds',
+              'channel': 'Fireship',
+              'duration': '2:30',
+              'views': '1.2M views',
+              'url': 'https://www.youtube.com/watch?v=k_D7p_w-NnU',
+              'thumbnailUrl': 'https://img.youtube.com/vi/k_D7p_w-NnU/hqdefault.jpg',
+              'relevanceScore': 95,
+            },
+          ],
+          'playlists': [
+            {
+              'id': 'PLillGF-RfqbYRPji8t4SxUkbhTxeNOxEY',
+              'title': 'Node.js Crash Course & Best Practices',
+              'channel': 'Traversy Media',
+              'itemCount': 12,
+              'url': 'https://www.youtube.com/playlist?list=PLillGF-RfqbYRPji8t4SxUkbhTxeNOxEY',
+            },
+          ],
+          'documentation': [
+            {
+              'title': 'Official Node.js Event Loop Documentation',
+              'domain': 'nodejs.org',
+              'url': 'https://nodejs.org/en/docs/guides/event-loop-timers-and-nexttick/',
+              'description': 'Official guide to Node.js event loop and timers.',
+            },
+          ],
+          'github': [
+            {
+              'name': 'nodejs/node',
+              'title': 'nodejs/node',
+              'stars': 105000,
+              'url': 'https://github.com/nodejs/node',
+              'description': 'Node.js JavaScript runtime',
+            },
+          ],
+        },
+        'practiceTask': {
+          'title': 'Event Loop Ordering Verification',
+          'description': 'Write a script with setTimeout, setImmediate, and Promise.resolve to log execution order.',
+          'expectedOutput': 'Microtasks execute before timer callbacks.',
+          'hints': ['Use process.nextTick and Promise.resolve.', 'Verify against event loop tick semantics.'],
+          'starterCode': 'console.log("start");\nPromise.resolve().then(() => console.log("promise"));',
+          'difficulty': 'Beginner',
+        },
+        'quizAvailability': {
+          'available': true,
+          'numQuestions': 10,
+          'checkpointTitle': 'Node.js Event Loop Technical Checkpoint',
+        },
+        'interviewContext': {
+          'initialQuestion': 'Explain how the microtask queue interacts with the Macrotask timer queue in Node.js.',
+          'expectedConcepts': ['Microtasks', 'Timer Phase', 'libuv'],
+        },
+      };
+
+      final model = RoadmapNodeContextModel.fromJson(json);
+      expect(model.careerGoal, 'Modern Full-Stack & Cloud Engineer');
+      expect(model.skill, 'Node.js Event Loop');
+      expect(model.topic, 'Node.js Event Loop & Microtasks');
+      expect(model.prerequisites.length, 2);
+      expect(model.videos.length, 1);
+      expect(model.videos.first.id, 'k_D7p_w-NnU');
+      expect(model.playlists.length, 1);
+      expect(model.playlists.first.itemCount, 12);
+      expect(model.practiceTask?.hints.length, 2);
+      expect(model.quizAvailability['numQuestions'], 10);
+    });
+
+    testWidgets('LearningWorkspaceView renders 4 tabs cleanly', (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            activeUserRoadmapProvider.overrideWith((ref) => Future.value(null)),
+            youTubeResourcesProvider.overrideWith((ref, query) => Future.value([
+              {
+                'id': 'k_D7p_w-NnU',
+                'title': 'Node.js Event Loop Masterclass',
+                'channel': 'Fireship',
+                'duration': '12:00',
+                'views': '500K views',
+                'url': 'https://www.youtube.com/watch?v=k_D7p_w-NnU',
+                'thumbnailUrl': 'https://img.youtube.com/vi/k_D7p_w-NnU/hqdefault.jpg',
+              }
+            ])),
+            youTubePlaylistsProvider.overrideWith((ref, query) => Future.value([
+              {
+                'id': 'PLillGF-RfqbYRPji8t4SxUkbhTxeNOxEY',
+                'title': 'Node.js Course Series',
+                'channel': 'Traversy Media',
+                'itemCount': 10,
+                'url': 'https://www.youtube.com/playlist?list=PLillGF-RfqbYRPji8t4SxUkbhTxeNOxEY',
+              }
+            ])),
+            gitHubResourcesProvider.overrideWith((ref, topic) => Future.value([
+              {
+                'name': 'nodejs/node',
+                'stars': 10000,
+                'url': 'https://github.com/nodejs/node',
+                'description': 'Node.js runtime',
+              }
+            ])),
+          ],
+          child: const MaterialApp(
+            home: LearningWorkspaceView(
+              topic: 'Node.js Event Loop',
+              phaseNumber: 1,
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Verify app bar title
+      expect(find.text('Node.js Event Loop'), findsWidgets);
+
+      // Verify 4 segmented tabs
+      expect(find.text('Learn'), findsOneWidget);
+      expect(find.text('Practice'), findsOneWidget);
+      expect(find.text('Quiz'), findsOneWidget);
+      expect(find.text('Resources'), findsOneWidget);
+
+      // Default tab is Learn -> verify Learn content
+      expect(find.text('Featured Masterclass & Walkthrough'), findsOneWidget);
+      expect(find.text('Technical Mastery Checklist'), findsOneWidget);
+
+      // Tap Practice tab
+      await tester.tap(find.text('Practice'));
+      await tester.pumpAndSettle();
+      expect(find.text('Hands-on Implementation Challenge'), findsOneWidget);
+
+      // Tap Quiz tab
+      await tester.tap(find.text('Quiz'));
+      await tester.pumpAndSettle();
+      expect(find.text('Adaptive Knowledge Checkpoint'), findsOneWidget);
+      expect(find.text('Start 10-Question Adaptive Quiz'), findsOneWidget);
+
+      // Tap Resources tab
+      await tester.tap(find.text('Resources'));
+      await tester.pumpAndSettle();
+      expect(find.text('Official Documentation'), findsOneWidget);
     });
   });
 }

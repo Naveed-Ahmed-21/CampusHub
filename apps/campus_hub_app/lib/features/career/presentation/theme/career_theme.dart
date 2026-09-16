@@ -116,3 +116,111 @@ abstract class CareerTheme {
     letterSpacing: 0.5,
   );
 }
+
+class CareerDocsInfo {
+  final String url;
+  final String domain;
+  final String description;
+
+  const CareerDocsInfo({
+    required this.url,
+    required this.domain,
+    required this.description,
+  });
+}
+
+abstract class CareerDocsResolver {
+  static CareerDocsInfo resolve(String topic) {
+    final t = topic.toLowerCase();
+    if (t.contains('flutter')) {
+      return const CareerDocsInfo(
+        url: 'https://docs.flutter.dev',
+        domain: 'docs.flutter.dev',
+        description: 'Official Flutter docs: widgets, rendering engine, navigation & Riverpod patterns.',
+      );
+    }
+    if (t.contains('dart')) {
+      return const CareerDocsInfo(
+        url: 'https://dart.dev',
+        domain: 'dart.dev',
+        description: 'Official Dart language tour: async/await, streams, sound null safety & isolates.',
+      );
+    }
+    if (t.contains('react') || t.contains('next')) {
+      return const CareerDocsInfo(
+        url: 'https://react.dev',
+        domain: 'react.dev',
+        description: 'Official React docs: hooks, concurrent mode, Server Components & state architecture.',
+      );
+    }
+    if (t.contains('node') || t.contains('express')) {
+      return const CareerDocsInfo(
+        url: 'https://nodejs.org/docs/latest/api/',
+        domain: 'nodejs.org',
+        description: 'Official Node.js docs: event loop, streams, worker threads & HTTP module APIs.',
+      );
+    }
+    if (t.contains('postgres') || t.contains('sql') || t.contains('database')) {
+      return const CareerDocsInfo(
+        url: 'https://www.postgresql.org/docs/',
+        domain: 'postgresql.org',
+        description: 'Official PostgreSQL docs: ACID transactions, indexing, query planner & JSONB.',
+      );
+    }
+    if (t.contains('docker') || t.contains('container')) {
+      return const CareerDocsInfo(
+        url: 'https://docs.docker.com',
+        domain: 'docs.docker.com',
+        description: 'Official Docker docs: multi-stage builds, container virtualization & compose networking.',
+      );
+    }
+    if (t.contains('kubernetes') || t.contains('k8s')) {
+      return const CareerDocsInfo(
+        url: 'https://kubernetes.io/docs/',
+        domain: 'kubernetes.io',
+        description: 'Official Kubernetes docs: pods, ingress controllers, deployments & cluster autoscaling.',
+      );
+    }
+    if (t.contains('esp') || t.contains('arduino') || t.contains('iot') || t.contains('embedded')) {
+      return const CareerDocsInfo(
+        url: 'https://docs.espressif.com/projects/esp-idf/en/latest/',
+        domain: 'espressif.com',
+        description: 'Official Espressif IoT docs: GPIO, FreeRTOS tasks, Wi-Fi, BLE & hardware peripheral drivers.',
+      );
+    }
+    if (t.contains('git')) {
+      return const CareerDocsInfo(
+        url: 'https://git-scm.com/doc',
+        domain: 'git-scm.com',
+        description: 'Official Pro Git documentation: branching, rebase workflows, cherry-pick & internals.',
+      );
+    }
+    if (t.contains('aws') || t.contains('cloud')) {
+      return const CareerDocsInfo(
+        url: 'https://docs.aws.amazon.com',
+        domain: 'aws.amazon.com',
+        description: 'Official AWS architecture documentation: IAM policies, Lambda, S3 & VPC networks.',
+      );
+    }
+    if (t.contains('machine learning') || t.contains('ai') || t.contains('pytorch') || t.contains('deep learning')) {
+      return const CareerDocsInfo(
+        url: 'https://pytorch.org/docs/stable/index.html',
+        domain: 'pytorch.org',
+        description: 'Official PyTorch documentation: neural network modules, autograd engine & model training.',
+      );
+    }
+    if (t.contains('python')) {
+      return const CareerDocsInfo(
+        url: 'https://docs.python.org/3/',
+        domain: 'docs.python.org',
+        description: 'Official Python 3 documentation: standard library, generators, asyncio & typing.',
+      );
+    }
+    final firstWord = Uri.encodeComponent(topic.toLowerCase().split(' ').first);
+    return CareerDocsInfo(
+      url: 'https://devdocs.io/$firstWord',
+      domain: 'devdocs.io',
+      description: 'Fast, searchable technical API reference and architectural guides.',
+    );
+  }
+}

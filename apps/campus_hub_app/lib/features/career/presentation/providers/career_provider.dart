@@ -125,12 +125,31 @@ final gitHubResourcesProvider = FutureProvider.family.autoDispose<List<Map<Strin
   return repo.searchGitHubResources(topic: topic);
 });
 
-final youTubeResourcesProvider = FutureProvider.family.autoDispose<List<Map<String, dynamic>>, Map<String, String>>((ref, params) async {
+final youTubeResourcesProvider = FutureProvider.family.autoDispose<List<Map<String, dynamic>>, ResourceQuery>((ref, query) async {
   final repo = ref.watch(careerRepositoryProvider);
   return repo.getYouTubeResources(
-    topic: params['topic'] ?? 'Algorithms',
-    language: params['language'] ?? 'English',
+    topic: query.topic,
+    language: query.language,
+    limit: query.limit,
   );
 });
+
+final youTubePlaylistsProvider = FutureProvider.family.autoDispose<List<Map<String, dynamic>>, ResourceQuery>((ref, query) async {
+  final repo = ref.watch(careerRepositoryProvider);
+  return repo.getYouTubePlaylists(
+    topic: query.topic,
+    language: query.language,
+    limit: query.limit,
+  );
+});
+
+final roadmapNodeContextProvider = FutureProvider.family.autoDispose<RoadmapNodeContextModel, NodeContextQuery>((ref, query) async {
+  final repo = ref.watch(careerRepositoryProvider);
+  return repo.getRoadmapNodeContext(
+    roadmapId: query.roadmapId,
+    nodeId: query.nodeId,
+  );
+});
+
 
 

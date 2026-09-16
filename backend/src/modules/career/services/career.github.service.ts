@@ -177,6 +177,72 @@ export class GitHubResourceService {
         topics: ['robotics', 'ros2', 'autonomous', 'cplusplus'],
       },
     ],
+    'react': [
+      {
+        name: 'react',
+        owner: 'facebook',
+        fullName: 'facebook/react',
+        description: 'The library for web and native user interfaces.',
+        stars: 228000,
+        forks: 46000,
+        language: 'JavaScript',
+        url: 'https://github.com/facebook/react',
+        whyUseful: 'Core React architecture repository demonstrating component reconciliation, Fiber scheduler, and hooks implementation.',
+        topics: ['react', 'javascript', 'ui', 'frontend'],
+      },
+      {
+        name: 'next.js',
+        owner: 'vercel',
+        fullName: 'vercel/next.js',
+        description: 'The React Framework for the Web.',
+        stars: 126000,
+        forks: 27000,
+        language: 'JavaScript',
+        url: 'https://github.com/vercel/next.js',
+        whyUseful: 'Production full-stack framework with Server-Side Rendering (SSR), Server Components, and edge routing.',
+        topics: ['nextjs', 'react', 'ssr', 'fullstack'],
+      },
+    ],
+    'ai': [
+      {
+        name: 'transformers',
+        owner: 'huggingface',
+        fullName: 'huggingface/transformers',
+        description: 'State-of-the-art Machine Learning for Pytorch, TensorFlow, and JAX.',
+        stars: 134000,
+        forks: 26000,
+        language: 'Python',
+        url: 'https://github.com/huggingface/transformers',
+        whyUseful: 'Industry standard library for text, vision, and multimodal foundation models and fine-tuning.',
+        topics: ['machine-learning', 'transformers', 'python', 'deep-learning', 'nlp'],
+      },
+      {
+        name: 'langchain',
+        owner: 'langchain-ai',
+        fullName: 'langchain-ai/langchain',
+        description: 'Building applications with LLMs through composability and agents.',
+        stars: 94000,
+        forks: 15000,
+        language: 'Python',
+        url: 'https://github.com/langchain-ai/langchain',
+        whyUseful: 'De facto framework for Retrieval-Augmented Generation (RAG), vector stores, and LLM agent chains.',
+        topics: ['llm', 'rag', 'python', 'agents', 'langchain'],
+      },
+    ],
+    'cloud': [
+      {
+        name: 'kubernetes',
+        owner: 'kubernetes',
+        fullName: 'kubernetes/kubernetes',
+        description: 'Production-Grade Container Scheduling and Management.',
+        stars: 110000,
+        forks: 39000,
+        language: 'Go',
+        url: 'https://github.com/kubernetes/kubernetes',
+        whyUseful: 'Cloud-native container orchestration standard for microservices, auto-scaling, and self-healing deployments.',
+        topics: ['kubernetes', 'cloud', 'containers', 'devops', 'go'],
+      },
+    ],
   };
 
   /**
@@ -198,13 +264,19 @@ export class GitHubResourceService {
         'User-Agent': 'CampusHub-AI-Career-Workspace',
       };
       if (process.env.GITHUB_TOKEN) {
-        headers['Authorization'] = `token ${process.env.GITHUB_TOKEN}`;
+        const token = process.env.GITHUB_TOKEN.trim();
+        headers['Authorization'] = token.startsWith('github_pat_') ? `Bearer ${token}` : `token ${token}`;
       }
 
-      const query = `${encodeURIComponent(topic)} stars:>500`;
+      const cleanTopic = topic
+        .replace(/^(week|phase|milestone)\s*\d+[:\s\-]*/i, '')
+        .replace(/[^\w\s\-\+\.]/g, ' ')
+        .trim();
+
+      const query = `${encodeURIComponent(cleanTopic || topic)}`;
       const res = await fetch(`https://api.github.com/search/repositories?q=${query}&sort=stars&order=desc&per_page=${limit}`, {
         headers,
-        signal: AbortSignal.timeout(4000), // 4 second timeout
+        signal: AbortSignal.timeout(9000), // 9 second timeout
       });
 
       if (res.ok) {
@@ -219,7 +291,7 @@ export class GitHubResourceService {
             forks: repo.forks_count || 0,
             language: repo.language || 'Code',
             url: repo.html_url,
-            whyUseful: `Popular ${repo.language || 'engineering'} codebase demonstrating production architecture and design patterns for ${topic}.`,
+            whyUseful: `Popular ${repo.language || 'engineering'} codebase demonstrating production architecture and design patterns for ${cleanTopic || topic}.`,
             topics: Array.isArray(repo.topics) ? repo.topics.slice(0, 5) : [],
           }));
 
@@ -246,8 +318,27 @@ export class GitHubResourceService {
   }
 
   static getCuratedFallback(key: string): GitHubRepositoryItem[] {
+    const k = key.toLowerCase();
+    if (k.includes('iot') || k.includes('esp') || k.includes('arduino') || k.includes('embedded') || k.includes('sensor')) {
+      return GitHubResourceService.VERIFIED_REPOSITORIES['iot'];
+    }
+    if (k.includes('flutter') || k.includes('dart') || k.includes('mobile') || k.includes('riverpod') || k.includes('android') || k.includes('ios')) {
+      return GitHubResourceService.VERIFIED_REPOSITORIES['flutter'];
+    }
+    if (k.includes('node') || k.includes('backend') || k.includes('express') || k.includes('database') || k.includes('sql') || k.includes('api') || k.includes('server')) {
+      return GitHubResourceService.VERIFIED_REPOSITORIES['backend'];
+    }
+    if (k.includes('react') || k.includes('next') || k.includes('frontend') || k.includes('web') || k.includes('javascript') || k.includes('html') || k.includes('css')) {
+      return GitHubResourceService.VERIFIED_REPOSITORIES['react'];
+    }
+    if (k.includes('ai') || k.includes('ml') || k.includes('machine learning') || k.includes('python') || k.includes('deep learning') || k.includes('llm') || k.includes('rag')) {
+      return GitHubResourceService.VERIFIED_REPOSITORIES['ai'];
+    }
+    if (k.includes('cloud') || k.includes('devops') || k.includes('docker') || k.includes('kubernetes') || k.includes('aws') || k.includes('ci/cd')) {
+      return GitHubResourceService.VERIFIED_REPOSITORIES['cloud'];
+    }
     for (const [domainKey, repos] of Object.entries(GitHubResourceService.VERIFIED_REPOSITORIES)) {
-      if (key.includes(domainKey) || domainKey.includes(key)) {
+      if (k.includes(domainKey) || domainKey.includes(k)) {
         return repos;
       }
     }

@@ -43,6 +43,15 @@ export class FacultyController {
     ResponseUtil.success(res, data, 'Academic resource uploaded and linked successfully', 201);
   });
 
+  updateSubjectResource = asyncHandler(async (req: Request, res: Response) => {
+    const subjectId = req.params.id as string;
+    const resourceId = req.params.resourceId as string;
+    const facultyId = req.user!.userId;
+    const userRole = req.user!.role;
+    const data = await this.service.updateSubjectResource(facultyId, subjectId, resourceId, req.body, userRole);
+    ResponseUtil.success(res, data, 'Academic resource updated successfully');
+  });
+
   deleteSubjectResource = asyncHandler(async (req: Request, res: Response) => {
     const subjectId = req.params.id as string;
     const resourceId = req.params.resourceId as string;
@@ -71,5 +80,17 @@ export class FacultyController {
     const collegeId = req.user!.collegeId;
     const data = await this.service.getMentees(facultyId, collegeId);
     ResponseUtil.success(res, data, 'Faculty student mentees retrieved successfully');
+  });
+
+  getProfile = asyncHandler(async (req: Request, res: Response) => {
+    const facultyId = req.user!.userId;
+    const data = await this.service.getFacultyProfile(facultyId);
+    ResponseUtil.success(res, data, 'Faculty profile retrieved successfully');
+  });
+
+  updateProfile = asyncHandler(async (req: Request, res: Response) => {
+    const facultyId = req.user!.userId;
+    const data = await this.service.updateFacultyProfile(facultyId, req.body);
+    ResponseUtil.success(res, data, 'Faculty profile updated successfully');
   });
 }

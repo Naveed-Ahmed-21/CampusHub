@@ -284,6 +284,14 @@ class _ProjectsEvidenceViewState extends ConsumerState<ProjectsEvidenceView> {
                     ],
                   ),
                 ),
+                const SizedBox(width: 6),
+                IconButton(
+                  icon: const Icon(Icons.delete_outline_rounded, size: 18, color: CareerTheme.textMuted),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  tooltip: 'Delete Project Evidence',
+                  onPressed: () => _confirmDeleteProject(project.id),
+                ),
               ],
             ),
             const SizedBox(height: 8),
@@ -436,13 +444,21 @@ class _ProjectsEvidenceViewState extends ConsumerState<ProjectsEvidenceView> {
                       : () async {
                           final title = titleCtrl.text.trim();
                           final desc = descCtrl.text.trim();
-                          final github = githubCtrl.text.trim();
+                          var github = githubCtrl.text.trim();
+                          var demo = demoCtrl.text.trim();
 
                           if (title.isEmpty || desc.isEmpty || github.isEmpty) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(content: Text('Please fill title, description, and GitHub URL.')),
                             );
                             return;
+                          }
+
+                          if (!github.startsWith('http://') && !github.startsWith('https://')) {
+                            github = 'https://$github';
+                          }
+                          if (demo.isNotEmpty && !demo.startsWith('http://') && !demo.startsWith('https://')) {
+                            demo = 'https://$demo';
                           }
 
                           setModalState(() => isSubmitting = true);
@@ -453,7 +469,7 @@ class _ProjectsEvidenceViewState extends ConsumerState<ProjectsEvidenceView> {
                               title: title,
                               description: desc,
                               githubUrl: github,
-                              demoUrl: demoCtrl.text.trim().isNotEmpty ? demoCtrl.text.trim() : null,
+                              demoUrl: demo.isNotEmpty ? demo : null,
                               techStack: tech,
                             );
                             ref.invalidate(projectEvidencesProvider);
@@ -532,6 +548,53 @@ class _ProjectsEvidenceViewState extends ConsumerState<ProjectsEvidenceView> {
           ),
         ),
       ],
+    );
+  }
+
+  void _confirmDeleteProject(String projectId) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: CareerTheme.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(CareerTheme.radiusLarge),
+          side: const BorderSide(color: CareerTheme.glassBorder),
+        ),
+        title: const Text('Delete Project Evidence?', style: TextStyle(color: Colors.white, fontSize: 16)),
+        content: const Text(
+          'This will permanently remove this project deliverable from your verified portfolio evidence.',
+          style: TextStyle(color: CareerTheme.textSecondary, fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel', style: TextStyle(color: CareerTheme.textMuted)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              try {
+                await ref.read(careerRepositoryProvider).deleteProjectEvidence(projectId);
+                ref.invalidate(projectEvidencesProvider);
+                ref.invalidate(detailedJobReadinessProvider(null));
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Project evidence removed')),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Failed to remove project: $e')),
+                  );
+                }
+              }
+            },
+            child: const Text('Delete', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
     );
   }
 }

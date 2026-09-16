@@ -33,12 +33,15 @@ import '../features/profile/presentation/views/user_follows_view.dart';
 import '../features/settings/presentation/views/settings_view.dart';
 import '../features/settings/presentation/views/help_support_view.dart';
 import '../features/settings/presentation/views/about_view.dart';
+import '../features/academics/presentation/views/student_subjects_view.dart';
+import '../features/academics/presentation/views/student_subject_detail_view.dart';
+import '../features/academics/presentation/views/faculty_directory_view.dart';
 import '../shared/responsive/main_scaffold.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 
 final appRouterProvider = Provider<GoRouter>((ref) {
-  final routerNotifier = ref.watch(routerNotifierProvider);
+  final routerNotifier = ref.read(routerNotifierProvider);
 
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
@@ -161,6 +164,23 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/about',
         name: 'about',
         builder: (context, state) => const AboutView(),
+      ),
+      GoRoute(
+        path: '/academics',
+        name: 'academic-subjects',
+        builder: (context, state) => const StudentSubjectsView(),
+      ),
+      GoRoute(
+        path: '/academics/subjects/:subjectId',
+        name: 'academic-subject-detail',
+        builder: (context, state) => StudentSubjectDetailView(
+          subjectId: state.pathParameters['subjectId']!,
+        ),
+      ),
+      GoRoute(
+        path: '/academics/faculty',
+        name: 'academic-faculty-directory',
+        builder: (context, state) => const FacultyDirectoryView(),
       ),
 
       // 3. Main Persistent Tab Navigation Shell (Stateful IndexedStack)

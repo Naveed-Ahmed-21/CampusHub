@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 class CareerRoadmapModel {
   final String id;
   final String title;
@@ -36,7 +38,7 @@ class CareerRoadmapModel {
         [];
 
     return CareerRoadmapModel(
-      id: json['id'] ?? '',
+      id: json['id'] ?? json['roadmapId'] ?? json['roadmap_id'] ?? '',
       title: json['title'] ?? '',
       slug: json['slug'] ?? '',
       category: json['category'] ?? 'General',
@@ -495,7 +497,7 @@ class ActiveRoadmapState {
     final parsedPhases = rawPhases.map((p) => RoadmapPhaseDetailModel.fromJson(p as Map<String, dynamic>)).toList();
 
     return ActiveRoadmapState(
-      roadmapId: json['roadmap_id'] ?? json['roadmapId'] ?? '',
+      roadmapId: json['roadmap_id'] ?? json['roadmapId'] ?? json['id'] ?? (roadmap?.id.isNotEmpty == true ? roadmap!.id : ''),
       targetRole: json['target_role'] ?? json['targetRole'] ?? 'Modern Full-Stack Developer',
       level: json['level'] ?? 'Beginner',
       weeklyHours: json['weekly_hours'] ?? json['weeklyHours'] ?? 10,
@@ -1902,6 +1904,260 @@ class DynamicPathfinderSessionModel {
       isCompleted: json['completed'] == true,
       careerAnalysis: json['career_analysis'] as Map<String, dynamic>? ??
           json['careerAnalysis'] as Map<String, dynamic>?,
+    );
+  }
+}
+
+@immutable
+class ResourceQuery {
+  final String topic;
+  final String language;
+  final String? domain;
+  final int limit;
+
+  const ResourceQuery({
+    required this.topic,
+    this.language = 'English',
+    this.domain,
+    this.limit = 6,
+  });
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ResourceQuery &&
+          runtimeType == other.runtimeType &&
+          topic == other.topic &&
+          language == other.language &&
+          domain == other.domain &&
+          limit == other.limit;
+
+  @override
+  int get hashCode =>
+      topic.hashCode ^ language.hashCode ^ (domain?.hashCode ?? 0) ^ limit.hashCode;
+}
+
+@immutable
+class NodeContextQuery {
+  final String roadmapId;
+  final String? nodeId;
+
+  const NodeContextQuery({
+    required this.roadmapId,
+    this.nodeId,
+  });
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is NodeContextQuery &&
+          runtimeType == other.runtimeType &&
+          roadmapId == other.roadmapId &&
+          nodeId == other.nodeId;
+
+  @override
+  int get hashCode => roadmapId.hashCode ^ (nodeId?.hashCode ?? 0);
+}
+
+class YouTubeResourceModel {
+  final String id;
+  final String title;
+  final String channel;
+  final String duration;
+  final String views;
+  final String url;
+  final String? thumbnailUrl;
+  final String description;
+  final int relevanceScore;
+
+  YouTubeResourceModel({
+    required this.id,
+    required this.title,
+    required this.channel,
+    required this.duration,
+    required this.views,
+    required this.url,
+    this.thumbnailUrl,
+    this.description = '',
+    this.relevanceScore = 90,
+  });
+
+  factory YouTubeResourceModel.fromJson(Map<String, dynamic> json) {
+    return YouTubeResourceModel(
+      id: json['id'] ?? '',
+      title: json['title'] ?? 'Technical Video',
+      channel: json['channel'] ?? 'Educational',
+      duration: json['duration'] ?? '15:00',
+      views: json['views'] ?? 'Verified',
+      url: json['url'] ?? '',
+      thumbnailUrl: json['thumbnailUrl'] ?? json['thumbnail_url'],
+      description: json['description'] ?? '',
+      relevanceScore: json['relevanceScore'] ?? json['relevance_score'] ?? 90,
+    );
+  }
+
+  Map<String, dynamic> toMap() => {
+    'id': id,
+    'title': title,
+    'channel': channel,
+    'duration': duration,
+    'views': views,
+    'url': url,
+    'thumbnailUrl': thumbnailUrl,
+    'description': description,
+    'relevanceScore': relevanceScore,
+  };
+}
+
+class YouTubePlaylistModel {
+  final String id;
+  final String title;
+  final String channel;
+  final int itemCount;
+  final String url;
+  final String? thumbnailUrl;
+  final String description;
+
+  YouTubePlaylistModel({
+    required this.id,
+    required this.title,
+    required this.channel,
+    this.itemCount = 10,
+    required this.url,
+    this.thumbnailUrl,
+    this.description = '',
+  });
+
+  factory YouTubePlaylistModel.fromJson(Map<String, dynamic> json) {
+    return YouTubePlaylistModel(
+      id: json['id'] ?? '',
+      title: json['title'] ?? 'Curated Course Playlist',
+      channel: json['channel'] ?? 'Educational Partner',
+      itemCount: json['itemCount'] ?? json['item_count'] ?? 10,
+      url: json['url'] ?? '',
+      thumbnailUrl: json['thumbnailUrl'] ?? json['thumbnail_url'],
+      description: json['description'] ?? '',
+    );
+  }
+
+  Map<String, dynamic> toMap() => {
+    'id': id,
+    'title': title,
+    'channel': channel,
+    'itemCount': itemCount,
+    'url': url,
+    'thumbnailUrl': thumbnailUrl,
+    'description': description,
+  };
+}
+
+class PracticeTaskModel {
+  final String title;
+  final String description;
+  final String expectedOutput;
+  final List<String> hints;
+  final String starterCode;
+  final String difficulty;
+
+  PracticeTaskModel({
+    required this.title,
+    required this.description,
+    required this.expectedOutput,
+    this.hints = const [],
+    this.starterCode = '',
+    this.difficulty = 'Intermediate',
+  });
+
+  factory PracticeTaskModel.fromJson(Map<String, dynamic> json) {
+    final rawHints = json['hints'] as List<dynamic>? ?? [];
+    return PracticeTaskModel(
+      title: json['title'] ?? 'Technical Implementation',
+      description: json['description'] ?? '',
+      expectedOutput: json['expectedOutput'] ?? json['expected_output'] ?? '',
+      hints: rawHints.map((h) => h.toString()).toList(),
+      starterCode: json['starterCode'] ?? json['starter_code'] ?? '',
+      difficulty: json['difficulty'] ?? 'Intermediate',
+    );
+  }
+}
+
+class RoadmapNodeContextModel {
+  final Map<String, dynamic> roadmap;
+  final String careerGoal;
+  final Map<String, dynamic> phase;
+  final Map<String, dynamic>? node;
+  final String skill;
+  final String topic;
+  final String learningObjective;
+  final List<String> prerequisites;
+  final String studentLevel;
+  final int confidenceScore;
+  final int evidenceCount;
+  final Map<String, dynamic> progress;
+  final List<YouTubeResourceModel> videos;
+  final List<YouTubePlaylistModel> playlists;
+  final List<Map<String, dynamic>> documentation;
+  final List<Map<String, dynamic>> github;
+  final PracticeTaskModel? practiceTask;
+  final Map<String, dynamic> quizAvailability;
+  final Map<String, dynamic> interviewContext;
+
+  RoadmapNodeContextModel({
+    required this.roadmap,
+    required this.careerGoal,
+    required this.phase,
+    this.node,
+    required this.skill,
+    required this.topic,
+    required this.learningObjective,
+    this.prerequisites = const [],
+    this.studentLevel = 'Beginner',
+    this.confidenceScore = 50,
+    this.evidenceCount = 0,
+    required this.progress,
+    this.videos = const [],
+    this.playlists = const [],
+    this.documentation = const [],
+    this.github = const [],
+    this.practiceTask,
+    required this.quizAvailability,
+    required this.interviewContext,
+  });
+
+  factory RoadmapNodeContextModel.fromJson(Map<String, dynamic> json) {
+    final rawPrereqs = json['prerequisites'] as List<dynamic>? ?? [];
+    final res = json['resources'] as Map<String, dynamic>? ?? {};
+    final rawVideos = res['videos'] as List<dynamic>? ?? [];
+    final rawPlaylists = res['playlists'] as List<dynamic>? ?? [];
+    final rawDocs = res['documentation'] as List<dynamic>? ?? [];
+    final rawGh = res['github'] as List<dynamic>? ?? [];
+    final practiceJson = json['practiceTask'] as Map<String, dynamic>? ??
+        json['practice_task'] as Map<String, dynamic>?;
+
+    return RoadmapNodeContextModel(
+      roadmap: json['roadmap'] as Map<String, dynamic>? ?? {},
+      careerGoal: json['careerGoal'] ?? json['career_goal'] ?? '',
+      phase: json['phase'] as Map<String, dynamic>? ?? {},
+      node: json['node'] as Map<String, dynamic>?,
+      skill: json['skill'] ?? '',
+      topic: json['topic'] ?? '',
+      learningObjective: json['learningObjective'] ?? json['learning_objective'] ?? '',
+      prerequisites: rawPrereqs.map((p) => p.toString()).toList(),
+      studentLevel: json['studentLevel'] ?? json['student_level'] ?? 'Beginner',
+      confidenceScore: json['confidenceScore'] ?? json['confidence_score'] ?? 50,
+      evidenceCount: json['evidenceCount'] ?? json['evidence_count'] ?? 0,
+      progress: json['progress'] as Map<String, dynamic>? ?? {},
+      videos: rawVideos.map((v) => YouTubeResourceModel.fromJson(v as Map<String, dynamic>)).toList(),
+      playlists: rawPlaylists.map((p) => YouTubePlaylistModel.fromJson(p as Map<String, dynamic>)).toList(),
+      documentation: rawDocs.map((d) => Map<String, dynamic>.from(d as Map)).toList(),
+      github: rawGh.map((g) => Map<String, dynamic>.from(g as Map)).toList(),
+      practiceTask: practiceJson != null ? PracticeTaskModel.fromJson(practiceJson) : null,
+      quizAvailability: json['quizAvailability'] as Map<String, dynamic>? ??
+          json['quiz_availability'] as Map<String, dynamic>? ??
+          {},
+      interviewContext: json['interviewContext'] as Map<String, dynamic>? ??
+          json['interview_context'] as Map<String, dynamic>? ??
+          {},
     );
   }
 }

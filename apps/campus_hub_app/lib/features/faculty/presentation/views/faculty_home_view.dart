@@ -10,6 +10,7 @@ import '../../../feed/presentation/widgets/comments_sheet.dart';
 import '../controllers/faculty_controller.dart';
 import '../widgets/faculty_quick_actions_bar.dart';
 import '../widgets/faculty_schedule_card.dart';
+import '../widgets/faculty_drawer_widget.dart';
 
 class FacultyHomeView extends ConsumerWidget {
   const FacultyHomeView({super.key});
@@ -26,21 +27,26 @@ class FacultyHomeView extends ConsumerWidget {
     final dashboardAsync = ref.watch(facultyDashboardProvider);
 
     return Scaffold(
+      drawer: const FacultyDrawerWidget(),
       appBar: AppBar(
         title: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              padding: const EdgeInsets.all(6),
+              padding: const EdgeInsets.all(5),
               decoration: BoxDecoration(
                 color: Colors.blue.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Icon(Icons.school, color: Colors.blue, size: 20),
+              child: const Icon(Icons.school, color: Colors.blue, size: 18),
             ),
-            const SizedBox(width: 10),
-            const Text(
-              'CampusHub Faculty',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+            const SizedBox(width: 8),
+            const Flexible(
+              child: Text(
+                'Faculty Hub',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
           ],
         ),

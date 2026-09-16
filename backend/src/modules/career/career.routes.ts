@@ -53,6 +53,8 @@ careerRouter.get('/roadmaps', careerController.getRoadmaps);
 careerRouter.get('/user-roadmaps', careerController.getUserRoadmaps);
 careerRouter.post('/check-duplicate', validateRequest(checkDuplicateRoadmapSchema), careerController.checkDuplicate);
 careerRouter.get('/roadmaps/:id', careerController.getRoadmapDetails);
+careerRouter.get('/roadmaps/:roadmapId/nodes/:nodeId/context', careerController.getRoadmapNodeContext);
+careerRouter.get('/roadmaps/:roadmapId/context', careerController.getRoadmapNodeContext);
 careerRouter.post('/roadmaps/:id/activate', careerController.setActiveRoadmap);
 careerRouter.patch('/roadmaps/:id', validateRequest(updateRoadmapStatusSchema), careerController.updateRoadmap);
 careerRouter.delete('/roadmaps/:id', careerController.deleteRoadmap);
@@ -97,6 +99,7 @@ careerRouter.post('/pathfinder/:sessionId/generate-journey', validateRequest(gen
 careerRouter.post('/pathfinder/session/start', validateRequest(startDynamicPathfinderSchema), careerController.startDynamicPathfinder);
 careerRouter.post('/pathfinder/session/:sessionId/answer', validateRequest(answerDynamicPathfinderSchema), careerController.answerDynamicPathfinder);
 careerRouter.get('/pathfinder/session/:sessionId', careerController.getDynamicPathfinderSession);
+careerRouter.post('/pathfinder/session/:sessionId/previous', careerController.previousDynamicPathfinderQuestion);
 
 // Personalized Roadmap & Skill Dependency Graph (Rebuild V2)
 careerRouter.post('/generate-personalized-roadmap', validateRequest(generatePersonalizedRoadmapSchema), careerController.generatePersonalizedRoadmap);
@@ -104,6 +107,7 @@ careerRouter.get('/roadmaps/:id/graph', careerController.getRoadmapGraph);
 
 // Verified External Resources (GitHub & YouTube Engines)
 careerRouter.get('/resources/github', careerController.searchGitHubResources);
+careerRouter.get('/resources/youtube/playlists', careerController.getYouTubePlaylists);
 careerRouter.get('/resources/youtube', careerController.getYouTubeResources);
 
 // Adaptive Assessment & Quizzes (Rebuild V2)
@@ -113,6 +117,7 @@ careerRouter.post('/quiz/adaptive-submit', careerController.submitAdaptiveQuizV2
 // Project Evidence & Portfolio Deliverables
 careerRouter.get('/projects', careerController.getProjectEvidences);
 careerRouter.post('/projects', validateRequest(createProjectEvidenceSchema), careerController.createProjectEvidence);
+careerRouter.delete('/projects/:id', careerController.deleteProjectEvidence);
 
 // Comprehensive Job Readiness Analytics (Rebuild V2)
 careerRouter.get('/job-readiness/detailed', careerController.getDetailedJobReadiness);
@@ -124,6 +129,7 @@ careerRouter.post('/ask-ai', validateRequest(askAiDoubtSchema), careerController
 
 // 1-on-1 EVA AI Mock Interview
 careerRouter.get('/interview/history', careerController.getInterviewHistory);
+careerRouter.delete('/interview/session/:id', careerController.deleteInterviewSession);
 careerRouter.post('/interview/start', validateRequest(startInterviewSchema), careerController.startInterviewSession);
 careerRouter.post('/interview/turn', validateRequest(turnInterviewSchema), careerController.submitInterviewTurn);
 careerRouter.post('/interview/finish', validateRequest(finishInterviewSchema), careerController.finishInterviewSession);

@@ -7,6 +7,7 @@ import '../../../../shared/widgets/async_value_widget.dart';
 import '../controllers/faculty_controller.dart';
 import '../../domain/models/faculty_models.dart';
 import '../widgets/add_subject_dialog.dart';
+import '../widgets/faculty_drawer_widget.dart';
 
 class FacultyTeachingView extends ConsumerStatefulWidget {
   const FacultyTeachingView({super.key});
@@ -38,6 +39,7 @@ class _FacultyTeachingViewState extends ConsumerState<FacultyTeachingView>
   Widget build(BuildContext context) {
     super.build(context);
     return Scaffold(
+      drawer: const FacultyDrawerWidget(),
       appBar: AppBar(
         title: const Text(
           'Teaching Hub',
@@ -134,15 +136,27 @@ class _FacultyTeachingViewState extends ConsumerState<FacultyTeachingView>
           );
         }
 
-        return GridView.builder(
+        if (isDesktop) {
+          return GridView.builder(
+            padding: const EdgeInsets.all(16),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              childAspectRatio: 1.4,
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
+            ),
+            itemCount: subjects.length,
+            itemBuilder: (context, index) {
+              final subject = subjects[index];
+              return _SubjectCard(subject: subject);
+            },
+          );
+        }
+
+        return ListView.separated(
           padding: const EdgeInsets.all(16),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: isDesktop ? 3 : 1,
-            childAspectRatio: isDesktop ? 1.4 : 2.0,
-            crossAxisSpacing: 16,
-            mainAxisSpacing: 16,
-          ),
           itemCount: subjects.length,
+          separatorBuilder: (context, index) => const SizedBox(height: 12),
           itemBuilder: (context, index) {
             final subject = subjects[index];
             return _SubjectCard(subject: subject);

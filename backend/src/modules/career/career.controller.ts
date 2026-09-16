@@ -453,6 +453,13 @@ export class CareerController {
     ResponseUtil.success(res, result, 'Pathfinder session details');
   });
 
+  previousDynamicPathfinderQuestion = asyncHandler(async (req: Request, res: Response) => {
+    const user = req.user!;
+    const { sessionId } = req.params;
+    const result = await CareerPathfinderService.previousQuestion(user.userId, sessionId);
+    ResponseUtil.success(res, result, 'Navigated back to previous pathfinder question');
+  });
+
   generatePersonalizedRoadmap = asyncHandler(async (req: Request, res: Response) => {
     const user = req.user!;
     const {
@@ -564,6 +571,21 @@ export class CareerController {
     ResponseUtil.success(res, results, 'Language-aware YouTube educational resources retrieved');
   });
 
+  getYouTubePlaylists = asyncHandler(async (req: Request, res: Response) => {
+    const topic = (req.query.topic as string) || 'Data Structures and Algorithms';
+    const language = (req.query.language as string) || 'English';
+    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 3;
+    const results = await CareerYouTubeService.getEducationalPlaylists(topic, language, limit);
+    ResponseUtil.success(res, results, 'Related YouTube educational playlists retrieved');
+  });
+
+  getRoadmapNodeContext = asyncHandler(async (req: Request, res: Response) => {
+    const user = req.user!;
+    const { roadmapId, nodeId } = req.params;
+    const context = await this.careerService.getRoadmapNodeContext(user.userId, roadmapId, nodeId);
+    ResponseUtil.success(res, context, 'Roadmap node context and verified resources retrieved');
+  });
+
   generateAdaptiveQuizV2 = asyncHandler(async (req: Request, res: Response) => {
     const user = req.user!;
     const { topic, phase_number, roadmap_id, skill_name, difficulty } = req.body;
@@ -637,5 +659,19 @@ export class CareerController {
     const targetRole = req.query.target_role as string | undefined;
     const report = await JobReadinessService.calculateReadiness(user.userId, targetRole);
     ResponseUtil.success(res, report, 'Detailed job readiness analytics retrieved');
+  });
+
+  deleteProjectEvidence = asyncHandler(async (req: Request, res: Response) => {
+    const user = req.user!;
+    const evidenceId = req.params.id;
+    const result = await this.careerService.deleteProjectEvidence(user.userId, evidenceId);
+    ResponseUtil.success(res, result, 'Project evidence deleted successfully');
+  });
+
+  deleteInterviewSession = asyncHandler(async (req: Request, res: Response) => {
+    const user = req.user!;
+    const sessionId = req.params.id;
+    const result = await this.careerService.deleteInterviewSession(user.userId, sessionId);
+    ResponseUtil.success(res, result, 'Interview session deleted successfully');
   });
 }

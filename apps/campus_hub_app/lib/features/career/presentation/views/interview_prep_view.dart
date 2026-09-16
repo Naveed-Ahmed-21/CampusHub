@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../data/career_repository.dart';
 import '../providers/career_provider.dart';
 import '../theme/career_theme.dart';
 import '../widgets/career_shared_widgets.dart';
@@ -100,13 +101,30 @@ class _InterviewPrepViewState extends ConsumerState<InterviewPrepView> {
   void _toggleRecording() {
     setState(() {
       _isRecording = !_isRecording;
-      if (_isRecording && _answerController.text.isEmpty) {
-        _answerController.text = 'The Virtual DOM creates an in-memory replica of UI elements, diffing nodes via reconciliation algorithms to minimize expensive DOM reflows.';
-      }
     });
+    if (_isRecording) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Microphone active. Speak your answer or type in the box below.'),
+          duration: Duration(seconds: 2),
+          backgroundColor: CareerTheme.primaryCyan,
+        ),
+      );
+    }
   }
 
   Future<void> _submitAnswer(Map<String, dynamic> currentQ) async {
+    final studentText = _answerController.text.trim();
+    if (studentText.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please type or speak your technical answer before submitting.'),
+          backgroundColor: CareerTheme.warning,
+        ),
+      );
+      return;
+    }
+
     _timer?.cancel();
     setState(() {
       _isRecording = false;
@@ -117,20 +135,35 @@ class _InterviewPrepViewState extends ConsumerState<InterviewPrepView> {
 
     if (!mounted) return;
     final keyConcepts = (currentQ['keyConcepts'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [];
-    final studentText = _answerController.text.toLowerCase();
-    final detected = keyConcepts.where((c) => studentText.contains(c.toLowerCase())).toList();
-    final missing = keyConcepts.where((c) => !studentText.contains(c.toLowerCase())).toList();
-    final coverage = keyConcepts.isEmpty ? 0.75 : (detected.length / keyConcepts.length);
-    final score = (coverage * 100).round().clamp(45, 96);
-    final feedback = detected.isNotEmpty
-        ? 'Solid articulation covering ${detected.join(', ')}. Keep reinforcing real-world tradeoffs to elevate depth.'
-        : 'Ensure your response directly addresses key concepts such as ${keyConcepts.take(2).join(', ')}.';
+    final textLower = studentText.toLowerCase();
+    final words = studentText.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
+
+    final detected = keyConcepts.where((c) {
+      final parts = c.toLowerCase().split(' ');
+      return parts.any((p) => p.length > 2 && textLower.contains(p));
+    }).toList();
+    final missing = keyConcepts.where((c) => !detected.contains(c)).toList();
+
+    // Rigorous scoring: empty/gibberish/non-technical answers receive 0
+    int score = 0;
+    if (words.length < 4 || detected.isEmpty) {
+      score = words.length >= 10 ? 15 : 0;
+    } else {
+      final ratio = keyConcepts.isNotEmpty ? detected.length / keyConcepts.length : 0.5;
+      score = (ratio * 80 + (words.length > 20 ? 15 : 5)).round().clamp(0, 98);
+    }
+
+    final feedback = score >= 70
+        ? 'Solid articulation covering ${detected.join(', ')}. Keep reinforcing real-world tradeoffs and edge cases.'
+        : score > 0
+            ? 'You touched on ${detected.join(', ')}, but missed core fundamentals like ${missing.join(', ')}. In placement interviews, explain internal mechanics in depth.'
+            : 'Your response did not address the required technical concepts. Please explain principles like ${keyConcepts.take(2).join(', ')}.';
 
     setState(() {
       _isEvaluating = false;
       _lastEvaluation = {
         'score': score,
-        'detectedConcepts': detected.isNotEmpty ? detected : keyConcepts.take(2).toList(),
+        'detectedConcepts': detected,
         'missingConcepts': missing,
         'feedback': feedback,
       };
@@ -372,8 +405,16 @@ class _InterviewPrepViewState extends ConsumerState<InterviewPrepView> {
         CareerGlassCard(
           padding: const EdgeInsets.all(14),
           child: Theme(
-            data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+            data: Theme.of(context).copyWith(
+              dividerColor: Colors.transparent,
+              listTileTheme: const ListTileThemeData(
+                tileColor: Colors.transparent,
+                selectedTileColor: Colors.transparent,
+              ),
+            ),
             child: ExpansionTile(
+              backgroundColor: Colors.transparent,
+              collapsedBackgroundColor: Colors.transparent,
               tilePadding: EdgeInsets.zero,
               childrenPadding: const EdgeInsets.only(top: 8),
               leading: const Icon(Icons.tips_and_updates_outlined, color: CareerTheme.warning, size: 20),
@@ -646,23 +687,36 @@ class _InterviewPrepViewState extends ConsumerState<InterviewPrepView> {
                         created,
                         style: const TextStyle(fontSize: 11, color: CareerTheme.textMuted, fontWeight: FontWeight.w500),
                       ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: score >= 70 ? CareerTheme.success.withValues(alpha: 0.15) : CareerTheme.warning.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(CareerTheme.radiusPill),
-                          border: Border.all(
-                            color: score >= 70 ? CareerTheme.success.withValues(alpha: 0.4) : CareerTheme.warning.withValues(alpha: 0.4),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: score >= 70 ? CareerTheme.success.withValues(alpha: 0.15) : CareerTheme.warning.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(CareerTheme.radiusPill),
+                              border: Border.all(
+                                color: score >= 70 ? CareerTheme.success.withValues(alpha: 0.4) : CareerTheme.warning.withValues(alpha: 0.4),
+                              ),
+                            ),
+                            child: Text(
+                              'Score: $score%',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: score >= 70 ? CareerTheme.success : CareerTheme.warning,
+                              ),
+                            ),
                           ),
-                        ),
-                        child: Text(
-                          'Score: $score%',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: score >= 70 ? CareerTheme.success : CareerTheme.warning,
+                          const SizedBox(width: 8),
+                          IconButton(
+                            icon: const Icon(Icons.delete_outline_rounded, size: 18, color: CareerTheme.textMuted),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            tooltip: 'Delete Session',
+                            onPressed: () => _confirmDeleteSession(session.id),
                           ),
-                        ),
+                        ],
                       ),
                     ],
                   ),
@@ -692,6 +746,52 @@ class _InterviewPrepViewState extends ConsumerState<InterviewPrepView> {
           'Failed to load interview history: $err',
           style: const TextStyle(color: CareerTheme.textMuted),
         ),
+      ),
+    );
+  }
+
+  void _confirmDeleteSession(String sessionId) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: CareerTheme.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(CareerTheme.radiusLarge),
+          side: const BorderSide(color: CareerTheme.glassBorder),
+        ),
+        title: const Text('Delete Interview Session?', style: TextStyle(color: Colors.white, fontSize: 16)),
+        content: const Text(
+          'This will permanently remove this interview session and its evaluation records from your history.',
+          style: TextStyle(color: CareerTheme.textSecondary, fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel', style: TextStyle(color: CareerTheme.textMuted)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              try {
+                await ref.read(careerRepositoryProvider).deleteInterviewSession(sessionId);
+                ref.invalidate(interviewHistoryProvider);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Interview session deleted')),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Failed to delete session: $e')),
+                  );
+                }
+              }
+            },
+            child: const Text('Delete', style: TextStyle(color: Colors.white)),
+          ),
+        ],
       ),
     );
   }
