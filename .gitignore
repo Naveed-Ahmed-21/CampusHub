@@ -37,8 +37,8 @@ backend/prisma/migrations/*_lock.toml
 *.ntvs*
 *.njsproj
 *.sln
-*.sw?
 .DS_Store
+.sf/
 
 # Flutter / Dart
 .dart_tool/

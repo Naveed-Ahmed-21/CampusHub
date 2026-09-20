@@ -5,26 +5,40 @@ import argon2 from 'argon2';
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('🌱 Starting Clean CampusHub Database Seeding...');
+  console.log('🌱 Starting Fresh CampusHub Database Reset & Seed...');
 
-  // 1. Clean existing transactional content (posts, events, clubs, drives, portfolio, career)
-  console.log('🧹 Cleaning existing content...');
+  // 1. Chat & Communications
+  console.log('🧹 Purging Chat & Communications...');
+  await prisma.chatMessageReaction.deleteMany();
+  await prisma.chatMessageDeletion.deleteMany();
+  await prisma.chatReadReceipt.deleteMany();
+  await prisma.chatMessage.deleteMany();
+  await prisma.chatParticipant.deleteMany();
+  await prisma.chatRoom.deleteMany();
+
+  // 2. Social, Feed & Clubs
+  console.log('🧹 Purging Social, Feed & Clubs...');
+  await prisma.postCommentLike.deleteMany();
   await prisma.postComment.deleteMany();
   await prisma.postLike.deleteMany();
   await prisma.savedPost.deleteMany();
   await prisma.postAttachment.deleteMany();
   await prisma.post.deleteMany();
-
-  await prisma.eventRegistration.deleteMany();
-  await prisma.event.deleteMany();
+  await prisma.storyView.deleteMany();
+  await prisma.story.deleteMany();
 
   await prisma.clubResource.deleteMany();
   await prisma.clubMember.deleteMany();
   await prisma.club.deleteMany();
+  await prisma.eventRegistration.deleteMany();
+  await prisma.event.deleteMany();
 
+  // 3. Placement & Portfolio
+  console.log('🧹 Purging Placement & Portfolio...');
   await prisma.placementInterview.deleteMany();
   await prisma.placementApplication.deleteMany();
   await prisma.placementDrive.deleteMany();
+  await prisma.company.deleteMany();
 
   await prisma.portfolioProject.deleteMany();
   await prisma.portfolioSkill.deleteMany();
@@ -32,32 +46,107 @@ async function main() {
   await prisma.portfolioAchievement.deleteMany();
   await prisma.portfolio.deleteMany();
 
+  await prisma.notification.deleteMany();
+  await prisma.notificationToken.deleteMany();
+
+  // 4. Career, AI & Mentorship
+  console.log('🧹 Purging Career, AI & Mentorship...');
   await prisma.weeklyGoal.deleteMany();
   await prisma.userNodeProgress.deleteMany();
   await prisma.userRoadmapProgress.deleteMany();
   await prisma.userMiniProjectSubmission.deleteMany();
+  await prisma.careerAIInteraction.deleteMany();
+  await prisma.careerMentorShare.deleteMany();
+  await prisma.roadmapChange.deleteMany();
+  await prisma.learningSession.deleteMany();
+  await prisma.skillEvidence.deleteMany();
+  await prisma.projectEvidence.deleteMany();
+  await prisma.studentSkill.deleteMany();
+  await prisma.skillDependency.deleteMany();
+  await prisma.quizAttempt.deleteMany();
+  await prisma.interviewTurn.deleteMany();
+  await prisma.interviewSession.deleteMany();
+  await prisma.aIMessage.deleteMany();
+  await prisma.aIConversation.deleteMany();
+  await prisma.careerPathfinderSession.deleteMany();
+  await prisma.learningResource.deleteMany();
+  await prisma.roadmapNode.deleteMany();
+  await prisma.careerRoadmap.deleteMany();
+  await prisma.careerJourney.deleteMany();
+  await prisma.resumeTip.deleteMany();
+  await prisma.placementPrepModule.deleteMany();
+  await prisma.miniProjectIdea.deleteMany();
+  await prisma.mediaAsset.deleteMany();
 
-  console.log('✅ All existing feed posts, events, clubs, drives, and portfolio items cleared!');
+  // 5. Academic & Teaching Hub
+  console.log('🧹 Purging Academic & Teaching Hub...');
+  await prisma.studentAttendanceRecord.deleteMany();
+  await prisma.subjectAttendanceSession.deleteMany();
+  await prisma.studentAssessmentResult.deleteMany();
+  await prisma.subjectAssessment.deleteMany();
+  await prisma.assignmentSubmission.deleteMany();
+  await prisma.subjectAssignment.deleteMany();
+  await prisma.facultySchedule.deleteMany();
+  await prisma.subjectResource.deleteMany();
+  await prisma.subjectAnnouncement.deleteMany();
+  await prisma.subjectEnrollment.deleteMany();
+  await prisma.facultySubjectAssignment.deleteMany();
+  await prisma.facultySubject.deleteMany();
+  await prisma.studentMentorship.deleteMany();
+  await prisma.studentAcademicOverride.deleteMany();
+  await prisma.studentAcademicProfile.deleteMany();
+  await prisma.curriculumSubject.deleteMany();
+  await prisma.subject.deleteMany();
+  await prisma.academicClass.deleteMany();
+  await prisma.room.deleteMany();
+  await prisma.facultyProfile.deleteMany();
+  await prisma.academicTerm.deleteMany();
+  await prisma.academicYear.deleteMany();
+  await prisma.academicProgram.deleteMany();
 
-  // 2. Create Sample College
+  // 6. Tokens, Follows & Resetting Users
+  console.log('🧹 Purging Tokens, Follows & Resetting Users...');
+  await prisma.userFollow.deleteMany();
+  await prisma.refreshToken.deleteMany();
+  await prisma.passwordResetToken.deleteMany();
+
+  const institutionalEmails = [
+    'student@campushub.edu',
+    'faculty@campushub.edu',
+    'admin@campushub.edu',
+    'placement@campushub.edu',
+  ];
+
+  await prisma.user.deleteMany({
+    where: {
+      email: { notIn: institutionalEmails },
+    },
+  });
+
+  // Base College & Departments
   const college = await prisma.college.upsert({
     where: { code: 'CH-TECH' },
-    update: {},
+    update: {
+      name: 'CampusHub Institute of Technology',
+      domain: 'campushub.edu',
+      logo_url: null,
+      address: '127 Tech Campus Road, Innovation Park',
+    },
     create: {
       name: 'CampusHub Institute of Technology',
       code: 'CH-TECH',
       domain: 'campushub.edu',
-      logo_url: 'https://images.unsplash.com/photo-1562774053-701939374585',
+      logo_url: null,
       address: '127 Tech Campus Road, Innovation Park',
     },
   });
 
-  console.log(`✅ College Configured: ${college.name} (${college.id})`);
-
-  // 3. Create Departments
   const deptCse = await prisma.department.upsert({
     where: { college_id_code: { college_id: college.id, code: 'CSE' } },
-    update: {},
+    update: {
+      name: 'Computer Science and Engineering',
+      description: 'Department of Computer Science & Engineering',
+    },
     create: {
       college_id: college.id,
       name: 'Computer Science and Engineering',
@@ -68,7 +157,10 @@ async function main() {
 
   const deptIt = await prisma.department.upsert({
     where: { college_id_code: { college_id: college.id, code: 'IT' } },
-    update: {},
+    update: {
+      name: 'Information Technology',
+      description: 'Department of Information Technology',
+    },
     create: {
       college_id: college.id,
       name: 'Information Technology',
@@ -77,16 +169,25 @@ async function main() {
     },
   });
 
-  console.log(`✅ Departments Configured: ${deptCse.name}, ${deptIt.name}`);
-
-  // 4. Create Role Accounts (Clean slate for testing each role)
+  // 4 Core Accounts with clean default state
   const hashedPassword = await argon2.hash('Password@123');
 
   const student = await prisma.user.upsert({
     where: { email: 'student@campushub.edu' },
     update: {
+      college_id: college.id,
+      department_id: deptCse.id,
+      first_name: 'Alex',
+      last_name: 'Vance',
+      roll_number: '21CS101',
       password_hash: hashedPassword,
+      role: Role.STUDENT,
       status: UserStatus.ACTIVE,
+      avatar_url: null,
+      phone: null,
+      username: null,
+      is_online: false,
+      last_seen: null,
     },
     create: {
       college_id: college.id,
@@ -98,14 +199,30 @@ async function main() {
       roll_number: '21CS101',
       role: Role.STUDENT,
       status: UserStatus.ACTIVE,
+      avatar_url: null,
+      phone: null,
+      username: null,
+      is_online: false,
+      last_seen: null,
     },
   });
 
   const faculty = await prisma.user.upsert({
     where: { email: 'faculty@campushub.edu' },
     update: {
+      college_id: college.id,
+      department_id: deptCse.id,
+      first_name: 'Dr. Robert',
+      last_name: 'Taylor',
+      roll_number: null,
       password_hash: hashedPassword,
+      role: Role.FACULTY,
       status: UserStatus.ACTIVE,
+      avatar_url: null,
+      phone: null,
+      username: null,
+      is_online: false,
+      last_seen: null,
     },
     create: {
       college_id: college.id,
@@ -116,14 +233,30 @@ async function main() {
       last_name: 'Taylor',
       role: Role.FACULTY,
       status: UserStatus.ACTIVE,
+      avatar_url: null,
+      phone: null,
+      username: null,
+      is_online: false,
+      last_seen: null,
     },
   });
 
   const placementOfficer = await prisma.user.upsert({
     where: { email: 'placement@campushub.edu' },
     update: {
+      college_id: college.id,
+      department_id: deptIt.id,
+      first_name: 'Sarah',
+      last_name: 'Jenkins',
+      roll_number: null,
       password_hash: hashedPassword,
+      role: Role.PLACEMENT_OFFICER,
       status: UserStatus.ACTIVE,
+      avatar_url: null,
+      phone: null,
+      username: null,
+      is_online: false,
+      last_seen: null,
     },
     create: {
       college_id: college.id,
@@ -134,14 +267,30 @@ async function main() {
       last_name: 'Jenkins',
       role: Role.PLACEMENT_OFFICER,
       status: UserStatus.ACTIVE,
+      avatar_url: null,
+      phone: null,
+      username: null,
+      is_online: false,
+      last_seen: null,
     },
   });
 
   const admin = await prisma.user.upsert({
     where: { email: 'admin@campushub.edu' },
     update: {
+      college_id: college.id,
+      department_id: deptCse.id,
+      first_name: 'Campus',
+      last_name: 'Admin',
+      roll_number: null,
       password_hash: hashedPassword,
+      role: Role.ADMIN,
       status: UserStatus.ACTIVE,
+      avatar_url: null,
+      phone: null,
+      username: null,
+      is_online: false,
+      last_seen: null,
     },
     create: {
       college_id: college.id,
@@ -152,21 +301,25 @@ async function main() {
       last_name: 'Admin',
       role: Role.ADMIN,
       status: UserStatus.ACTIVE,
+      avatar_url: null,
+      phone: null,
+      username: null,
+      is_online: false,
+      last_seen: null,
     },
   });
 
-  console.log(`✅ Accounts Ready for User Content Creation:`);
+  console.log(`✅ Institutional Accounts Ready:`);
   console.log(`   - Student: ${student.email}`);
   console.log(`   - Faculty: ${faculty.email}`);
   console.log(`   - Placement Officer: ${placementOfficer.email}`);
   console.log(`   - Admin: ${admin.email}`);
-
-  console.log('🎉 Database is clean & ready for users to create new Feed posts, Events, Clubs, Placement Drives, and Portfolios!');
+  console.log('🎉 Fresh app reset complete! Database is completely empty across all screens.');
 }
 
 main()
   .catch((e) => {
-    console.error('❌ Error during seeding:', e);
+    console.error('❌ Error during database reset:', e);
     process.exit(1);
   })
   .finally(async () => {
