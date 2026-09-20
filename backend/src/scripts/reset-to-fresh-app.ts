@@ -101,17 +101,10 @@ export async function resetToFreshApp() {
   await prisma.refreshToken.deleteMany();
   await prisma.passwordResetToken.deleteMany();
 
-  // Delete all non-institutional users
-  const institutionalEmails = [
-    'student@campushub.edu',
-    'faculty@campushub.edu',
-    'admin@campushub.edu',
-    'placement@campushub.edu',
-  ];
-
+  // Delete all users except admin
   await prisma.user.deleteMany({
     where: {
-      email: { notIn: institutionalEmails },
+      email: { not: 'admin@campushub.edu' },
     },
   });
 
@@ -161,113 +154,10 @@ export async function resetToFreshApp() {
     },
   });
 
-  // Reset the 4 core accounts to clean state
+  // Reset the Admin account
   const hashedPassword = await argon2.hash('Password@123');
 
-  await prisma.user.upsert({
-    where: { email: 'student@campushub.edu' },
-    update: {
-      college_id: college.id,
-      department_id: deptCse.id,
-      first_name: 'Alex',
-      last_name: 'Vance',
-      roll_number: '21CS101',
-      password_hash: hashedPassword,
-      role: Role.STUDENT,
-      status: UserStatus.ACTIVE,
-      avatar_url: null,
-      phone: null,
-      username: null,
-      is_online: false,
-      last_seen: null,
-    },
-    create: {
-      college_id: college.id,
-      department_id: deptCse.id,
-      email: 'student@campushub.edu',
-      password_hash: hashedPassword,
-      first_name: 'Alex',
-      last_name: 'Vance',
-      roll_number: '21CS101',
-      role: Role.STUDENT,
-      status: UserStatus.ACTIVE,
-      avatar_url: null,
-      phone: null,
-      username: null,
-      is_online: false,
-      last_seen: null,
-    },
-  });
-
-  await prisma.user.upsert({
-    where: { email: 'faculty@campushub.edu' },
-    update: {
-      college_id: college.id,
-      department_id: deptCse.id,
-      first_name: 'Dr. Robert',
-      last_name: 'Taylor',
-      roll_number: null,
-      password_hash: hashedPassword,
-      role: Role.FACULTY,
-      status: UserStatus.ACTIVE,
-      avatar_url: null,
-      phone: null,
-      username: null,
-      is_online: false,
-      last_seen: null,
-    },
-    create: {
-      college_id: college.id,
-      department_id: deptCse.id,
-      email: 'faculty@campushub.edu',
-      password_hash: hashedPassword,
-      first_name: 'Dr. Robert',
-      last_name: 'Taylor',
-      role: Role.FACULTY,
-      status: UserStatus.ACTIVE,
-      avatar_url: null,
-      phone: null,
-      username: null,
-      is_online: false,
-      last_seen: null,
-    },
-  });
-
-  await prisma.user.upsert({
-    where: { email: 'placement@campushub.edu' },
-    update: {
-      college_id: college.id,
-      department_id: deptIt.id,
-      first_name: 'Sarah',
-      last_name: 'Jenkins',
-      roll_number: null,
-      password_hash: hashedPassword,
-      role: Role.PLACEMENT_OFFICER,
-      status: UserStatus.ACTIVE,
-      avatar_url: null,
-      phone: null,
-      username: null,
-      is_online: false,
-      last_seen: null,
-    },
-    create: {
-      college_id: college.id,
-      department_id: deptIt.id,
-      email: 'placement@campushub.edu',
-      password_hash: hashedPassword,
-      first_name: 'Sarah',
-      last_name: 'Jenkins',
-      role: Role.PLACEMENT_OFFICER,
-      status: UserStatus.ACTIVE,
-      avatar_url: null,
-      phone: null,
-      username: null,
-      is_online: false,
-      last_seen: null,
-    },
-  });
-
-  await prisma.user.upsert({
+  const admin = await prisma.user.upsert({
     where: { email: 'admin@campushub.edu' },
     update: {
       college_id: college.id,
@@ -301,12 +191,8 @@ export async function resetToFreshApp() {
     },
   });
 
-  console.log('✨ Fresh app reset complete!');
-  console.log('Institutional accounts (Password: Password@123):');
-  console.log('  - Student: student@campushub.edu');
-  console.log('  - Faculty: faculty@campushub.edu');
-  console.log('  - Placement Officer: placement@campushub.edu');
-  console.log('  - Admin: admin@campushub.edu');
+  console.log('✨ Fresh app reset complete! Only admin user remains:');
+  console.log(`   - Admin: ${admin.email} (Password: Password@123)`);
 }
 
 if (require.main === module) {

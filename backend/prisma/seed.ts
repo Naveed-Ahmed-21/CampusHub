@@ -110,16 +110,10 @@ async function main() {
   await prisma.refreshToken.deleteMany();
   await prisma.passwordResetToken.deleteMany();
 
-  const institutionalEmails = [
-    'student@campushub.edu',
-    'faculty@campushub.edu',
-    'admin@campushub.edu',
-    'placement@campushub.edu',
-  ];
-
+  // Delete all users except admin
   await prisma.user.deleteMany({
     where: {
-      email: { notIn: institutionalEmails },
+      email: { not: 'admin@campushub.edu' },
     },
   });
 
@@ -169,111 +163,8 @@ async function main() {
     },
   });
 
-  // 4 Core Accounts with clean default state
+  // Admin Account with clean default state
   const hashedPassword = await argon2.hash('Password@123');
-
-  const student = await prisma.user.upsert({
-    where: { email: 'student@campushub.edu' },
-    update: {
-      college_id: college.id,
-      department_id: deptCse.id,
-      first_name: 'Alex',
-      last_name: 'Vance',
-      roll_number: '21CS101',
-      password_hash: hashedPassword,
-      role: Role.STUDENT,
-      status: UserStatus.ACTIVE,
-      avatar_url: null,
-      phone: null,
-      username: null,
-      is_online: false,
-      last_seen: null,
-    },
-    create: {
-      college_id: college.id,
-      department_id: deptCse.id,
-      email: 'student@campushub.edu',
-      password_hash: hashedPassword,
-      first_name: 'Alex',
-      last_name: 'Vance',
-      roll_number: '21CS101',
-      role: Role.STUDENT,
-      status: UserStatus.ACTIVE,
-      avatar_url: null,
-      phone: null,
-      username: null,
-      is_online: false,
-      last_seen: null,
-    },
-  });
-
-  const faculty = await prisma.user.upsert({
-    where: { email: 'faculty@campushub.edu' },
-    update: {
-      college_id: college.id,
-      department_id: deptCse.id,
-      first_name: 'Dr. Robert',
-      last_name: 'Taylor',
-      roll_number: null,
-      password_hash: hashedPassword,
-      role: Role.FACULTY,
-      status: UserStatus.ACTIVE,
-      avatar_url: null,
-      phone: null,
-      username: null,
-      is_online: false,
-      last_seen: null,
-    },
-    create: {
-      college_id: college.id,
-      department_id: deptCse.id,
-      email: 'faculty@campushub.edu',
-      password_hash: hashedPassword,
-      first_name: 'Dr. Robert',
-      last_name: 'Taylor',
-      role: Role.FACULTY,
-      status: UserStatus.ACTIVE,
-      avatar_url: null,
-      phone: null,
-      username: null,
-      is_online: false,
-      last_seen: null,
-    },
-  });
-
-  const placementOfficer = await prisma.user.upsert({
-    where: { email: 'placement@campushub.edu' },
-    update: {
-      college_id: college.id,
-      department_id: deptIt.id,
-      first_name: 'Sarah',
-      last_name: 'Jenkins',
-      roll_number: null,
-      password_hash: hashedPassword,
-      role: Role.PLACEMENT_OFFICER,
-      status: UserStatus.ACTIVE,
-      avatar_url: null,
-      phone: null,
-      username: null,
-      is_online: false,
-      last_seen: null,
-    },
-    create: {
-      college_id: college.id,
-      department_id: deptIt.id,
-      email: 'placement@campushub.edu',
-      password_hash: hashedPassword,
-      first_name: 'Sarah',
-      last_name: 'Jenkins',
-      role: Role.PLACEMENT_OFFICER,
-      status: UserStatus.ACTIVE,
-      avatar_url: null,
-      phone: null,
-      username: null,
-      is_online: false,
-      last_seen: null,
-    },
-  });
 
   const admin = await prisma.user.upsert({
     where: { email: 'admin@campushub.edu' },
@@ -309,12 +200,9 @@ async function main() {
     },
   });
 
-  console.log(`✅ Institutional Accounts Ready:`);
-  console.log(`   - Student: ${student.email}`);
-  console.log(`   - Faculty: ${faculty.email}`);
-  console.log(`   - Placement Officer: ${placementOfficer.email}`);
-  console.log(`   - Admin: ${admin.email}`);
-  console.log('🎉 Fresh app reset complete! Database is completely empty across all screens.');
+  console.log(`✅ Institutional Account Ready:`);
+  console.log(`   - Admin: ${admin.email} (Password: Password@123)`);
+  console.log('🎉 Fresh app reset complete! Database has only the admin user.');
 }
 
 main()
