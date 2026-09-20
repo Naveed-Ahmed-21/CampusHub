@@ -1,9 +1,18 @@
 import { EventsRepository } from './events.repository';
 import { CreateEventDto, QueryEventsDto, CalendarQueryDto, MarkQRAttendanceDto } from './events.types';
 import { NotFoundError, BadRequestError, ConflictError } from '../../shared/errors/AppError';
+import { NotificationsRepository } from '../notifications/notifications.repository';
+import { NotificationsService } from '../notifications/notifications.service';
 
 export class EventsService {
-  constructor(private readonly eventsRepository: EventsRepository) {}
+  private readonly notificationsService: NotificationsService;
+
+  constructor(
+    private readonly eventsRepository: EventsRepository,
+    notificationsService?: NotificationsService,
+  ) {
+    this.notificationsService = notificationsService ?? new NotificationsService(new NotificationsRepository());
+  }
 
   async createEvent(organizerId: string, collegeId: string, dto: CreateEventDto) {
     if (new Date(dto.end_time) <= new Date(dto.start_time)) {
@@ -76,11 +85,18 @@ export class EventsService {
       }
 
       const existing = await this.eventsRepository.getUserRegistration(userId, eventId);
-      if (existing) {
-        throw new ConflictError('You are already registered for this event');
-      }
-
-      return this.eventsRepository.registerUserForEvent(userId, eventId);
+      const reg = await this.eventsRepository.registerUserForEvent(userId, eventId);
+      try {
+        await this.notificationsService.sendNotification({
+          user_id: userId,
+          title: `Registered: ${event.title}`,
+          body: `Your registration for "${event.title}" is confirmed. Location: ${event.location || 'Campus'}`,
+          type: 'EVENT_REMINDER',
+          category: 'Events',
+          deep_link: `/events`,
+        });
+      } catch (_) {}
+      return reg;
     }
 
     return {

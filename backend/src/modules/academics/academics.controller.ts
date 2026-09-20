@@ -6,6 +6,23 @@ import { asyncHandler } from '../../shared/utils/async-handler.util';
 export class AcademicsController {
   constructor(private readonly service: AcademicsService = new AcademicsService()) {}
 
+  getCurrentTerm = asyncHandler(async (req: Request, res: Response) => {
+    const collegeId = req.user?.collegeId || (req.query.collegeId as string);
+    const dateParam = req.query.date as string;
+    const targetDate = dateParam ? new Date(dateParam) : new Date();
+    const term = await this.service.getCurrentTerm(collegeId, targetDate);
+    ResponseUtil.success(res, term, 'Current academic term resolved successfully');
+  });
+
+  getStudentAcademicContext = asyncHandler(async (req: Request, res: Response) => {
+    const studentId = req.user!.userId;
+    const collegeId = req.user!.collegeId;
+    const dateParam = req.query.date as string;
+    const targetDate = dateParam ? new Date(dateParam) : new Date();
+    const context = await this.service.getStudentAcademicContext(studentId, collegeId, targetDate);
+    ResponseUtil.success(res, context, 'Student academic context retrieved successfully');
+  });
+
   getSubjects = asyncHandler(async (req: Request, res: Response) => {
     const userId = req.user?.userId;
     const collegeId = req.user?.collegeId;
@@ -13,6 +30,7 @@ export class AcademicsController {
       search: req.query.q as string || req.query.search as string,
       departmentId: req.query.departmentId as string,
       semester: req.query.semester as string,
+      section: req.query.section as string,
       academicYear: req.query.academicYear as string,
       limit: req.query.limit ? parseInt(req.query.limit as string, 10) : 50,
       page: req.query.page ? parseInt(req.query.page as string, 10) : 1,
@@ -91,4 +109,65 @@ export class AcademicsController {
     const faculty = await this.service.getFacultyProfile(facultyId);
     ResponseUtil.success(res, faculty, 'Faculty profile retrieved successfully');
   });
+
+  getSubjectAssignments = asyncHandler(async (req: Request, res: Response) => {
+    const studentId = req.user!.userId;
+    const subjectId = req.params.id as string;
+    const assignments = await this.service.getSubjectAssignments(subjectId, studentId);
+    ResponseUtil.success(res, assignments, 'Subject assignments retrieved successfully');
+  });
+
+  getPendingAssignments = asyncHandler(async (req: Request, res: Response) => {
+    const studentId = req.user!.userId;
+    const assignments = await this.service.getPendingAssignments(studentId);
+    ResponseUtil.success(res, assignments, 'Pending assignments retrieved successfully');
+  });
+
+  submitAssignment = asyncHandler(async (req: Request, res: Response) => {
+    const studentId = req.user!.userId;
+    const assignmentId = req.params.id as string;
+    const result = await this.service.submitAssignment(studentId, assignmentId, req.body);
+    ResponseUtil.success(res, result, 'Assignment submitted successfully', 201);
+  });
+
+  getSubjectAttendance = asyncHandler(async (req: Request, res: Response) => {
+    const studentId = req.user!.userId;
+    const subjectId = req.params.id as string;
+    const attendance = await this.service.getSubjectAttendance(subjectId, studentId);
+    ResponseUtil.success(res, attendance, 'Subject attendance retrieved successfully');
+  });
+
+  getOverallAttendanceSummary = asyncHandler(async (req: Request, res: Response) => {
+    const studentId = req.user!.userId;
+    const summary = await this.service.getOverallAttendanceSummary(studentId);
+    ResponseUtil.success(res, summary, 'Attendance summary retrieved successfully');
+  });
+
+  getTimetable = asyncHandler(async (req: Request, res: Response) => {
+    const studentId = req.user!.userId;
+    const collegeId = req.user?.collegeId;
+    const timetable = await this.service.getStudentTimetable(studentId, collegeId, false);
+    ResponseUtil.success(res, timetable, 'Student timetable retrieved successfully');
+  });
+
+  getTodayTimetable = asyncHandler(async (req: Request, res: Response) => {
+    const studentId = req.user!.userId;
+    const collegeId = req.user?.collegeId;
+    const timetable = await this.service.getStudentTimetable(studentId, collegeId, true);
+    ResponseUtil.success(res, timetable, "Today's timetable retrieved successfully");
+  });
+
+  getSubjectAssessments = asyncHandler(async (req: Request, res: Response) => {
+    const studentId = req.user!.userId;
+    const subjectId = req.params.id as string;
+    const assessments = await this.service.getSubjectAssessments(subjectId, studentId);
+    ResponseUtil.success(res, assessments, 'Subject assessments retrieved successfully');
+  });
+
+  getAssessmentsSummary = asyncHandler(async (req: Request, res: Response) => {
+    const studentId = req.user!.userId;
+    const summary = await this.service.getAssessmentsSummary(studentId);
+    ResponseUtil.success(res, summary, 'Assessments summary retrieved successfully');
+  });
 }
+

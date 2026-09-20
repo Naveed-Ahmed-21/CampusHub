@@ -13,7 +13,8 @@ class AddAnnouncementDialog extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<AddAnnouncementDialog> createState() => _AddAnnouncementDialogState();
+  ConsumerState<AddAnnouncementDialog> createState() =>
+      _AddAnnouncementDialogState();
 }
 
 class _AddAnnouncementDialogState extends ConsumerState<AddAnnouncementDialog> {
@@ -36,7 +37,9 @@ class _AddAnnouncementDialogState extends ConsumerState<AddAnnouncementDialog> {
 
     final targetSubjectId = widget.subjectId ?? 'sbj_1001';
 
-    final success = await ref.read(facultyControllerProvider.notifier).createSubjectAnnouncement(
+    final success = await ref
+        .read(facultyControllerProvider.notifier)
+        .createSubjectAnnouncement(
           subjectId: targetSubjectId,
           title: _titleController.text.trim(),
           content: _contentController.text.trim(),
@@ -51,7 +54,8 @@ class _AddAnnouncementDialogState extends ConsumerState<AddAnnouncementDialog> {
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to post announcement. Please try again.')),
+          const SnackBar(
+              content: Text('Failed to post announcement. Please try again.')),
         );
       }
     }
@@ -96,7 +100,8 @@ class _AddAnnouncementDialogState extends ConsumerState<AddAnnouncementDialog> {
                               ),
                             ),
                             Text(
-                              widget.subjectName ?? 'Department & Enrolled Students',
+                              widget.subjectName ??
+                                  'Department & Enrolled Students',
                               style: theme.textTheme.bodySmall?.copyWith(
                                 color: theme.colorScheme.outline,
                               ),
@@ -116,10 +121,13 @@ class _AddAnnouncementDialogState extends ConsumerState<AddAnnouncementDialog> {
                     decoration: InputDecoration(
                       labelText: 'Announcement Title *',
                       hintText: 'e.g. Schedule for Lab Practical Exam',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12)),
                       prefixIcon: const Icon(Icons.announcement_outlined),
                     ),
-                    validator: (val) => val == null || val.trim().isEmpty ? 'Please enter a title' : null,
+                    validator: (val) => val == null || val.trim().isEmpty
+                        ? 'Please enter a title'
+                        : null,
                   ),
                   const SizedBox(height: 14),
                   TextFormField(
@@ -127,36 +135,47 @@ class _AddAnnouncementDialogState extends ConsumerState<AddAnnouncementDialog> {
                     maxLines: 4,
                     decoration: InputDecoration(
                       labelText: 'Announcement Details / Instructions *',
-                      hintText: 'Provide complete details, dates, submission instructions, and guidelines.',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      hintText:
+                          'Provide complete details, dates, submission instructions, and guidelines.',
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12)),
                       alignLabelWithHint: true,
                     ),
-                    validator: (val) => val == null || val.trim().length < 5 ? 'Must be at least 5 characters' : null,
+                    validator: (val) => val == null || val.trim().length < 5
+                        ? 'Must be at least 5 characters'
+                        : null,
                   ),
                   const SizedBox(height: 24),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
+                  Wrap(
+                    alignment: WrapAlignment.end,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 12,
+                    runSpacing: 8,
                     children: [
                       TextButton(
-                        onPressed: _isPublishing ? null : () => Navigator.of(context).pop(),
+                        onPressed: _isPublishing
+                            ? null
+                            : () => Navigator.of(context).pop(),
                         child: const Text('Cancel'),
                       ),
-                      const SizedBox(width: 12),
                       FilledButton.icon(
                         onPressed: _isPublishing ? null : _submit,
                         icon: _isPublishing
                             ? const SizedBox(
                                 width: 16,
                                 height: 16,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: Colors.white),
                               )
                             : const Icon(Icons.send, size: 18),
                         label: const Text('Publish Announcement'),
                         style: FilledButton.styleFrom(
                           backgroundColor: Colors.orange.shade700,
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 12),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
                         ),
                       ),
                     ],

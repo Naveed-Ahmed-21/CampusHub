@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/auth/presentation/controllers/auth_controller.dart';
+import '../../features/chat/data/socket_chat_service.dart';
+import '../../features/notifications/presentation/providers/notifications_provider.dart';
+import '../../core/services/local_notification_service.dart';
+import '../../routing/app_router.dart';
 import 'responsive_layout.dart';
 import 'role_navigation_config.dart';
 
@@ -16,11 +20,29 @@ class MainScaffold extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // Narrow watch using select to only rebuild when role/user identity changes
-    final user = ref.watch(authControllerProvider.select((state) => state.asData?.value));
+    final user = ref
+        .watch(authControllerProvider.select((state) => state.asData?.value));
+
+    // Ensure live real-time notification socket is connected whenever user is authenticated
+    if (user != null) {
+      ref.watch(socketChatServiceProvider);
+      ref.watch(notificationsNotifierProvider);
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (user != null) {
+        LocalNotificationService.requestPermission();
+      }
+      final pendingRoute = consumePendingNotificationRoute();
+      if (pendingRoute != null && context.mounted) {
+        context.push(pendingRoute);
+      }
+    });
     final items = RoleNavigationConfig.getNavigationItemsForUser(user);
 
     // Calculate current selected index matching active branch index
-    int selectedIndex = items.indexWhere((item) => item.branchIndex == navigationShell.currentIndex);
+    int selectedIndex = items
+        .indexWhere((item) => item.branchIndex == navigationShell.currentIndex);
     if (selectedIndex < 0) {
       selectedIndex = 0;
     }
@@ -28,7 +50,8 @@ class MainScaffold extends ConsumerWidget {
     void onDestinationTapped(int index) {
       if (index >= 0 && index < items.length) {
         final targetItem = items[index];
-        final isCurrent = targetItem.branchIndex == navigationShell.currentIndex;
+        final isCurrent =
+            targetItem.branchIndex == navigationShell.currentIndex;
         navigationShell.goBranch(
           targetItem.branchIndex,
           initialLocation: isCurrent,

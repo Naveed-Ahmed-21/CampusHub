@@ -26,7 +26,10 @@ class StudentDrawerWidget extends ConsumerWidget {
       selected: isSelected,
       selectedTileColor: activeBg,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      leading: Icon(icon, color: iconColor ?? (isSelected ? theme.colorScheme.primary : Colors.grey.shade700), size: 20),
+      leading: Icon(icon,
+          color: iconColor ??
+              (isSelected ? theme.colorScheme.primary : Colors.grey.shade700),
+          size: 20),
       title: Text(
         label,
         style: TextStyle(
@@ -44,7 +47,10 @@ class StudentDrawerWidget extends ConsumerWidget {
               ),
               child: Text(
                 '$badgeCount',
-                style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold),
               ),
             )
           : null,
@@ -75,7 +81,8 @@ class StudentDrawerWidget extends ConsumerWidget {
 
     final unreadNotifications = ref.watch(unreadNotificationsCountProvider);
 
-    final studentName = user != null ? '${user.firstName} ${user.lastName}' : 'Naveed Ahmed';
+    final studentName =
+        user != null ? '${user.firstName} ${user.lastName}' : 'Naveed Ahmed';
     final studentDept = 'B.Tech IT • 4th Year';
 
     return Drawer(
@@ -91,7 +98,8 @@ class StudentDrawerWidget extends ConsumerWidget {
               child: Container(
                 padding: const EdgeInsets.all(16.0),
                 decoration: BoxDecoration(
-                  border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+                  border:
+                      Border(bottom: BorderSide(color: Colors.grey.shade200)),
                 ),
                 child: Row(
                   children: [
@@ -99,8 +107,13 @@ class StudentDrawerWidget extends ConsumerWidget {
                       radius: 26,
                       backgroundColor: theme.colorScheme.primaryContainer,
                       child: Text(
-                        studentName.isNotEmpty ? studentName[0].toUpperCase() : 'N',
-                        style: TextStyle(fontWeight: FontWeight.bold, color: theme.colorScheme.primary, fontSize: 18),
+                        studentName.isNotEmpty
+                            ? studentName[0].toUpperCase()
+                            : 'N',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: theme.colorScheme.primary,
+                            fontSize: 18),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -108,9 +121,13 @@ class StudentDrawerWidget extends ConsumerWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(studentName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                          Text(studentName,
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.bold, fontSize: 16)),
                           const SizedBox(height: 2),
-                          Text(studentDept, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                          Text(studentDept,
+                              style: const TextStyle(
+                                  color: Colors.grey, fontSize: 12)),
                         ],
                       ),
                     ),
@@ -123,7 +140,8 @@ class StudentDrawerWidget extends ConsumerWidget {
             // Navigation Links Scrollable List
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 children: [
                   _buildMenuItem(
                     context,
@@ -210,15 +228,17 @@ class StudentDrawerWidget extends ConsumerWidget {
                   ),
                   _buildMenuItem(
                     context,
-                    icon: Icons.badge_outlined,
-                    label: 'Faculty & Mentors Directory',
-                    onTap: () => _navigate(context, '/academics/faculty', isPush: true),
+                    icon: Icons.calendar_today_outlined,
+                    label: 'Class Timetable & Schedule',
+                    onTap: () => _navigate(context, '/academics/timetable',
+                        isPush: true),
                   ),
                   _buildMenuItem(
                     context,
-                    icon: Icons.explore_outlined,
-                    label: 'Career Guidance',
-                    onTap: () => _navigate(context, '/career'),
+                    icon: Icons.badge_outlined,
+                    label: 'Faculty & Mentors Directory',
+                    onTap: () =>
+                        _navigate(context, '/academics/faculty', isPush: true),
                   ),
                   const Divider(height: 16),
                   _buildMenuItem(

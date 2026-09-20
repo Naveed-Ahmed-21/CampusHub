@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 import '../../../core/constants/api_endpoints.dart';
 import '../../../core/storage/secure_storage_service.dart';
+import '../../../core/services/local_notification_service.dart';
 import '../domain/chat_models.dart';
 
 import '../../notifications/domain/notification_models.dart';
@@ -12,21 +13,34 @@ class SocketChatService {
   io.Socket? _socket;
   final SecureStorageService _storage;
 
-  final _messageStreamController = StreamController<ChatMessageModel>.broadcast();
-  final _typingStreamController = StreamController<Map<String, dynamic>>.broadcast();
-  final _presenceStreamController = StreamController<Map<String, dynamic>>.broadcast();
-  final _readReceiptStreamController = StreamController<Map<String, dynamic>>.broadcast();
-  final _reactionStreamController = StreamController<Map<String, dynamic>>.broadcast();
-  final _deletedMessageStreamController = StreamController<Map<String, dynamic>>.broadcast();
-  final _notificationStreamController = StreamController<NotificationModel>.broadcast();
+  final _messageStreamController =
+      StreamController<ChatMessageModel>.broadcast();
+  final _typingStreamController =
+      StreamController<Map<String, dynamic>>.broadcast();
+  final _presenceStreamController =
+      StreamController<Map<String, dynamic>>.broadcast();
+  final _readReceiptStreamController =
+      StreamController<Map<String, dynamic>>.broadcast();
+  final _reactionStreamController =
+      StreamController<Map<String, dynamic>>.broadcast();
+  final _deletedMessageStreamController =
+      StreamController<Map<String, dynamic>>.broadcast();
+  final _notificationStreamController =
+      StreamController<NotificationModel>.broadcast();
 
   Stream<ChatMessageModel> get onNewMessage => _messageStreamController.stream;
-  Stream<Map<String, dynamic>> get onTypingChange => _typingStreamController.stream;
-  Stream<Map<String, dynamic>> get onPresenceChange => _presenceStreamController.stream;
-  Stream<Map<String, dynamic>> get onMessagesRead => _readReceiptStreamController.stream;
-  Stream<Map<String, dynamic>> get onReactionUpdated => _reactionStreamController.stream;
-  Stream<Map<String, dynamic>> get onMessageDeleted => _deletedMessageStreamController.stream;
-  Stream<NotificationModel> get onNewNotification => _notificationStreamController.stream;
+  Stream<Map<String, dynamic>> get onTypingChange =>
+      _typingStreamController.stream;
+  Stream<Map<String, dynamic>> get onPresenceChange =>
+      _presenceStreamController.stream;
+  Stream<Map<String, dynamic>> get onMessagesRead =>
+      _readReceiptStreamController.stream;
+  Stream<Map<String, dynamic>> get onReactionUpdated =>
+      _reactionStreamController.stream;
+  Stream<Map<String, dynamic>> get onMessageDeleted =>
+      _deletedMessageStreamController.stream;
+  Stream<NotificationModel> get onNewNotification =>
+      _notificationStreamController.stream;
 
   SocketChatService(this._storage);
 
@@ -49,9 +63,29 @@ class SocketChatService {
       debugPrint('⚡ Socket Connected: ${_socket!.id}');
     });
 
-    _socket!.on('new_message', (data) {
+    _socket!.on('new_message', (data) async {
       if (data != null && data is Map<String, dynamic>) {
-        _messageStreamController.add(ChatMessageModel.fromJson(data));
+        try {
+          final message = ChatMessageModel.fromJson(data);
+          _messageStreamController.add(message);
+
+          final currentUserId = await _storage.getUserId();
+          if (currentUserId != null && message.senderId != currentUserId) {
+            LocalNotificationService.showNotification(
+              id: message.id.hashCode,
+              title: message.senderName.isNotEmpty
+                  ? message.senderName
+                  : 'New message',
+              body: message.message.isNotEmpty
+                  ? message.message
+                  : 'Sent an attachment',
+              category: 'Chat',
+              payload: '/chat/${message.roomId}',
+            );
+          }
+        } catch (e) {
+          debugPrint('⚠️ Error parsing incoming chat message: $e');
+        }
       }
     });
 
@@ -94,7 +128,15 @@ class SocketChatService {
     _socket!.on('new_notification', (data) {
       if (data != null && data is Map<String, dynamic>) {
         try {
-          _notificationStreamController.add(NotificationModel.fromJson(data));
+          final notif = NotificationModel.fromJson(data);
+          _notificationStreamController.add(notif);
+          LocalNotificationService.showNotification(
+            id: notif.id.hashCode,
+            title: notif.title,
+            body: notif.body,
+            category: notif.category,
+            payload: notif.deepLink ?? '/notifications',
+          );
         } catch (e) {
           debugPrint('⚠️ Error parsing incoming notification: $e');
         }

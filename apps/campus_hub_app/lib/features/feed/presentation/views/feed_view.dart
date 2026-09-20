@@ -14,15 +14,20 @@ import '../widgets/feed_post_card_widget.dart';
 import '../widgets/bottom_search_bar_widget.dart';
 import '../widgets/create_post_sheet.dart';
 import '../widgets/comments_sheet.dart';
+import '../../../auth/presentation/controllers/auth_controller.dart';
+import '../../../faculty/presentation/widgets/faculty_drawer_widget.dart';
 
 class FeedView extends ConsumerStatefulWidget {
-  const FeedView({super.key});
+  final bool showAppBar;
+
+  const FeedView({super.key, this.showAppBar = true});
 
   @override
   ConsumerState<FeedView> createState() => _FeedViewState();
 }
 
-class _FeedViewState extends ConsumerState<FeedView> with AutomaticKeepAliveClientMixin {
+class _FeedViewState extends ConsumerState<FeedView>
+    with AutomaticKeepAliveClientMixin {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final ScrollController _scrollController = ScrollController();
 
@@ -34,7 +39,8 @@ class _FeedViewState extends ConsumerState<FeedView> with AutomaticKeepAliveClie
     super.initState();
     _scrollController.addListener(() {
       if (_scrollController.hasClients &&
-          _scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 250) {
+          _scrollController.position.pixels >=
+              _scrollController.position.maxScrollExtent - 250) {
         ref.read(feedControllerProvider.notifier).fetchNextPage();
       }
     });
@@ -68,23 +74,34 @@ class _FeedViewState extends ConsumerState<FeedView> with AutomaticKeepAliveClie
     super.build(context);
     final activeFeedType = ref.watch(activeFeedTypeProvider);
     final feedAsync = ref.watch(feedControllerProvider);
+    final user = ref.watch(authControllerProvider).asData?.value;
+    final isFaculty = user?.isFaculty == true;
 
     return Scaffold(
       key: _scaffoldKey,
-      appBar: CampusTopAppBar(
-        onOpenDrawer: () => _scaffoldKey.currentState?.openDrawer(),
-      ),
-      drawer: const StudentDrawerWidget(),
+      appBar: widget.showAppBar
+          ? CampusTopAppBar(
+              onOpenDrawer: () => _scaffoldKey.currentState?.openDrawer(),
+            )
+          : null,
+      drawer: widget.showAppBar
+          ? (isFaculty
+              ? const FacultyDrawerWidget()
+              : const StudentDrawerWidget())
+          : null,
       body: AsyncValueWidget<List<PostItem>>(
         value: feedAsync,
         data: (posts) => RefreshIndicator(
-          onRefresh: () => ref.read(feedControllerProvider.notifier).refreshFeed(),
+          onRefresh: () =>
+              ref.read(feedControllerProvider.notifier).refreshFeed(),
           child: ResponsiveLayout(
-            mobile: _buildFeedLayout(context, posts, activeFeedType, isDesktop: false),
+            mobile: _buildFeedLayout(context, posts, activeFeedType,
+                isDesktop: false),
             desktop: Center(
               child: Container(
                 constraints: const BoxConstraints(maxWidth: 700),
-                child: _buildFeedLayout(context, posts, activeFeedType, isDesktop: true),
+                child: _buildFeedLayout(context, posts, activeFeedType,
+                    isDesktop: true),
               ),
             ),
           ),
@@ -93,7 +110,9 @@ class _FeedViewState extends ConsumerState<FeedView> with AutomaticKeepAliveClie
     );
   }
 
-  Widget _buildFeedLayout(BuildContext context, List<PostItem> posts, String activeFeedType, {required bool isDesktop}) {
+  Widget _buildFeedLayout(
+      BuildContext context, List<PostItem> posts, String activeFeedType,
+      {required bool isDesktop}) {
     return CustomScrollView(
       key: const PageStorageKey<String>('feed_custom_scroll_view'),
       controller: _scrollController,
@@ -122,16 +141,20 @@ class _FeedViewState extends ConsumerState<FeedView> with AutomaticKeepAliveClie
         if (posts.isEmpty)
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 48.0),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 24.0, vertical: 48.0),
               child: Center(
                 child: Builder(
                   builder: (ctx) {
-                    final isFollowingTab = activeFeedType.toLowerCase() == 'following';
+                    final isFollowingTab =
+                        activeFeedType.toLowerCase() == 'following';
                     return Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
-                          isFollowingTab ? Icons.people_outline : Icons.dynamic_feed,
+                          isFollowingTab
+                              ? Icons.people_outline
+                              : Icons.dynamic_feed,
                           size: 64,
                           color: Colors.grey.shade400,
                         ),
@@ -141,7 +164,10 @@ class _FeedViewState extends ConsumerState<FeedView> with AutomaticKeepAliveClie
                               ? 'You are not following anyone yet.'
                               : 'No campus posts found in this feed yet.',
                           textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleMedium
+                              ?.copyWith(
                                 fontWeight: FontWeight.bold,
                                 color: Theme.of(context).colorScheme.onSurface,
                               ),
@@ -152,9 +178,10 @@ class _FeedViewState extends ConsumerState<FeedView> with AutomaticKeepAliveClie
                               ? 'Follow people from your campus to see their posts here.'
                               : 'Be the first to share an update with your campus community!',
                           textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: Colors.grey,
-                              ),
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: Colors.grey,
+                                  ),
                         ),
                         const SizedBox(height: 18),
                         if (isFollowingTab) ...[
@@ -196,10 +223,12 @@ class _FeedViewState extends ConsumerState<FeedView> with AutomaticKeepAliveClie
                   final post = posts[index];
                   return FeedPostCardWidget(
                     post: post,
-                    onOpenComments: () => PostCommentsSheet.show(context, post.id),
+                    onOpenComments: () =>
+                        PostCommentsSheet.show(context, post.id),
                   );
                 } else {
-                  final hasMore = ref.watch(feedControllerProvider.notifier).hasMore;
+                  final hasMore =
+                      ref.watch(feedControllerProvider.notifier).hasMore;
                   return hasMore
                       ? const Padding(
                           padding: EdgeInsets.all(24.0),
@@ -207,7 +236,10 @@ class _FeedViewState extends ConsumerState<FeedView> with AutomaticKeepAliveClie
                         )
                       : const Padding(
                           padding: EdgeInsets.all(24.0),
-                          child: Center(child: Text('You have reached the end of the feed.', style: TextStyle(color: Colors.grey))),
+                          child: Center(
+                              child: Text(
+                                  'You have reached the end of the feed.',
+                                  style: TextStyle(color: Colors.grey))),
                         );
                 }
               },

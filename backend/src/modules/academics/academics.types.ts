@@ -4,6 +4,7 @@ export interface SubjectSearchFilter {
   search?: string;
   departmentId?: string;
   semester?: string;
+  section?: string;
   academicYear?: string;
   unit?: string;
   resourceType?: string;
@@ -120,3 +121,136 @@ export interface AcademicFacultyDTO {
     credits: number;
   }>;
 }
+
+export interface StudentAssignmentDTO {
+  id: string;
+  subjectId: string;
+  subjectCode: string;
+  subjectName: string;
+  facultyName: string;
+  title: string;
+  description?: string;
+  unit?: string;
+  topic?: string;
+  attachments: any[];
+  maxMarks: number;
+  dueAt: Date;
+  submissionType: string;
+  allowLate: boolean;
+  submission?: {
+    id: string;
+    status: string;
+    marks?: number | null;
+    feedback?: string | null;
+    submittedAt: Date;
+    fileUrl?: string | null;
+    textContent?: string | null;
+    linkUrl?: string | null;
+  } | null;
+}
+
+export interface SubmitAssignmentDTO {
+  submissionType?: string;
+  fileUrl?: string;
+  linkUrl?: string;
+  textContent?: string;
+}
+
+export interface StudentAttendanceSummaryDTO {
+  subjectId: string;
+  subjectCode: string;
+  subjectName: string;
+  facultyName: string;
+  totalSessions: number;
+  attendedSessions: number;
+  percentage: number;
+  records: Array<{
+    id: string;
+    date: string;
+    startTime?: string;
+    endTime?: string;
+    topic?: string;
+    status: string;
+    remarks?: string;
+  }>;
+}
+
+export interface StudentTimetableSlotDTO {
+  id: string;
+  subjectId?: string;
+  subjectCode: string;
+  subjectName: string;
+  facultyId?: string;
+  facultyName: string;
+  facultyAvatarUrl?: string | null;
+  roomOrVenue: string;
+  startTime: string;
+  endTime: string;
+  dayOfWeek: string;
+  topic?: string;
+  sessionType: string;
+  status: string;
+}
+
+export interface StudentSubjectAssessmentDTO {
+  id: string;
+  subjectId: string;
+  subjectCode: string;
+  subjectName: string;
+  facultyName: string;
+  title: string;
+  description?: string;
+  assessmentType: string;
+  unit?: string;
+  topic?: string;
+  totalMarks: number;
+  passingMarks: number;
+  durationMinutes?: number;
+  scheduledAt?: Date | null;
+  status: string;
+  result?: {
+    marksObtained?: number | null;
+    grade?: string | null;
+    remarks?: string | null;
+    status: string;
+    evaluatedAt?: Date | null;
+  } | null;
+}
+
+export interface StudentAssessmentSummaryDTO {
+  subjectId: string;
+  subjectCode: string;
+  subjectName: string;
+  totalAssessments: number;
+  evaluatedAssessments: number;
+  totalScored: number;
+  totalMax: number;
+  percentage: number;
+  assessments: StudentSubjectAssessmentDTO[];
+}
+
+export interface StudentAcademicContextDTO {
+  academicYear: string;
+  academicTerm: string;
+  termType: 'ODD' | 'EVEN';
+  semester: number;
+  semesterRoman: string;
+  semesterLabel: string;
+  yearOfStudy: number;
+  yearRoman: string;
+  yearLabel: string;
+  admissionYear: number;
+  batchName: string;
+  department: string;
+  departmentName: string;
+  program: string;
+  section: string;
+  class: string;
+  academicHeader: string;
+  status: string;
+  hasOverride: boolean;
+  overrideReason?: string;
+  subjects: AcademicSubjectDTO[];
+}
+
+

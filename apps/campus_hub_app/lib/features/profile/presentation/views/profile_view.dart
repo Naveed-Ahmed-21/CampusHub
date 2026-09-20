@@ -37,7 +37,8 @@ class ProfileView extends ConsumerWidget {
         elevation: 0,
         backgroundColor: theme.scaffoldBackgroundColor,
         surfaceTintColor: Colors.transparent,
-        title: const Text('My Profile', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text('My Profile',
+            style: TextStyle(fontWeight: FontWeight.bold)),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -48,22 +49,30 @@ class ProfileView extends ConsumerWidget {
             },
           ),
           IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            tooltip: 'Settings',
+            onPressed: () => context.push('/settings'),
+          ),
+          IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Log out',
             onPressed: () async {
               final confirm = await showDialog<bool>(
                 context: context,
                 builder: (ctx) => AlertDialog(
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16)),
                   title: const Text('Log Out'),
-                  content: const Text('Are you sure you want to sign out of CampusHub?'),
+                  content: const Text(
+                      'Are you sure you want to sign out of CampusHub?'),
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.pop(ctx, false),
                       child: const Text('Cancel'),
                     ),
                     FilledButton(
-                      style: FilledButton.styleFrom(backgroundColor: theme.colorScheme.error),
+                      style: FilledButton.styleFrom(
+                          backgroundColor: theme.colorScheme.error),
                       onPressed: () => Navigator.pop(ctx, true),
                       child: const Text('Log Out'),
                     ),
@@ -93,7 +102,8 @@ class _ProfileMobileLayout extends ConsumerStatefulWidget {
   const _ProfileMobileLayout({required this.profile});
 
   @override
-  ConsumerState<_ProfileMobileLayout> createState() => _ProfileMobileLayoutState();
+  ConsumerState<_ProfileMobileLayout> createState() =>
+      _ProfileMobileLayoutState();
 }
 
 class _ProfileMobileLayoutState extends ConsumerState<_ProfileMobileLayout>
@@ -142,11 +152,18 @@ class _ProfileMobileLayoutState extends ConsumerState<_ProfileMobileLayout>
                 indicatorWeight: 3,
                 labelColor: theme.colorScheme.primary,
                 unselectedLabelColor: theme.colorScheme.outline,
-                labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                labelStyle:
+                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                 tabs: const [
-                  Tab(icon: Icon(Icons.person_outline, size: 20), text: 'Overview'),
-                  Tab(icon: Icon(Icons.groups_outlined, size: 20), text: 'My Clubs'),
-                  Tab(icon: Icon(Icons.bookmark_outline, size: 20), text: 'Activity'),
+                  Tab(
+                      icon: Icon(Icons.person_outline, size: 20),
+                      text: 'Overview'),
+                  Tab(
+                      icon: Icon(Icons.groups_outlined, size: 20),
+                      text: 'My Clubs'),
+                  Tab(
+                      icon: Icon(Icons.bookmark_outline, size: 20),
+                      text: 'Activity'),
                 ],
               ),
               color: theme.scaffoldBackgroundColor,
@@ -204,7 +221,8 @@ class _ProfileDesktopLayout extends ConsumerStatefulWidget {
   const _ProfileDesktopLayout({required this.profile});
 
   @override
-  ConsumerState<_ProfileDesktopLayout> createState() => _ProfileDesktopLayoutState();
+  ConsumerState<_ProfileDesktopLayout> createState() =>
+      _ProfileDesktopLayoutState();
 }
 
 class _ProfileDesktopLayoutState extends ConsumerState<_ProfileDesktopLayout> {
@@ -290,7 +308,9 @@ class _ProfileHeroCard extends ConsumerWidget {
           final uploadService = ref.read(mediaUploadServiceProvider);
           final result = await uploadService.uploadSelectedFile(file);
 
-          await ref.read(profileControllerProvider.notifier).uploadAvatar(result.url);
+          await ref
+              .read(profileControllerProvider.notifier)
+              .uploadAvatar(result.url);
 
           if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -303,7 +323,9 @@ class _ProfileHeroCard extends ConsumerWidget {
         } catch (e) {
           if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Failed to update avatar: $e'), backgroundColor: Colors.red),
+              SnackBar(
+                  content: Text('Failed to update avatar: $e'),
+                  backgroundColor: Colors.red),
             );
           }
         }
@@ -344,7 +366,8 @@ class _ProfileHeroCard extends ConsumerWidget {
                     ),
                     child: GestureDetector(
                       onTap: () {
-                        if (profile.avatarUrl != null && profile.avatarUrl!.isNotEmpty) {
+                        if (profile.avatarUrl != null &&
+                            profile.avatarUrl!.isNotEmpty) {
                           FullScreenImageViewer.openSingle(
                             context,
                             imageUrl: profile.avatarUrl!,
@@ -359,13 +382,19 @@ class _ProfileHeroCard extends ConsumerWidget {
                         child: CircleAvatar(
                           radius: 42,
                           backgroundColor: theme.colorScheme.primaryContainer,
-                          backgroundImage: profile.avatarUrl != null && profile.avatarUrl!.isNotEmpty
-                              ? NetworkImage(ApiEndpoints.resolveUrl(profile.avatarUrl!))
+                          backgroundImage: profile.avatarUrl != null &&
+                                  profile.avatarUrl!.isNotEmpty
+                              ? NetworkImage(
+                                  ApiEndpoints.resolveUrl(profile.avatarUrl!))
                               : null,
-                          child: profile.avatarUrl == null || profile.avatarUrl!.isEmpty
+                          child: profile.avatarUrl == null ||
+                                  profile.avatarUrl!.isEmpty
                               ? Text(
-                                  profile.firstName.isNotEmpty ? profile.firstName[0].toUpperCase() : 'U',
-                                  style: theme.textTheme.headlineLarge?.copyWith(
+                                  profile.firstName.isNotEmpty
+                                      ? profile.firstName[0].toUpperCase()
+                                      : 'U',
+                                  style:
+                                      theme.textTheme.headlineLarge?.copyWith(
                                     color: theme.colorScheme.onPrimaryContainer,
                                     fontWeight: FontWeight.bold,
                                   ),
@@ -421,9 +450,11 @@ class _ProfileHeroCard extends ConsumerWidget {
                         ),
                         const SizedBox(width: 6),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 2),
                           decoration: BoxDecoration(
-                            color: theme.colorScheme.primary.withValues(alpha: 0.12),
+                            color: theme.colorScheme.primary
+                                .withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Text(
@@ -443,7 +474,8 @@ class _ProfileHeroCard extends ConsumerWidget {
                     InkWell(
                       borderRadius: BorderRadius.circular(6),
                       onTap: () {
-                        Clipboard.setData(ClipboardData(text: profile.displayUsername));
+                        Clipboard.setData(
+                            ClipboardData(text: profile.displayUsername));
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                             content: Text('Username copied to clipboard!'),
@@ -465,7 +497,8 @@ class _ProfileHeroCard extends ConsumerWidget {
                               ),
                             ),
                             const SizedBox(width: 4),
-                            Icon(Icons.copy, size: 12, color: theme.colorScheme.primary),
+                            Icon(Icons.copy,
+                                size: 12, color: theme.colorScheme.primary),
                           ],
                         ),
                       ),
@@ -475,11 +508,13 @@ class _ProfileHeroCard extends ConsumerWidget {
                     // Email & Roll Number
                     Text(
                       profile.email,
-                      style: TextStyle(fontSize: 12.5, color: theme.colorScheme.outline),
+                      style: TextStyle(
+                          fontSize: 12.5, color: theme.colorScheme.outline),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    if (profile.rollNumber != null && profile.rollNumber!.isNotEmpty) ...[
+                    if (profile.rollNumber != null &&
+                        profile.rollNumber!.isNotEmpty) ...[
                       const SizedBox(height: 4),
                       Text(
                         'Roll No: ${profile.rollNumber}',
@@ -502,12 +537,14 @@ class _ProfileHeroCard extends ConsumerWidget {
             children: [
               Expanded(
                 child: FilledButton.tonalIcon(
-                  onPressed: () => _showEditProfileDialog(context, ref, profile),
+                  onPressed: () =>
+                      _showEditProfileDialog(context, ref, profile),
                   icon: const Icon(Icons.edit_outlined, size: 17),
                   label: const Text('Edit Profile'),
                   style: FilledButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 10),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
                   ),
                 ),
               ),
@@ -516,14 +553,16 @@ class _ProfileHeroCard extends ConsumerWidget {
                 child: FilledButton.icon(
                   onPressed: () {
                     Navigator.of(context).push(
-                      MaterialPageRoute(builder: (ctx) => const PortfolioView()),
+                      MaterialPageRoute(
+                          builder: (ctx) => const PortfolioView()),
                     );
                   },
                   icon: const Icon(Icons.work_history_outlined, size: 17),
                   label: const Text('Portfolio'),
                   style: FilledButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 10),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
                   ),
                 ),
               ),
@@ -546,9 +585,11 @@ class _ProfileStatsBar extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
+        color:
+            theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3)),
+        border: Border.all(
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -560,11 +601,15 @@ class _ProfileStatsBar extends StatelessWidget {
             icon: Icons.grid_on_rounded,
             onTap: () {
               Navigator.of(context).push(
-                MaterialPageRoute(builder: (ctx) => const UserPostsView(initialTabIndex: 0)),
+                MaterialPageRoute(
+                    builder: (ctx) => const UserPostsView(initialTabIndex: 0)),
               );
             },
           ),
-          Container(width: 1, height: 28, color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4)),
+          Container(
+              width: 1,
+              height: 28,
+              color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4)),
           _buildStatItem(
             context,
             label: 'Followers',
@@ -582,7 +627,10 @@ class _ProfileStatsBar extends StatelessWidget {
               );
             },
           ),
-          Container(width: 1, height: 28, color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4)),
+          Container(
+              width: 1,
+              height: 28,
+              color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4)),
           _buildStatItem(
             context,
             label: 'Following',
@@ -600,7 +648,10 @@ class _ProfileStatsBar extends StatelessWidget {
               );
             },
           ),
-          Container(width: 1, height: 28, color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4)),
+          Container(
+              width: 1,
+              height: 28,
+              color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4)),
           _buildStatItem(
             context,
             label: 'Saved',
@@ -608,7 +659,8 @@ class _ProfileStatsBar extends StatelessWidget {
             icon: Icons.bookmark_border_rounded,
             onTap: () {
               Navigator.of(context).push(
-                MaterialPageRoute(builder: (ctx) => const UserPostsView(initialTabIndex: 1)),
+                MaterialPageRoute(
+                    builder: (ctx) => const UserPostsView(initialTabIndex: 1)),
               );
             },
           ),
@@ -671,18 +723,21 @@ class _BioSection extends StatelessWidget {
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainer,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3)),
+        border: Border.all(
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.format_quote_rounded, color: theme.colorScheme.primary, size: 20),
+              Icon(Icons.format_quote_rounded,
+                  color: theme.colorScheme.primary, size: 20),
               const SizedBox(width: 8),
               Text(
                 'About & Bio',
-                style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                style: theme.textTheme.titleSmall
+                    ?.copyWith(fontWeight: FontWeight.bold),
               ),
             ],
           ),
@@ -718,7 +773,8 @@ class _SkillsSection extends ConsumerWidget {
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainer,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3)),
+        border: Border.all(
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -728,11 +784,13 @@ class _SkillsSection extends ConsumerWidget {
             children: [
               Row(
                 children: [
-                  Icon(Icons.auto_awesome, color: theme.colorScheme.primary, size: 19),
+                  Icon(Icons.auto_awesome,
+                      color: theme.colorScheme.primary, size: 19),
                   const SizedBox(width: 8),
                   Text(
                     'Skills & Tech Stack',
-                    style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                    style: theme.textTheme.titleSmall
+                        ?.copyWith(fontWeight: FontWeight.bold),
                   ),
                 ],
               ),
@@ -756,12 +814,20 @@ class _SkillsSection extends ConsumerWidget {
               runSpacing: 8,
               children: profile.skills.map((skill) {
                 return Chip(
-                  label: Text(skill.skillName, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
-                  backgroundColor: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.7),
+                  label: Text(skill.skillName,
+                      style: const TextStyle(
+                          fontSize: 12.5, fontWeight: FontWeight.w600)),
+                  backgroundColor: theme.colorScheme.surfaceContainerHighest
+                      .withValues(alpha: 0.7),
                   deleteIcon: const Icon(Icons.close, size: 14),
-                  onDeleted: () => ref.read(profileControllerProvider.notifier).removeSkill(skill.id),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  side: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4)),
+                  onDeleted: () => ref
+                      .read(profileControllerProvider.notifier)
+                      .removeSkill(skill.id),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                  side: BorderSide(
+                      color: theme.colorScheme.outlineVariant
+                          .withValues(alpha: 0.4)),
                 );
               }).toList(),
             ),
@@ -784,7 +850,8 @@ class _ProjectsSection extends ConsumerWidget {
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainer,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3)),
+        border: Border.all(
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -794,11 +861,13 @@ class _ProjectsSection extends ConsumerWidget {
             children: [
               Row(
                 children: [
-                  Icon(Icons.code_rounded, color: theme.colorScheme.primary, size: 20),
+                  Icon(Icons.code_rounded,
+                      color: theme.colorScheme.primary, size: 20),
                   const SizedBox(width: 8),
                   Text(
                     'Featured Projects',
-                    style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                    style: theme.textTheme.titleSmall
+                        ?.copyWith(fontWeight: FontWeight.bold),
                   ),
                 ],
               ),
@@ -819,7 +888,8 @@ class _ProjectsSection extends ConsumerWidget {
           else
             ...profile.projects.map((proj) {
               final hasRepo = proj.repoUrl != null && proj.repoUrl!.isNotEmpty;
-              final hasDemo = proj.projectUrl != null && proj.projectUrl!.isNotEmpty;
+              final hasDemo =
+                  proj.projectUrl != null && proj.projectUrl!.isNotEmpty;
 
               return Container(
                 margin: const EdgeInsets.only(bottom: 10),
@@ -827,7 +897,9 @@ class _ProjectsSection extends ConsumerWidget {
                 decoration: BoxDecoration(
                   color: theme.colorScheme.surfaceContainerLow,
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3)),
+                  border: Border.all(
+                      color: theme.colorScheme.outlineVariant
+                          .withValues(alpha: 0.3)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -838,7 +910,8 @@ class _ProjectsSection extends ConsumerWidget {
                         CircleAvatar(
                           radius: 18,
                           backgroundColor: theme.colorScheme.primaryContainer,
-                          child: Icon(Icons.folder_outlined, color: theme.colorScheme.primary, size: 18),
+                          child: Icon(Icons.folder_outlined,
+                              color: theme.colorScheme.primary, size: 18),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -847,22 +920,31 @@ class _ProjectsSection extends ConsumerWidget {
                             children: [
                               Text(
                                 proj.title,
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14.5),
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14.5),
                               ),
-                              if (proj.description != null && proj.description!.isNotEmpty) ...[
+                              if (proj.description != null &&
+                                  proj.description!.isNotEmpty) ...[
                                 const SizedBox(height: 4),
                                 Text(
                                   proj.description!,
-                                  style: TextStyle(fontSize: 12.5, color: theme.colorScheme.onSurfaceVariant),
+                                  style: TextStyle(
+                                      fontSize: 12.5,
+                                      color:
+                                          theme.colorScheme.onSurfaceVariant),
                                 ),
                               ],
                             ],
                           ),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 18),
+                          icon: const Icon(Icons.delete_outline,
+                              color: Colors.redAccent, size: 18),
                           tooltip: 'Remove Project',
-                          onPressed: () => ref.read(profileControllerProvider.notifier).removeProject(proj.id),
+                          onPressed: () => ref
+                              .read(profileControllerProvider.notifier)
+                              .removeProject(proj.id),
                         ),
                       ],
                     ),
@@ -874,22 +956,30 @@ class _ProjectsSection extends ConsumerWidget {
                           if (hasRepo)
                             ActionChip(
                               avatar: const Icon(Icons.code, size: 14),
-                              label: const Text('Repository', style: TextStyle(fontSize: 11.5)),
+                              label: const Text('Repository',
+                                  style: TextStyle(fontSize: 11.5)),
                               onPressed: () {
-                                Clipboard.setData(ClipboardData(text: proj.repoUrl!));
+                                Clipboard.setData(
+                                    ClipboardData(text: proj.repoUrl!));
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Repository link copied!'), duration: Duration(seconds: 1)),
+                                  const SnackBar(
+                                      content: Text('Repository link copied!'),
+                                      duration: Duration(seconds: 1)),
                                 );
                               },
                             ),
                           if (hasDemo)
                             ActionChip(
                               avatar: const Icon(Icons.open_in_new, size: 14),
-                              label: const Text('Live Demo', style: TextStyle(fontSize: 11.5)),
+                              label: const Text('Live Demo',
+                                  style: TextStyle(fontSize: 11.5)),
                               onPressed: () {
-                                Clipboard.setData(ClipboardData(text: proj.projectUrl!));
+                                Clipboard.setData(
+                                    ClipboardData(text: proj.projectUrl!));
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Demo link copied!'), duration: Duration(seconds: 1)),
+                                  const SnackBar(
+                                      content: Text('Demo link copied!'),
+                                      duration: Duration(seconds: 1)),
                                 );
                               },
                             ),
@@ -919,18 +1009,21 @@ class _SocialLinksSection extends StatelessWidget {
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainer,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3)),
+        border: Border.all(
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.link_rounded, color: theme.colorScheme.primary, size: 20),
+              Icon(Icons.link_rounded,
+                  color: theme.colorScheme.primary, size: 20),
               const SizedBox(width: 8),
               Text(
                 'Social & Web Links',
-                style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                style: theme.textTheme.titleSmall
+                    ?.copyWith(fontWeight: FontWeight.bold),
               ),
             ],
           ),
@@ -977,18 +1070,26 @@ class _SocialLinksSection extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(icon, size: 20, color: hasUrl ? theme.colorScheme.primary : theme.colorScheme.outline),
+          Icon(icon,
+              size: 20,
+              color: hasUrl
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.outline),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                Text(label,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 13)),
                 Text(
                   hasUrl ? url : 'Not connected',
                   style: TextStyle(
                     fontSize: 12,
-                    color: hasUrl ? theme.colorScheme.onSurfaceVariant : theme.colorScheme.outline,
+                    color: hasUrl
+                        ? theme.colorScheme.onSurfaceVariant
+                        : theme.colorScheme.outline,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -1003,7 +1104,9 @@ class _SocialLinksSection extends StatelessWidget {
               onPressed: () {
                 Clipboard.setData(ClipboardData(text: url));
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('$label link copied!'), duration: const Duration(seconds: 1)),
+                  SnackBar(
+                      content: Text('$label link copied!'),
+                      duration: const Duration(seconds: 1)),
                 );
               },
             ),
@@ -1027,18 +1130,21 @@ class _ProfileClubsSection extends StatelessWidget {
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainer,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3)),
+        border: Border.all(
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.groups_outlined, color: theme.colorScheme.primary, size: 20),
+              Icon(Icons.groups_outlined,
+                  color: theme.colorScheme.primary, size: 20),
               const SizedBox(width: 8),
               Text(
                 'My Clubs & Organizations',
-                style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                style: theme.textTheme.titleSmall
+                    ?.copyWith(fontWeight: FontWeight.bold),
               ),
             ],
           ),
@@ -1050,27 +1156,37 @@ class _ProfileClubsSection extends StatelessWidget {
               color: theme.colorScheme.surfaceContainerLow,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
-                side: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3)),
+                side: BorderSide(
+                    color: theme.colorScheme.outlineVariant
+                        .withValues(alpha: 0.3)),
               ),
               child: ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
                 onTap: () {
                   Navigator.of(context).push(
-                    MaterialPageRoute(builder: (ctx) => ClubDetailView(clubId: club.clubId)),
+                    MaterialPageRoute(
+                        builder: (ctx) => ClubDetailView(clubId: club.clubId)),
                   );
                 },
                 leading: CircleAvatar(
                   radius: 18,
                   backgroundColor: theme.colorScheme.primaryContainer,
-                  backgroundImage: club.logoUrl != null && club.logoUrl!.isNotEmpty
-                      ? NetworkImage(ApiEndpoints.resolveUrl(club.logoUrl!))
-                      : null,
+                  backgroundImage:
+                      club.logoUrl != null && club.logoUrl!.isNotEmpty
+                          ? NetworkImage(ApiEndpoints.resolveUrl(club.logoUrl!))
+                          : null,
                   child: club.logoUrl == null || club.logoUrl!.isEmpty
-                      ? Icon(Icons.groups, size: 18, color: theme.colorScheme.primary)
+                      ? Icon(Icons.groups,
+                          size: 18, color: theme.colorScheme.primary)
                       : null,
                 ),
-                title: Text(club.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
-                subtitle: Text('${club.role} • ${club.category}', style: TextStyle(fontSize: 11.5, color: theme.colorScheme.outline)),
+                title: Text(club.name,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 13.5)),
+                subtitle: Text('${club.role} • ${club.category}',
+                    style: TextStyle(
+                        fontSize: 11.5, color: theme.colorScheme.outline)),
                 trailing: const Icon(Icons.chevron_right, size: 18),
               ),
             );
@@ -1110,7 +1226,9 @@ class _ResumeSectionState extends ConsumerState<_ResumeSection> {
         final uploadService = ref.read(mediaUploadServiceProvider);
         final result = await uploadService.uploadSelectedFile(file);
 
-        await ref.read(profileControllerProvider.notifier).uploadResume(result.url);
+        await ref
+            .read(profileControllerProvider.notifier)
+            .uploadResume(result.url);
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -1123,7 +1241,9 @@ class _ResumeSectionState extends ConsumerState<_ResumeSection> {
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to upload resume: $e'), backgroundColor: Colors.red),
+            SnackBar(
+                content: Text('Failed to upload resume: $e'),
+                backgroundColor: Colors.red),
           );
         }
       } finally {
@@ -1143,7 +1263,7 @@ class _ResumeSectionState extends ConsumerState<_ResumeSection> {
     try {
       final storage = ref.read(mediaStorageServiceProvider);
       final cacheKey = 'user_resume_${widget.profile.id}';
-      
+
       String? localPath;
       if (storage.isMessageMediaDownloaded(cacheKey)) {
         localPath = storage.getDownloadedPathForMessage(cacheKey);
@@ -1152,7 +1272,9 @@ class _ResumeSectionState extends ConsumerState<_ResumeSection> {
       if (localPath == null || !File(localPath).existsSync()) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Preparing resume document...'), duration: Duration(seconds: 1)),
+            const SnackBar(
+                content: Text('Preparing resume document...'),
+                duration: Duration(seconds: 1)),
           );
         }
         localPath = await storage.downloadAndSaveFile(
@@ -1168,7 +1290,9 @@ class _ResumeSectionState extends ConsumerState<_ResumeSection> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not open resume: $e'), backgroundColor: Colors.red),
+          SnackBar(
+              content: Text('Could not open resume: $e'),
+              backgroundColor: Colors.red),
         );
       }
     } finally {
@@ -1180,14 +1304,16 @@ class _ResumeSectionState extends ConsumerState<_ResumeSection> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final profile = widget.profile;
-    final hasResume = profile.resumeUrl != null && profile.resumeUrl!.isNotEmpty;
+    final hasResume =
+        profile.resumeUrl != null && profile.resumeUrl!.isNotEmpty;
 
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainer,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3)),
+        border: Border.all(
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1197,11 +1323,13 @@ class _ResumeSectionState extends ConsumerState<_ResumeSection> {
             children: [
               Row(
                 children: [
-                  const Icon(Icons.description_outlined, color: Colors.redAccent, size: 20),
+                  const Icon(Icons.description_outlined,
+                      color: Colors.redAccent, size: 20),
                   const SizedBox(width: 8),
                   Text(
                     'Resume & CV',
-                    style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                    style: theme.textTheme.titleSmall
+                        ?.copyWith(fontWeight: FontWeight.bold),
                   ),
                 ],
               ),
@@ -1222,7 +1350,8 @@ class _ResumeSectionState extends ConsumerState<_ResumeSection> {
                   color: Colors.redAccent.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.picture_as_pdf, color: Colors.redAccent, size: 26),
+                child: const Icon(Icons.picture_as_pdf,
+                    color: Colors.redAccent, size: 26),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -1230,12 +1359,18 @@ class _ResumeSectionState extends ConsumerState<_ResumeSection> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      hasResume ? '${profile.firstName}_Resume.pdf' : 'No Resume Uploaded',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                      hasResume
+                          ? '${profile.firstName}_Resume.pdf'
+                          : 'No Resume Uploaded',
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 13.5),
                     ),
                     Text(
-                      hasResume ? 'Uploaded to your Portfolio' : 'Add your CV for opportunities & recruiters',
-                      style: TextStyle(fontSize: 12, color: theme.colorScheme.outline),
+                      hasResume
+                          ? 'Uploaded to your Portfolio'
+                          : 'Add your CV for opportunities & recruiters',
+                      style: TextStyle(
+                          fontSize: 12, color: theme.colorScheme.outline),
                     ),
                   ],
                 ),
@@ -1244,7 +1379,10 @@ class _ResumeSectionState extends ConsumerState<_ResumeSection> {
                 FilledButton.tonalIcon(
                   onPressed: _isOpening ? null : _viewResume,
                   icon: _isOpening
-                      ? const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2))
+                      ? const SizedBox(
+                          width: 12,
+                          height: 12,
+                          child: CircularProgressIndicator(strokeWidth: 2))
                       : const Icon(Icons.open_in_new, size: 14),
                   label: const Text('View', style: TextStyle(fontSize: 12)),
                 )
@@ -1252,9 +1390,13 @@ class _ResumeSectionState extends ConsumerState<_ResumeSection> {
                 FilledButton.tonalIcon(
                   onPressed: _isUploading ? null : _pickAndUploadResume,
                   icon: _isUploading
-                      ? const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2))
+                      ? const SizedBox(
+                          width: 12,
+                          height: 12,
+                          child: CircularProgressIndicator(strokeWidth: 2))
                       : const Icon(Icons.upload_file, size: 14),
-                  label: const Text('Upload PDF', style: TextStyle(fontSize: 12)),
+                  label:
+                      const Text('Upload PDF', style: TextStyle(fontSize: 12)),
                 ),
             ],
           ),
@@ -1278,7 +1420,8 @@ class _QuickActivityStatsSection extends StatelessWidget {
           color: theme.colorScheme.surfaceContainer,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
-            side: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3)),
+            side: BorderSide(
+                color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3)),
           ),
           child: ListTile(
             contentPadding: const EdgeInsets.all(14),
@@ -1290,10 +1433,13 @@ class _QuickActivityStatsSection extends StatelessWidget {
             leading: CircleAvatar(
               backgroundColor: theme.colorScheme.primaryContainer,
               radius: 22,
-              child: Icon(Icons.article_outlined, color: theme.colorScheme.primary),
+              child: Icon(Icons.article_outlined,
+                  color: theme.colorScheme.primary),
             ),
-            title: const Text('My Posts & Saved Items', style: TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: const Text('Manage your published feed posts and bookmarks'),
+            title: const Text('My Posts & Saved Items',
+                style: TextStyle(fontWeight: FontWeight.bold)),
+            subtitle:
+                const Text('Manage your published feed posts and bookmarks'),
             trailing: const Icon(Icons.chevron_right),
           ),
         ),
@@ -1303,7 +1449,8 @@ class _QuickActivityStatsSection extends StatelessWidget {
           color: theme.colorScheme.surfaceContainer,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
-            side: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3)),
+            side: BorderSide(
+                color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3)),
           ),
           child: ListTile(
             contentPadding: const EdgeInsets.all(14),
@@ -1315,10 +1462,13 @@ class _QuickActivityStatsSection extends StatelessWidget {
             leading: CircleAvatar(
               backgroundColor: theme.colorScheme.secondaryContainer,
               radius: 22,
-              child: Icon(Icons.event_outlined, color: theme.colorScheme.onSecondaryContainer),
+              child: Icon(Icons.event_outlined,
+                  color: theme.colorScheme.onSecondaryContainer),
             ),
-            title: const Text('Registered Events & Tickets', style: TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: const Text('View upcoming college and club event registrations'),
+            title: const Text('Registered Events & Tickets',
+                style: TextStyle(fontWeight: FontWeight.bold)),
+            subtitle: const Text(
+                'View upcoming college and club event registrations'),
             trailing: const Icon(Icons.chevron_right),
           ),
         ),
@@ -1341,7 +1491,8 @@ class _MyProposedClubsSection extends ConsumerWidget {
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainer,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3)),
+        border: Border.all(
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1351,11 +1502,13 @@ class _MyProposedClubsSection extends ConsumerWidget {
             children: [
               Row(
                 children: [
-                  Icon(Icons.groups, color: theme.colorScheme.primary, size: 20),
+                  Icon(Icons.groups,
+                      color: theme.colorScheme.primary, size: 20),
                   const SizedBox(width: 8),
                   Text(
                     'My Clubs & Communities',
-                    style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                    style: theme.textTheme.titleSmall
+                        ?.copyWith(fontWeight: FontWeight.bold),
                   ),
                 ],
               ),
@@ -1379,7 +1532,11 @@ class _MyProposedClubsSection extends ConsumerWidget {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Proposed by You', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: theme.colorScheme.primary)),
+                  Text('Proposed by You',
+                      style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.bold,
+                          color: theme.colorScheme.primary)),
                   const SizedBox(height: 8),
                   ...clubs.map((club) {
                     Color statusColor = Colors.orange;
@@ -1407,13 +1564,16 @@ class _MyProposedClubsSection extends ConsumerWidget {
                           decoration: BoxDecoration(
                             color: theme.colorScheme.surfaceContainerLow,
                             borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3)),
+                            border: Border.all(
+                                color: theme.colorScheme.outlineVariant
+                                    .withValues(alpha: 0.3)),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   Expanded(
                                     child: Row(
@@ -1421,26 +1581,35 @@ class _MyProposedClubsSection extends ConsumerWidget {
                                         Expanded(
                                           child: Text(
                                             club.name,
-                                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 15),
                                           ),
                                         ),
                                         const SizedBox(width: 6),
-                                        Icon(Icons.arrow_forward_ios, size: 13, color: theme.colorScheme.primary),
+                                        Icon(Icons.arrow_forward_ios,
+                                            size: 13,
+                                            color: theme.colorScheme.primary),
                                         const SizedBox(width: 8),
                                       ],
                                     ),
                                   ),
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 3),
                                     decoration: BoxDecoration(
-                                      color: statusColor.withValues(alpha: 0.15),
+                                      color:
+                                          statusColor.withValues(alpha: 0.15),
                                       borderRadius: BorderRadius.circular(10),
-                                      border: Border.all(color: statusColor.withValues(alpha: 0.4)),
+                                      border: Border.all(
+                                          color: statusColor.withValues(
+                                              alpha: 0.4)),
                                     ),
                                     child: Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        Icon(statusIcon, size: 12, color: statusColor),
+                                        Icon(statusIcon,
+                                            size: 12, color: statusColor),
                                         const SizedBox(width: 4),
                                         Text(
                                           statusLabel,
@@ -1456,48 +1625,73 @@ class _MyProposedClubsSection extends ConsumerWidget {
                                 ],
                               ),
                               const SizedBox(height: 6),
-                              Text('Category: ${club.category}', style: TextStyle(fontSize: 12, color: theme.colorScheme.outline)),
-                              if (club.description != null && club.description!.isNotEmpty) ...[
+                              Text('Category: ${club.category}',
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      color: theme.colorScheme.outline)),
+                              if (club.description != null &&
+                                  club.description!.isNotEmpty) ...[
                                 const SizedBox(height: 6),
-                                Text(club.description!, style: TextStyle(fontSize: 13, color: theme.colorScheme.onSurfaceVariant)),
+                                Text(club.description!,
+                                    style: TextStyle(
+                                        fontSize: 13,
+                                        color: theme
+                                            .colorScheme.onSurfaceVariant)),
                               ],
                               const SizedBox(height: 10),
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   TextButton.icon(
                                     style: TextButton.styleFrom(
                                       visualDensity: VisualDensity.compact,
                                       padding: EdgeInsets.zero,
                                     ),
-                                    icon: const Icon(Icons.open_in_new, size: 15),
-                                    label: const Text('View Club Page', style: TextStyle(fontSize: 12)),
-                                    onPressed: () => context.push('/clubs/${club.id}'),
+                                    icon:
+                                        const Icon(Icons.open_in_new, size: 15),
+                                    label: const Text('View Club Page',
+                                        style: TextStyle(fontSize: 12)),
+                                    onPressed: () =>
+                                        context.push('/clubs/${club.id}'),
                                   ),
-                                  if (club.status == 'PENDING' || club.status == 'REJECTED')
+                                  if (club.status == 'PENDING' ||
+                                      club.status == 'REJECTED')
                                     OutlinedButton.icon(
                                       style: OutlinedButton.styleFrom(
                                         foregroundColor: Colors.redAccent,
-                                        side: const BorderSide(color: Colors.redAccent),
+                                        side: const BorderSide(
+                                            color: Colors.redAccent),
                                         visualDensity: VisualDensity.compact,
                                       ),
-                                      icon: const Icon(Icons.delete_outline, size: 15),
-                                      label: const Text('Withdraw Proposal', style: TextStyle(fontSize: 12)),
+                                      icon: const Icon(Icons.delete_outline,
+                                          size: 15),
+                                      label: const Text('Withdraw Proposal',
+                                          style: TextStyle(fontSize: 12)),
                                       onPressed: () async {
-                                        final confirmed = await showDialog<bool>(
+                                        final confirmed =
+                                            await showDialog<bool>(
                                           context: context,
                                           builder: (ctx) => AlertDialog(
-                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                            title: const Text('Withdraw Club Request'),
-                                            content: Text('Are you sure you want to cancel and withdraw your request for "${club.name}"?'),
+                                            shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(16)),
+                                            title: const Text(
+                                                'Withdraw Club Request'),
+                                            content: Text(
+                                                'Are you sure you want to cancel and withdraw your request for "${club.name}"?'),
                                             actions: [
                                               TextButton(
-                                                onPressed: () => Navigator.pop(ctx, false),
+                                                onPressed: () =>
+                                                    Navigator.pop(ctx, false),
                                                 child: const Text('Cancel'),
                                               ),
                                               FilledButton(
-                                                style: FilledButton.styleFrom(backgroundColor: Colors.red),
-                                                onPressed: () => Navigator.pop(ctx, true),
+                                                style: FilledButton.styleFrom(
+                                                    backgroundColor:
+                                                        Colors.red),
+                                                onPressed: () =>
+                                                    Navigator.pop(ctx, true),
                                                 child: const Text('Withdraw'),
                                               ),
                                             ],
@@ -1506,24 +1700,32 @@ class _MyProposedClubsSection extends ConsumerWidget {
 
                                         if (confirmed == true) {
                                           try {
-                                            final repo = ref.read(clubsRepositoryProvider);
+                                            final repo = ref
+                                                .read(clubsRepositoryProvider);
                                             await repo.deleteClub(club.id);
-                                            ref.invalidate(myProposedClubsProvider);
-                                            ref.invalidate(pendingClubsProvider);
+                                            ref.invalidate(
+                                                myProposedClubsProvider);
+                                            ref.invalidate(
+                                                pendingClubsProvider);
 
                                             if (context.mounted) {
-                                              ScaffoldMessenger.of(context).showSnackBar(
+                                              ScaffoldMessenger.of(context)
+                                                  .showSnackBar(
                                                 SnackBar(
-                                                  content: Text('Club proposal for "${club.name}" has been withdrawn.'),
-                                                  backgroundColor: Colors.orange,
+                                                  content: Text(
+                                                      'Club proposal for "${club.name}" has been withdrawn.'),
+                                                  backgroundColor:
+                                                      Colors.orange,
                                                 ),
                                               );
                                             }
                                           } catch (e) {
                                             if (context.mounted) {
-                                              ScaffoldMessenger.of(context).showSnackBar(
+                                              ScaffoldMessenger.of(context)
+                                                  .showSnackBar(
                                                 SnackBar(
-                                                  content: Text('Failed to withdraw request: $e'),
+                                                  content: Text(
+                                                      'Failed to withdraw request: $e'),
                                                   backgroundColor: Colors.red,
                                                 ),
                                               );
@@ -1555,7 +1757,8 @@ class _MyProposedClubsSection extends ConsumerWidget {
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   child: Text(
                     'Explore student communities in the Clubs tab!',
-                    style: TextStyle(fontSize: 13, color: theme.colorScheme.outline),
+                    style: TextStyle(
+                        fontSize: 13, color: theme.colorScheme.outline),
                   ),
                 );
               }
@@ -1564,7 +1767,11 @@ class _MyProposedClubsSection extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 8),
-                  Text('Active Clubs & Communities', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: theme.colorScheme.primary)),
+                  Text('Active Clubs & Communities',
+                      style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.bold,
+                          color: theme.colorScheme.primary)),
                   const SizedBox(height: 8),
                   ...allClubs.take(4).map((club) {
                     return Material(
@@ -1578,16 +1785,23 @@ class _MyProposedClubsSection extends ConsumerWidget {
                           decoration: BoxDecoration(
                             color: theme.colorScheme.surfaceContainerLow,
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3)),
+                            border: Border.all(
+                                color: theme.colorScheme.outlineVariant
+                                    .withValues(alpha: 0.3)),
                           ),
                           child: Row(
                             children: [
                               CircleAvatar(
                                 radius: 20,
-                                backgroundColor: theme.colorScheme.primaryContainer,
+                                backgroundColor:
+                                    theme.colorScheme.primaryContainer,
                                 child: Text(
-                                  club.name.isNotEmpty ? club.name[0].toUpperCase() : 'C',
-                                  style: TextStyle(fontWeight: FontWeight.bold, color: theme.colorScheme.primary),
+                                  club.name.isNotEmpty
+                                      ? club.name[0].toUpperCase()
+                                      : 'C',
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: theme.colorScheme.primary),
                                 ),
                               ),
                               const SizedBox(width: 12),
@@ -1595,12 +1809,20 @@ class _MyProposedClubsSection extends ConsumerWidget {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(club.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                                    Text('${club.category} • ${club.memberCount} members', style: TextStyle(fontSize: 12, color: theme.colorScheme.outline)),
+                                    Text(club.name,
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 14)),
+                                    Text(
+                                        '${club.category} • ${club.memberCount} members',
+                                        style: TextStyle(
+                                            fontSize: 12,
+                                            color: theme.colorScheme.outline)),
                                   ],
                                 ),
                               ),
-                              Icon(Icons.arrow_forward_ios, size: 14, color: theme.colorScheme.primary),
+                              Icon(Icons.arrow_forward_ios,
+                                  size: 14, color: theme.colorScheme.primary),
                             ],
                           ),
                         ),
@@ -1610,8 +1832,12 @@ class _MyProposedClubsSection extends ConsumerWidget {
                 ],
               );
             },
-            loading: () => const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator())),
-            error: (err, _) => Text('Could not load clubs', style: TextStyle(color: theme.colorScheme.error)),
+            loading: () => const Center(
+                child: Padding(
+                    padding: EdgeInsets.all(16),
+                    child: CircularProgressIndicator())),
+            error: (err, _) => Text('Could not load clubs',
+                style: TextStyle(color: theme.colorScheme.error)),
           ),
         ],
       ),
@@ -1631,7 +1857,8 @@ class _SliverTabBarDelegate extends SliverPersistentHeaderDelegate {
   double get maxExtent => _tabBar.preferredSize.height;
 
   @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+  Widget build(
+      BuildContext context, double shrinkOffset, bool overlapsContent) {
     return Container(
       color: color,
       child: _tabBar,
@@ -1644,7 +1871,8 @@ class _SliverTabBarDelegate extends SliverPersistentHeaderDelegate {
   }
 }
 
-void _showEditProfileDialog(BuildContext context, WidgetRef ref, UserProfile profile) {
+void _showEditProfileDialog(
+    BuildContext context, WidgetRef ref, UserProfile profile) {
   final bioCtrl = TextEditingController(text: profile.bio);
   final githubCtrl = TextEditingController(text: profile.githubUrl);
   final linkedinCtrl = TextEditingController(text: profile.linkedinUrl);
@@ -1661,16 +1889,21 @@ void _showEditProfileDialog(BuildContext context, WidgetRef ref, UserProfile pro
           children: [
             CustomTextField(controller: bioCtrl, label: 'Bio / About You'),
             const SizedBox(height: 12),
-            CustomTextField(controller: githubCtrl, label: 'GitHub Profile URL'),
+            CustomTextField(
+                controller: githubCtrl, label: 'GitHub Profile URL'),
             const SizedBox(height: 12),
-            CustomTextField(controller: linkedinCtrl, label: 'LinkedIn Profile URL'),
+            CustomTextField(
+                controller: linkedinCtrl, label: 'LinkedIn Profile URL'),
             const SizedBox(height: 12),
-            CustomTextField(controller: websiteCtrl, label: 'Personal Website / Portfolio URL'),
+            CustomTextField(
+                controller: websiteCtrl,
+                label: 'Personal Website / Portfolio URL'),
           ],
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+        TextButton(
+            onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
         FilledButton(
           onPressed: () {
             ref.read(profileControllerProvider.notifier).updateProfile(
@@ -1696,13 +1929,18 @@ void _showAddSkillDialog(BuildContext context, WidgetRef ref) {
     builder: (ctx) => AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       title: const Text('Add New Skill'),
-      content: CustomTextField(controller: skillCtrl, label: 'Skill Name (e.g. Flutter, React, Python)'),
+      content: CustomTextField(
+          controller: skillCtrl,
+          label: 'Skill Name (e.g. Flutter, React, Python)'),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+        TextButton(
+            onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
         FilledButton(
           onPressed: () {
             if (skillCtrl.text.trim().isNotEmpty) {
-              ref.read(profileControllerProvider.notifier).addSkill(skillCtrl.text.trim(), 'ADVANCED');
+              ref
+                  .read(profileControllerProvider.notifier)
+                  .addSkill(skillCtrl.text.trim(), 'ADVANCED');
               Navigator.pop(ctx);
             }
           },
@@ -1732,22 +1970,31 @@ void _showAddProjectDialog(BuildContext context, WidgetRef ref) {
             const SizedBox(height: 12),
             CustomTextField(controller: descCtrl, label: 'Project Description'),
             const SizedBox(height: 12),
-            CustomTextField(controller: repoUrlCtrl, label: 'GitHub / Repo URL'),
+            CustomTextField(
+                controller: repoUrlCtrl, label: 'GitHub / Repo URL'),
             const SizedBox(height: 12),
-            CustomTextField(controller: projectUrlCtrl, label: 'Live Demo / Website URL'),
+            CustomTextField(
+                controller: projectUrlCtrl, label: 'Live Demo / Website URL'),
           ],
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+        TextButton(
+            onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
         FilledButton(
           onPressed: () {
             if (titleCtrl.text.trim().isNotEmpty) {
               ref.read(profileControllerProvider.notifier).addProject(
                     title: titleCtrl.text.trim(),
-                    description: descCtrl.text.trim().isNotEmpty ? descCtrl.text.trim() : null,
-                    projectUrl: projectUrlCtrl.text.trim().isNotEmpty ? projectUrlCtrl.text.trim() : null,
-                    repoUrl: repoUrlCtrl.text.trim().isNotEmpty ? repoUrlCtrl.text.trim() : null,
+                    description: descCtrl.text.trim().isNotEmpty
+                        ? descCtrl.text.trim()
+                        : null,
+                    projectUrl: projectUrlCtrl.text.trim().isNotEmpty
+                        ? projectUrlCtrl.text.trim()
+                        : null,
+                    repoUrl: repoUrlCtrl.text.trim().isNotEmpty
+                        ? repoUrlCtrl.text.trim()
+                        : null,
                   );
               Navigator.pop(ctx);
             }

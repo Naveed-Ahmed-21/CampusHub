@@ -10,6 +10,8 @@ import {
 import { NotFoundError, BadRequestError, ConflictError, ForbiddenError } from '../../shared/errors/AppError';
 import { prisma } from '../../config/database';
 import { Role } from '@prisma/client';
+import { NotificationsRepository } from '../notifications/notifications.repository';
+import { NotificationsService } from '../notifications/notifications.service';
 
 function isPlacementOfficer(role: Role): boolean {
   return (
@@ -22,7 +24,14 @@ function isPlacementOfficer(role: Role): boolean {
 }
 
 export class PlacementService {
-  constructor(private readonly placementRepository: PlacementRepository) {}
+  private readonly notificationsService: NotificationsService;
+
+  constructor(
+    private readonly placementRepository: PlacementRepository,
+    notificationsService?: NotificationsService,
+  ) {
+    this.notificationsService = notificationsService ?? new NotificationsService(new NotificationsRepository());
+  }
 
   async getOfficerDashboard(collegeId: string, role: Role) {
     if (!isPlacementOfficer(role)) {
@@ -139,21 +148,66 @@ export class PlacementService {
       }
     }
 
-    return this.placementRepository.createApplication(studentId, dto);
+    const app = await this.placementRepository.createApplication(studentId, dto);
+    try {
+      await this.notificationsService.sendNotification({
+        user_id: studentId,
+        title: `Applied: ${drive.company_name}`,
+        body: `Your application for ${drive.role_title} has been submitted.`,
+        type: 'PLACEMENT_UPDATE',
+        category: 'Placement',
+        deep_link: `/placement`,
+      });
+    } catch (_) {}
+    return app;
   }
 
   async updateApplicationStatus(applicationId: string, role: Role, dto: UpdateApplicationStatusDto) {
     if (!isPlacementOfficer(role)) {
       throw new ForbiddenError('Only placement officers can update application statuses');
     }
-    return this.placementRepository.updateApplicationStatus(applicationId, dto);
+    const updated = await this.placementRepository.updateApplicationStatus(applicationId, dto);
+    try {
+      const app = await prisma.placementApplication.findUnique({
+        where: { id: applicationId },
+        include: { drive: true },
+      });
+      if (app) {
+        await this.notificationsService.sendNotification({
+          user_id: app.student_id,
+          title: `Placement Update: ${app.drive.company_name}`,
+          body: `Your application status for ${app.drive.role_title} is now: ${dto.status}`,
+          type: 'PLACEMENT_UPDATE',
+          category: 'Placement',
+          deep_link: `/placement`,
+        });
+      }
+    } catch (_) {}
+    return updated;
   }
 
   async scheduleInterview(role: Role, dto: ScheduleInterviewDto) {
     if (!isPlacementOfficer(role)) {
       throw new ForbiddenError('Only placement officers can schedule interviews');
     }
-    return this.placementRepository.scheduleInterview(dto);
+    const interview = await this.placementRepository.scheduleInterview(dto);
+    try {
+      const app = await prisma.placementApplication.findUnique({
+        where: { id: dto.application_id },
+        include: { drive: true },
+      });
+      if (app) {
+        await this.notificationsService.sendNotification({
+          user_id: app.student_id,
+          title: `Interview Scheduled: ${app.drive.company_name}`,
+          body: `Round: ${dto.round_name}. Date: ${new Date(dto.scheduled_at).toLocaleString()}`,
+          type: 'PLACEMENT_UPDATE',
+          category: 'Placement',
+          deep_link: `/placement`,
+        });
+      }
+    } catch (_) {}
+    return interview;
   }
 
   async respondToOffer(applicationId: string, studentId: string, dto: RespondOfferDto) {

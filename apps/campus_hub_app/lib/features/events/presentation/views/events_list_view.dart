@@ -7,13 +7,16 @@ import 'create_event_dialog.dart';
 import 'qr_ticket_dialog.dart';
 
 class EventsListView extends ConsumerStatefulWidget {
-  const EventsListView({super.key});
+  final bool showAppBar;
+
+  const EventsListView({super.key, this.showAppBar = true});
 
   @override
   ConsumerState<EventsListView> createState() => _EventsListViewState();
 }
 
-class _EventsListViewState extends ConsumerState<EventsListView> with SingleTickerProviderStateMixin {
+class _EventsListViewState extends ConsumerState<EventsListView>
+    with SingleTickerProviderStateMixin {
   late TabController _scopeTabController;
   bool _isCalendarView = false;
   DateTime _selectedDate = DateTime.now();
@@ -65,7 +68,9 @@ class _EventsListViewState extends ConsumerState<EventsListView> with SingleTick
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Registration error: $e'), backgroundColor: Colors.red),
+          SnackBar(
+              content: Text('Registration error: $e'),
+              backgroundColor: Colors.red),
         );
       }
     }
@@ -73,116 +78,179 @@ class _EventsListViewState extends ConsumerState<EventsListView> with SingleTick
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);  
+    final theme = Theme.of(context);
     final eventsAsync = ref.watch(eventsListProvider);
     final myRegsAsync = ref.watch(userEventRegistrationsProvider);
 
-    final registeredEventIds = myRegsAsync.valueOrNull?.map((r) => r.eventId).toSet() ?? {};
+    final registeredEventIds =
+        myRegsAsync.valueOrNull?.map((r) => r.eventId).toSet() ?? {};
     final regMap = Map.fromEntries(
       (myRegsAsync.valueOrNull ?? []).map((r) => MapEntry(r.eventId, r)),
     );
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Campus Events'),
-        actions: [
-          IconButton(
-            icon: Icon(_isCalendarView ? Icons.view_list : Icons.calendar_month),
-            tooltip: _isCalendarView ? 'Switch to List View' : 'Switch to Calendar View',
-            onPressed: () => setState(() => _isCalendarView = !_isCalendarView),
-          ),
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () {
-              ref.invalidate(eventsListProvider);
-              ref.invalidate(userEventRegistrationsProvider);
-            },
-          ),
-        ],
-        bottom: TabBar(
-          controller: _scopeTabController,
-          labelColor: theme.colorScheme.primary,
-          unselectedLabelColor: Colors.grey,
-          tabs: const [
-            Tab(text: 'All Events'),
-            Tab(text: 'College'),
-            Tab(text: 'Dept'),
-            Tab(text: 'Clubs'),
-          ],
-        ),
-      ),
+      appBar: widget.showAppBar
+          ? AppBar(
+              title: const Text('Campus Events'),
+              actions: [
+                IconButton(
+                  icon: Icon(
+                      _isCalendarView ? Icons.view_list : Icons.calendar_month),
+                  tooltip: _isCalendarView
+                      ? 'Switch to List View'
+                      : 'Switch to Calendar View',
+                  onPressed: () =>
+                      setState(() => _isCalendarView = !_isCalendarView),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.refresh),
+                  onPressed: () {
+                    ref.invalidate(eventsListProvider);
+                    ref.invalidate(userEventRegistrationsProvider);
+                  },
+                ),
+              ],
+              bottom: TabBar(
+                controller: _scopeTabController,
+                labelColor: theme.colorScheme.primary,
+                unselectedLabelColor: Colors.grey,
+                tabs: const [
+                  Tab(text: 'All Events'),
+                  Tab(text: 'College'),
+                  Tab(text: 'Dept'),
+                  Tab(text: 'Clubs'),
+                ],
+              ),
+            )
+          : null,
       floatingActionButton: FloatingActionButton.extended(
         heroTag: null,
         onPressed: _showCreateEventDialog,
         icon: const Icon(Icons.add),
         label: const Text('Create Event'),
       ),
-      body: _isCalendarView
-          ? _buildCalendarView(eventsAsync.valueOrNull ?? [])
-          : eventsAsync.when(
-              data: (events) {
-                if (events.isEmpty) {
-                  return const Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.event_busy, size: 64, color: Colors.grey),
-                        SizedBox(height: 12),
-                        Text('No events scheduled in this scope yet.', style: TextStyle(color: Colors.grey)),
+      body: Column(
+        children: [
+          if (!widget.showAppBar)
+            Container(
+              color: theme.scaffoldBackgroundColor,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TabBar(
+                      controller: _scopeTabController,
+                      labelColor: theme.colorScheme.primary,
+                      unselectedLabelColor: Colors.grey,
+                      tabs: const [
+                        Tab(text: 'All Events'),
+                        Tab(text: 'College'),
+                        Tab(text: 'Dept'),
+                        Tab(text: 'Clubs'),
                       ],
                     ),
-                  );
-                }
-
-                return ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: events.length,
-                  itemBuilder: (ctx, idx) {
-                    final event = events[idx];
-                    final isRegistered = registeredEventIds.contains(event.id);
-                    final registration = regMap[event.id];
-
-                    return _buildEventCard(event, isRegistered, registration);
-                  },
-                );
-              },
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (err, stack) => Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24.0),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.wifi_off, size: 56, color: Colors.orange),
-                      const SizedBox(height: 12),
-                      const Text(
-                        'Could not connect to CampusHub Backend.',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                      ),
-                      const SizedBox(height: 6),
-                      const Text(
-                        'Please verify your internet connection or check backend server.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 12, color: Colors.grey),
-                      ),
-                      const SizedBox(height: 16),
-                      ElevatedButton.icon(
-                        onPressed: () {
-                          ref.invalidate(eventsListProvider);
-                          ref.invalidate(userEventRegistrationsProvider);
-                        },
-                        icon: const Icon(Icons.refresh),
-                        label: const Text('Retry Connection'),
-                      ),
-                    ],
                   ),
-                ),
+                  IconButton(
+                    icon: Icon(
+                        _isCalendarView
+                            ? Icons.view_list
+                            : Icons.calendar_month,
+                        size: 20),
+                    tooltip: _isCalendarView
+                        ? 'Switch to List'
+                        : 'Switch to Calendar',
+                    onPressed: () =>
+                        setState(() => _isCalendarView = !_isCalendarView),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.refresh, size: 20),
+                    onPressed: () {
+                      ref.invalidate(eventsListProvider);
+                      ref.invalidate(userEventRegistrationsProvider);
+                    },
+                  ),
+                ],
               ),
             ),
+          Expanded(
+            child: _isCalendarView
+                ? _buildCalendarView(eventsAsync.valueOrNull ?? [])
+                : eventsAsync.when(
+                    data: (events) {
+                      if (events.isEmpty) {
+                        return const Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.event_busy,
+                                  size: 64, color: Colors.grey),
+                              SizedBox(height: 12),
+                              Text('No events scheduled in this scope yet.',
+                                  style: TextStyle(color: Colors.grey)),
+                            ],
+                          ),
+                        );
+                      }
+
+                      return ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: events.length,
+                        itemBuilder: (ctx, idx) {
+                          final event = events[idx];
+                          final isRegistered =
+                              registeredEventIds.contains(event.id);
+                          final registration = regMap[event.id];
+
+                          return _buildEventCard(
+                              event, isRegistered, registration);
+                        },
+                      );
+                    },
+                    loading: () =>
+                        const Center(child: CircularProgressIndicator()),
+                    error: (err, stack) => Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24.0),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.wifi_off,
+                                size: 56, color: Colors.orange),
+                            const SizedBox(height: 12),
+                            const Text(
+                              'Could not connect to CampusHub Backend.',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.bold, fontSize: 16),
+                            ),
+                            const SizedBox(height: 6),
+                            const Text(
+                              'Please verify your internet connection or check backend server.',
+                              textAlign: TextAlign.center,
+                              style:
+                                  TextStyle(fontSize: 12, color: Colors.grey),
+                            ),
+                            const SizedBox(height: 16),
+                            ElevatedButton.icon(
+                              onPressed: () {
+                                ref.invalidate(eventsListProvider);
+                                ref.invalidate(userEventRegistrationsProvider);
+                              },
+                              icon: const Icon(Icons.refresh),
+                              label: const Text('Retry Connection'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildEventCard(EventModel event, bool isRegistered, EventRegistrationModel? registration) {
+  Widget _buildEventCard(EventModel event, bool isRegistered,
+      EventRegistrationModel? registration) {
     Color scopeColor = Colors.blue;
     if (event.scope == 'DEPARTMENT') scopeColor = Colors.indigo;
     if (event.scope == 'CLUB') scopeColor = Colors.orange.shade800;
@@ -199,7 +267,8 @@ class _EventsListViewState extends ConsumerState<EventsListView> with SingleTick
             height: 120,
             width: double.infinity,
             decoration: BoxDecoration(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(16)),
               gradient: LinearGradient(
                 colors: [scopeColor.withValues(alpha: 0.8), scopeColor],
                 begin: Alignment.topLeft,
@@ -212,14 +281,18 @@ class _EventsListViewState extends ConsumerState<EventsListView> with SingleTick
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
                     event.scope,
-                    style: TextStyle(color: scopeColor, fontWeight: FontWeight.bold, fontSize: 11),
+                    style: TextStyle(
+                        color: scopeColor,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 11),
                   ),
                 ),
                 Container(
@@ -233,11 +306,15 @@ class _EventsListViewState extends ConsumerState<EventsListView> with SingleTick
                     children: [
                       Text(
                         '${event.startTime.day}',
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18),
                       ),
                       Text(
                         _getMonthAbbr(event.startTime.month),
-                        style: const TextStyle(color: Colors.white, fontSize: 11),
+                        style:
+                            const TextStyle(color: Colors.white, fontSize: 11),
                       ),
                     ],
                   ),
@@ -253,20 +330,25 @@ class _EventsListViewState extends ConsumerState<EventsListView> with SingleTick
               children: [
                 Text(
                   event.title,
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                      fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 6),
                 Row(
                   children: [
-                    const Icon(Icons.location_on_outlined, size: 16, color: Colors.grey),
+                    const Icon(Icons.location_on_outlined,
+                        size: 16, color: Colors.grey),
                     const SizedBox(width: 4),
-                    Text(event.venue ?? 'Campus Ground', style: TextStyle(color: Colors.grey.shade700, fontSize: 13)),
+                    Text(event.venue ?? 'Campus Ground',
+                        style: TextStyle(
+                            color: Colors.grey.shade700, fontSize: 13)),
                     const SizedBox(width: 16),
                     const Icon(Icons.access_time, size: 16, color: Colors.grey),
                     const SizedBox(width: 4),
                     Text(
                       '${event.startTime.hour}:${event.startTime.minute.toString().padLeft(2, '0')}',
-                      style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
+                      style:
+                          TextStyle(color: Colors.grey.shade700, fontSize: 13),
                     ),
                   ],
                 ),
@@ -285,14 +367,18 @@ class _EventsListViewState extends ConsumerState<EventsListView> with SingleTick
                   children: [
                     Text(
                       '${event.registeredCount} Registered',
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey),
+                      style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey),
                     ),
                     if (isRegistered && registration != null)
                       ElevatedButton.icon(
                         onPressed: () {
                           showDialog(
                             context: context,
-                            builder: (ctx) => QRTicketDialog(registration: registration),
+                            builder: (ctx) =>
+                                QRTicketDialog(registration: registration),
                           );
                         },
                         icon: const Icon(Icons.qr_code, size: 18),
@@ -304,7 +390,8 @@ class _EventsListViewState extends ConsumerState<EventsListView> with SingleTick
                       )
                     else
                       ElevatedButton(
-                        onPressed: event.isFull ? null : () => _registerUser(event),
+                        onPressed:
+                            event.isFull ? null : () => _registerUser(event),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: scopeColor,
                           foregroundColor: Colors.white,
@@ -333,7 +420,8 @@ class _EventsListViewState extends ConsumerState<EventsListView> with SingleTick
             children: [
               Text(
                 'Events Calendar (${_getMonthAbbr(_selectedDate.month)} ${_selectedDate.year})',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                style:
+                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
               IconButton(
                 icon: const Icon(Icons.today),
@@ -345,7 +433,8 @@ class _EventsListViewState extends ConsumerState<EventsListView> with SingleTick
 
         Expanded(
           child: events.isEmpty
-              ? const Center(child: Text('No events found for this calendar month.'))
+              ? const Center(
+                  child: Text('No events found for this calendar month.'))
               : ListView.builder(
                   padding: const EdgeInsets.all(16),
                   itemCount: events.length,
@@ -356,8 +445,10 @@ class _EventsListViewState extends ConsumerState<EventsListView> with SingleTick
                         backgroundColor: Colors.indigo.shade100,
                         child: Text('${event.startTime.day}'),
                       ),
-                      title: Text(event.title, style: const TextStyle(fontWeight: FontWeight.bold)),
-                      subtitle: Text('${event.venue ?? 'Campus'} • ${event.startTime.hour}:${event.startTime.minute.toString().padLeft(2, '0')}'),
+                      title: Text(event.title,
+                          style: const TextStyle(fontWeight: FontWeight.bold)),
+                      subtitle: Text(
+                          '${event.venue ?? 'Campus'} • ${event.startTime.hour}:${event.startTime.minute.toString().padLeft(2, '0')}'),
                     );
                   },
                 ),
@@ -367,7 +458,20 @@ class _EventsListViewState extends ConsumerState<EventsListView> with SingleTick
   }
 
   String _getMonthAbbr(int month) {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
+    ];
     return months[(month - 1) % 12];
   }
 }

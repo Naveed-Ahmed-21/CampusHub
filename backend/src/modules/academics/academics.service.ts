@@ -1,15 +1,66 @@
 import { AcademicsRepository } from './academics.repository';
+import { TermResolutionService } from './term-resolution.service';
 import {
   SubjectSearchFilter,
   AcademicSubjectDTO,
   AcademicSubjectDetailDTO,
   ResourceSearchResultDTO,
   AcademicFacultyDTO,
+  StudentAssignmentDTO,
+  SubmitAssignmentDTO,
+  StudentAttendanceSummaryDTO,
+  StudentTimetableSlotDTO,
+  StudentSubjectAssessmentDTO,
+  StudentAssessmentSummaryDTO,
+  StudentAcademicContextDTO,
 } from './academics.types';
 import { NotFoundError } from '../../shared/utils/custom-error.util';
 
 export class AcademicsService {
-  constructor(private readonly repository: AcademicsRepository = new AcademicsRepository()) {}
+  constructor(
+    private readonly repository: AcademicsRepository = new AcademicsRepository(),
+    private readonly termService: TermResolutionService = new TermResolutionService()
+  ) {}
+
+  async getCurrentTerm(collegeId: string, targetDate?: Date) {
+    return await this.termService.getCurrentTerm(collegeId, targetDate);
+  }
+
+  async getStudentAcademicContext(
+    studentId: string,
+    collegeId: string,
+    targetDate?: Date
+  ): Promise<StudentAcademicContextDTO> {
+    const progression = await this.termService.deriveStudentProgression(studentId, targetDate);
+    const currentTerm = await this.termService.getCurrentTerm(collegeId, targetDate);
+    await this.termService.ensureCurriculumAndEnrollments(studentId, targetDate);
+
+    const subjects = await this.getMyEnrolledSubjects(studentId, collegeId);
+
+    return {
+      academicYear: progression.academicYear,
+      academicTerm: progression.academicTerm,
+      termType: currentTerm.termType,
+      semester: progression.semester,
+      semesterRoman: progression.semesterRoman,
+      semesterLabel: progression.semesterLabel,
+      yearOfStudy: progression.yearOfStudy,
+      yearRoman: progression.yearRoman,
+      yearLabel: progression.yearLabel,
+      admissionYear: progression.admissionYear,
+      batchName: progression.batchName,
+      department: progression.departmentCode,
+      departmentName: progression.departmentName,
+      program: progression.programName,
+      section: progression.section,
+      class: `${progression.yearRoman} ${progression.departmentCode} ${progression.section}`,
+      academicHeader: progression.academicHeader,
+      status: progression.status,
+      hasOverride: progression.hasOverride,
+      overrideReason: progression.overrideReason,
+      subjects,
+    };
+  }
 
   async getSubjects(
     filter: SubjectSearchFilter,
@@ -70,4 +121,41 @@ export class AcademicsService {
     }
     return faculty;
   }
+
+  async getSubjectAssignments(subjectId: string, studentId: string): Promise<StudentAssignmentDTO[]> {
+    return await this.repository.findSubjectAssignments(subjectId, studentId);
+  }
+
+  async getPendingAssignments(studentId: string): Promise<StudentAssignmentDTO[]> {
+    return await this.repository.findPendingAssignments(studentId);
+  }
+
+  async submitAssignment(studentId: string, assignmentId: string, dto: SubmitAssignmentDTO): Promise<any> {
+    return await this.repository.submitAssignment(studentId, assignmentId, dto);
+  }
+
+  async getSubjectAttendance(subjectId: string, studentId: string): Promise<StudentAttendanceSummaryDTO> {
+    return await this.repository.findSubjectAttendance(subjectId, studentId);
+  }
+
+  async getOverallAttendanceSummary(studentId: string): Promise<StudentAttendanceSummaryDTO[]> {
+    return await this.repository.findOverallAttendanceSummary(studentId);
+  }
+
+  async getStudentTimetable(
+    studentId: string,
+    collegeId?: string,
+    todayOnly?: boolean
+  ): Promise<StudentTimetableSlotDTO[]> {
+    return await this.repository.findStudentTimetable(studentId, collegeId, todayOnly);
+  }
+
+  async getSubjectAssessments(subjectId: string, studentId: string): Promise<StudentSubjectAssessmentDTO[]> {
+    return await this.repository.findSubjectAssessments(subjectId, studentId);
+  }
+
+  async getAssessmentsSummary(studentId: string): Promise<StudentAssessmentSummaryDTO[]> {
+    return await this.repository.findOverallAssessmentsSummary(studentId);
+  }
 }
+

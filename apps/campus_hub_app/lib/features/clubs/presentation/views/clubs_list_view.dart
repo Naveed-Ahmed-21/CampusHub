@@ -8,13 +8,16 @@ import 'create_club_dialog.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
 
 class ClubsListView extends ConsumerStatefulWidget {
-  const ClubsListView({super.key});
+  final bool showAppBar;
+
+  const ClubsListView({super.key, this.showAppBar = true});
 
   @override
   ConsumerState<ClubsListView> createState() => _ClubsListViewState();
 }
 
-class _ClubsListViewState extends ConsumerState<ClubsListView> with AutomaticKeepAliveClientMixin {
+class _ClubsListViewState extends ConsumerState<ClubsListView>
+    with AutomaticKeepAliveClientMixin {
   final _searchController = TextEditingController();
   Timer? _debounceTimer;
   final List<String> _categories = [
@@ -41,7 +44,8 @@ class _ClubsListViewState extends ConsumerState<ClubsListView> with AutomaticKee
     _debounceTimer?.cancel();
     _debounceTimer = Timer(const Duration(milliseconds: 300), () {
       final filter = ref.read(clubFilterProvider);
-      ref.read(clubFilterProvider.notifier).state = filter.copyWith(searchQuery: val.trim());
+      ref.read(clubFilterProvider.notifier).state =
+          filter.copyWith(searchQuery: val.trim());
     });
   }
 
@@ -59,29 +63,34 @@ class _ClubsListViewState extends ConsumerState<ClubsListView> with AutomaticKee
     final filter = ref.watch(clubFilterProvider);
     final theme = Theme.of(context);
     final authUser = ref.watch(authControllerProvider).asData?.value;
-    final isAdmin = authUser?.role == 'ADMIN' || authUser?.role == 'COLLEGE_ADMIN' || authUser?.role == 'SUPER_ADMIN';
-    final isDepartmentOnly = filter.departmentOnly || filter.isCrossDepartment == false;
+    final isAdmin = authUser?.role == 'ADMIN' ||
+        authUser?.role == 'COLLEGE_ADMIN' ||
+        authUser?.role == 'SUPER_ADMIN';
+    final isDepartmentOnly =
+        filter.departmentOnly || filter.isCrossDepartment == false;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Campus Clubs & Communities',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        actions: [
-          if (isAdmin)
-            IconButton(
-              icon: const Icon(Icons.fact_check_outlined),
-              tooltip: 'Pending Verifications (Admin)',
-              onPressed: () => context.push('/admin/clubs/pending'),
-            ),
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Refresh',
-            onPressed: () => ref.invalidate(approvedClubsProvider),
-          ),
-        ],
-      ),
+      appBar: widget.showAppBar
+          ? AppBar(
+              title: const Text(
+                'Campus Clubs & Communities',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              actions: [
+                if (isAdmin)
+                  IconButton(
+                    icon: const Icon(Icons.fact_check_outlined),
+                    tooltip: 'Pending Verifications (Admin)',
+                    onPressed: () => context.push('/admin/clubs/pending'),
+                  ),
+                IconButton(
+                  icon: const Icon(Icons.refresh),
+                  tooltip: 'Refresh',
+                  onPressed: () => ref.invalidate(approvedClubsProvider),
+                ),
+              ],
+            )
+          : null,
       floatingActionButton: FloatingActionButton.extended(
         heroTag: null,
         onPressed: _showCreateClubDialog,
@@ -103,25 +112,30 @@ class _ClubsListViewState extends ConsumerState<ClubsListView> with AutomaticKee
                     style: SegmentedButton.styleFrom(
                       visualDensity: VisualDensity.compact,
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      selectedBackgroundColor: theme.colorScheme.primaryContainer,
-                      selectedForegroundColor: theme.colorScheme.onPrimaryContainer,
+                      selectedBackgroundColor:
+                          theme.colorScheme.primaryContainer,
+                      selectedForegroundColor:
+                          theme.colorScheme.onPrimaryContainer,
                     ),
                     segments: const [
                       ButtonSegment<bool>(
                         value: false,
-                        label: Text('All Clubs', style: TextStyle(fontWeight: FontWeight.w600)),
+                        label: Text('All Clubs',
+                            style: TextStyle(fontWeight: FontWeight.w600)),
                         icon: Icon(Icons.public, size: 16),
                       ),
                       ButtonSegment<bool>(
                         value: true,
-                        label: Text('My Department', style: TextStyle(fontWeight: FontWeight.w600)),
+                        label: Text('My Department',
+                            style: TextStyle(fontWeight: FontWeight.w600)),
                         icon: Icon(Icons.domain, size: 16),
                       ),
                     ],
                     selected: {isDepartmentOnly},
                     onSelectionChanged: (Set<bool> newSelection) {
                       final deptOnly = newSelection.first;
-                      ref.read(clubFilterProvider.notifier).state = filter.copyWith(
+                      ref.read(clubFilterProvider.notifier).state =
+                          filter.copyWith(
                         departmentOnly: deptOnly,
                         isCrossDepartment: deptOnly ? false : null,
                         clearCrossDepartment: !deptOnly,
@@ -150,7 +164,8 @@ class _ClubsListViewState extends ConsumerState<ClubsListView> with AutomaticKee
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 10),
                   ),
                   onChanged: _onSearchChanged,
                 ),
@@ -196,7 +211,9 @@ class _ClubsListViewState extends ConsumerState<ClubsListView> with AutomaticKee
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(
-                            isDepartmentOnly ? Icons.domain_disabled_outlined : Icons.groups_outlined,
+                            isDepartmentOnly
+                                ? Icons.domain_disabled_outlined
+                                : Icons.groups_outlined,
                             size: 64,
                             color: Colors.grey.shade400,
                           ),
@@ -205,7 +222,8 @@ class _ClubsListViewState extends ConsumerState<ClubsListView> with AutomaticKee
                             isDepartmentOnly
                                 ? 'No clubs found for your department or cross-department.'
                                 : 'No clubs found matching your criteria.',
-                            style: theme.textTheme.titleMedium?.copyWith(color: Colors.grey),
+                            style: theme.textTheme.titleMedium
+                                ?.copyWith(color: Colors.grey),
                             textAlign: TextAlign.center,
                           ),
                           const SizedBox(height: 8),
@@ -222,11 +240,13 @@ class _ClubsListViewState extends ConsumerState<ClubsListView> with AutomaticKee
 
                 return ListView.builder(
                   key: const PageStorageKey<String>('clubs_list_scroll_key'),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                   itemCount: clubs.length,
                   itemBuilder: (context, index) {
                     final club = clubs[index];
-                    final deptLabel = club.departmentCode ?? club.departmentName;
+                    final deptLabel =
+                        club.departmentCode ?? club.departmentName;
 
                     return Card(
                       margin: const EdgeInsets.only(bottom: 12),
@@ -234,7 +254,8 @@ class _ClubsListViewState extends ConsumerState<ClubsListView> with AutomaticKee
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
                         side: BorderSide(
-                          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+                          color: theme.colorScheme.outlineVariant
+                              .withValues(alpha: 0.5),
                         ),
                       ),
                       child: InkWell(
@@ -250,22 +271,31 @@ class _ClubsListViewState extends ConsumerState<ClubsListView> with AutomaticKee
                                 children: [
                                   CircleAvatar(
                                     radius: 26,
-                                    backgroundColor: theme.colorScheme.primaryContainer,
-                                    backgroundImage: club.logoUrl != null && club.logoUrl!.isNotEmpty
-                                        ? NetworkImage(ApiEndpoints.resolveUrl(club.logoUrl!))
+                                    backgroundColor:
+                                        theme.colorScheme.primaryContainer,
+                                    backgroundImage: club.logoUrl != null &&
+                                            club.logoUrl!.isNotEmpty
+                                        ? NetworkImage(ApiEndpoints.resolveUrl(
+                                            club.logoUrl!))
                                         : null,
-                                    onBackgroundImageError: club.logoUrl != null && club.logoUrl!.isNotEmpty
-                                        ? (_, __) {}
-                                        : null,
-                                    child: club.logoUrl == null || club.logoUrl!.isEmpty
+                                    onBackgroundImageError:
+                                        club.logoUrl != null &&
+                                                club.logoUrl!.isNotEmpty
+                                            ? (_, __) {}
+                                            : null,
+                                    child: club.logoUrl == null ||
+                                            club.logoUrl!.isEmpty
                                         ? Text(
                                             club.name.isNotEmpty
-                                                ? club.name.substring(0, 1).toUpperCase()
+                                                ? club.name
+                                                    .substring(0, 1)
+                                                    .toUpperCase()
                                                 : 'C',
                                             style: TextStyle(
                                               fontSize: 20,
                                               fontWeight: FontWeight.bold,
-                                              color: theme.colorScheme.onPrimaryContainer,
+                                              color: theme.colorScheme
+                                                  .onPrimaryContainer,
                                             ),
                                           )
                                         : null,
@@ -273,11 +303,13 @@ class _ClubsListViewState extends ConsumerState<ClubsListView> with AutomaticKee
                                   const SizedBox(width: 14),
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                           club.name,
-                                          style: theme.textTheme.titleMedium?.copyWith(
+                                          style: theme.textTheme.titleMedium
+                                              ?.copyWith(
                                             fontWeight: FontWeight.bold,
                                           ),
                                         ),
@@ -288,34 +320,51 @@ class _ClubsListViewState extends ConsumerState<ClubsListView> with AutomaticKee
                                           children: [
                                             // Category Badge
                                             Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 8,
+                                                      vertical: 3),
                                               decoration: BoxDecoration(
-                                                color: theme.colorScheme.surfaceContainerHighest,
-                                                borderRadius: BorderRadius.circular(6),
+                                                color: theme.colorScheme
+                                                    .surfaceContainerHighest,
+                                                borderRadius:
+                                                    BorderRadius.circular(6),
                                               ),
                                               child: Text(
                                                 club.category,
-                                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
+                                                style: const TextStyle(
+                                                    fontSize: 11,
+                                                    fontWeight:
+                                                        FontWeight.w500),
                                               ),
                                             ),
                                             // Classification Badge: Cross Department vs Department
                                             if (club.isCrossDepartment)
                                               Container(
-                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        horizontal: 8,
+                                                        vertical: 3),
                                                 decoration: BoxDecoration(
-                                                  color: Colors.teal.withValues(alpha: 0.12),
-                                                  borderRadius: BorderRadius.circular(6),
+                                                  color: Colors.teal
+                                                      .withValues(alpha: 0.12),
+                                                  borderRadius:
+                                                      BorderRadius.circular(6),
                                                 ),
                                                 child: const Row(
-                                                  mainAxisSize: MainAxisSize.min,
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
                                                   children: [
-                                                    Icon(Icons.public, size: 12, color: Colors.teal),
+                                                    Icon(Icons.public,
+                                                        size: 12,
+                                                        color: Colors.teal),
                                                     SizedBox(width: 4),
                                                     Text(
                                                       'Cross Department',
                                                       style: TextStyle(
                                                         fontSize: 11,
-                                                        fontWeight: FontWeight.bold,
+                                                        fontWeight:
+                                                            FontWeight.bold,
                                                         color: Colors.teal,
                                                       ),
                                                     ),
@@ -324,23 +373,34 @@ class _ClubsListViewState extends ConsumerState<ClubsListView> with AutomaticKee
                                               )
                                             else
                                               Container(
-                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        horizontal: 8,
+                                                        vertical: 3),
                                                 decoration: BoxDecoration(
-                                                  color: Colors.indigo.withValues(alpha: 0.12),
-                                                  borderRadius: BorderRadius.circular(6),
+                                                  color: Colors.indigo
+                                                      .withValues(alpha: 0.12),
+                                                  borderRadius:
+                                                      BorderRadius.circular(6),
                                                 ),
                                                 child: Row(
-                                                  mainAxisSize: MainAxisSize.min,
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
                                                   children: [
-                                                    const Icon(Icons.domain, size: 12, color: Colors.indigo),
+                                                    const Icon(Icons.domain,
+                                                        size: 12,
+                                                        color: Colors.indigo),
                                                     const SizedBox(width: 4),
                                                     Text(
-                                                      deptLabel != null && deptLabel.isNotEmpty
+                                                      deptLabel != null &&
+                                                              deptLabel
+                                                                  .isNotEmpty
                                                           ? deptLabel
                                                           : 'Department',
                                                       style: const TextStyle(
                                                         fontSize: 11,
-                                                        fontWeight: FontWeight.bold,
+                                                        fontWeight:
+                                                            FontWeight.bold,
                                                         color: Colors.indigo,
                                                       ),
                                                     ),
@@ -352,39 +412,51 @@ class _ClubsListViewState extends ConsumerState<ClubsListView> with AutomaticKee
                                       ],
                                     ),
                                   ),
-                                  const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
+                                  const Icon(Icons.arrow_forward_ios,
+                                      size: 14, color: Colors.grey),
                                 ],
                               ),
-                              if (club.description != null && club.description!.isNotEmpty) ...[
+                              if (club.description != null &&
+                                  club.description!.isNotEmpty) ...[
                                 const SizedBox(height: 10),
                                 Text(
                                   club.description!,
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
-                                    color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
+                                    color: theme.colorScheme.onSurfaceVariant
+                                        .withValues(alpha: 0.8),
                                     fontSize: 13,
                                   ),
                                 ),
                               ],
                               const SizedBox(height: 12),
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   Row(
                                     children: [
-                                      Icon(Icons.people_outline, size: 15, color: theme.colorScheme.outline),
+                                      Icon(Icons.people_outline,
+                                          size: 15,
+                                          color: theme.colorScheme.outline),
                                       const SizedBox(width: 4),
                                       Text(
                                         '${club.memberCount} Members',
-                                        style: TextStyle(fontSize: 12, color: theme.colorScheme.outline),
+                                        style: TextStyle(
+                                            fontSize: 12,
+                                            color: theme.colorScheme.outline),
                                       ),
                                       const SizedBox(width: 16),
-                                      Icon(Icons.event_outlined, size: 15, color: theme.colorScheme.outline),
+                                      Icon(Icons.event_outlined,
+                                          size: 15,
+                                          color: theme.colorScheme.outline),
                                       const SizedBox(width: 4),
                                       Text(
                                         '${club.eventCount} Events',
-                                        style: TextStyle(fontSize: 12, color: theme.colorScheme.outline),
+                                        style: TextStyle(
+                                            fontSize: 12,
+                                            color: theme.colorScheme.outline),
                                       ),
                                     ],
                                   ),

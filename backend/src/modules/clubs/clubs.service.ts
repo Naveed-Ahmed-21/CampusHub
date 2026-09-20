@@ -17,9 +17,18 @@ import {
   ForbiddenError,
   ConflictError,
 } from '../../shared/errors/AppError';
+import { NotificationsRepository } from '../notifications/notifications.repository';
+import { NotificationsService } from '../notifications/notifications.service';
 
 export class ClubsService {
-  constructor(private readonly clubsRepository: ClubsRepository) {}
+  private readonly notificationsService: NotificationsService;
+
+  constructor(
+    private readonly clubsRepository: ClubsRepository,
+    notificationsService?: NotificationsService,
+  ) {
+    this.notificationsService = notificationsService ?? new NotificationsService(new NotificationsRepository());
+  }
 
   async createClub(userId: string, collegeId: string, userRole: Role, dto: CreateClubDto) {
     const existing = await this.clubsRepository.findClubByName(collegeId, dto.name);
@@ -155,6 +164,21 @@ export class ClubsService {
       }
     }
 
+    if (creatorId) {
+      try {
+        await this.notificationsService.sendNotification({
+          user_id: creatorId,
+          title: dto.status === ClubStatus.APPROVED ? `Club Approved: ${clubName}` : `Club Proposal Update`,
+          body: dto.status === ClubStatus.APPROVED
+            ? `Your proposed club "${clubName}" has been approved!`
+            : `Your proposed club "${clubName}" was not approved: ${dto.rejection_reason || 'See guidelines'}.`,
+          type: 'SYSTEM',
+          category: 'Clubs',
+          deep_link: dto.status === ClubStatus.APPROVED ? `/clubs/${clubId}` : `/clubs`,
+        });
+      } catch (_) {}
+    }
+
     return updatedClub;
   }
 
@@ -193,6 +217,17 @@ export class ClubsService {
     // Auto-add to club chat room
     const room = await this.clubsRepository.findOrCreateClubChatRoom(clubId, collegeId, club.name);
     await this.clubsRepository.addChatParticipant(room.id, userId);
+
+    try {
+      await this.notificationsService.sendNotification({
+        user_id: userId,
+        title: `Joined ${club.name}`,
+        body: `Welcome to ${club.name}! You can now participate in club discussions and events.`,
+        type: 'SYSTEM',
+        category: 'Clubs',
+        deep_link: `/clubs/${clubId}`,
+      });
+    } catch (_) {}
 
     return member;
   }

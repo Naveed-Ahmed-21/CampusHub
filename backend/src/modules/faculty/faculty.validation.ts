@@ -14,6 +14,23 @@ export const createSubjectSchema = z.object({
   }),
 });
 
+export const updateSubjectSchema = z.object({
+  params: z.object({
+    id: z.string(),
+  }),
+  body: z.object({
+    code: z.string().min(2).optional(),
+    name: z.string().min(3).optional(),
+    departmentId: z.string().optional(),
+    departmentName: z.string().optional(),
+    semester: z.string().min(1).optional(),
+    section: z.string().optional(),
+    credits: z.number().int().positive().optional(),
+    description: z.string().optional(),
+    academicYear: z.string().optional(),
+  }),
+});
+
 export const createSubjectResourceSchema = z.object({
   params: z
     .object({

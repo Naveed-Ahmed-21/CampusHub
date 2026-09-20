@@ -140,6 +140,7 @@ describe('Faculty Module Tests', () => {
           },
         ]),
         getRecentAnnouncements: jest.fn().mockResolvedValue([]),
+        getScheduleSlots: jest.fn().mockResolvedValue([]),
       } as unknown as jest.Mocked<FacultyRepository>;
 
       service = new FacultyService(mockRepo);
@@ -300,6 +301,18 @@ describe('Faculty Module Tests', () => {
       expect(res.status).toBe(201);
       expect(res.body.success).toBe(true);
       expect(res.body.data.title).toBe('Assignment 2 Deadline Extended');
+    });
+
+    afterAll(async () => {
+      if (createdSubjectId) {
+        try {
+          await prisma.subjectResource.deleteMany({ where: { subject_id: createdSubjectId } });
+          await prisma.subjectAnnouncement.deleteMany({ where: { subject_id: createdSubjectId } });
+          await prisma.subjectEnrollment.deleteMany({ where: { subject_id: createdSubjectId } });
+          await prisma.facultySubject.deleteMany({ where: { subject_id: createdSubjectId } });
+          await prisma.subject.deleteMany({ where: { id: createdSubjectId } });
+        } catch (_) {}
+      }
     });
   });
 });

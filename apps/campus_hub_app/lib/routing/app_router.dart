@@ -36,18 +36,46 @@ import '../features/settings/presentation/views/about_view.dart';
 import '../features/academics/presentation/views/student_subjects_view.dart';
 import '../features/academics/presentation/views/student_subject_detail_view.dart';
 import '../features/academics/presentation/views/faculty_directory_view.dart';
+import '../features/academics/presentation/views/student_timetable_view.dart';
 import '../shared/responsive/main_scaffold.dart';
 
-final _rootNavigatorKey = GlobalKey<NavigatorState>();
+final rootNavigatorKey = GlobalKey<NavigatorState>();
+String? _pendingNotificationRoute;
+
+void handleNotificationNavigation(String? path) {
+  final target = (path == null || path.isEmpty) ? '/notifications' : path;
+  debugPrint('🔔 [AppRouter] Deep linking to notification path: $target');
+  final navContext = rootNavigatorKey.currentContext;
+  if (navContext != null && navContext.mounted) {
+    try {
+      GoRouter.of(navContext).push(target);
+    } catch (e) {
+      debugPrint(
+          '⚠️ [AppRouter] Failed to navigate to $target: $e. Falling back to /notifications');
+      try {
+        GoRouter.of(navContext).push('/notifications');
+      } catch (_) {}
+    }
+  } else {
+    _pendingNotificationRoute = target;
+  }
+}
+
+String? consumePendingNotificationRoute() {
+  final path = _pendingNotificationRoute;
+  _pendingNotificationRoute = null;
+  return path;
+}
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final routerNotifier = ref.read(routerNotifierProvider);
 
   return GoRouter(
-    navigatorKey: _rootNavigatorKey,
+    navigatorKey: rootNavigatorKey,
     initialLocation: '/feed',
     refreshListenable: routerNotifier,
-    redirect: (context, state) => routerNotifier.redirect(context, state.uri.toString()),
+    redirect: (context, state) =>
+        routerNotifier.redirect(context, state.uri.toString()),
     routes: [
       // 1. Auth & Public Entry Routes
       GoRoute(
@@ -99,7 +127,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => UserFollowsView(
           userId: state.pathParameters['userId']!,
           userName: (state.uri.queryParameters['name']) ?? 'Connections',
-          initialIndex: int.tryParse(state.uri.queryParameters['tab'] ?? '0') ?? 0,
+          initialIndex:
+              int.tryParse(state.uri.queryParameters['tab'] ?? '0') ?? 0,
         ),
       ),
       GoRoute(
@@ -139,6 +168,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(
+        path: '/chat/:roomId',
+        name: 'chat-room-direct',
+        builder: (context, state) => ChatRoomView(
+          roomId: state.pathParameters['roomId']!,
+        ),
+      ),
+      GoRoute(
         path: '/collaborations',
         name: 'campus-collaborations',
         builder: (context, state) => const CampusCollaborationView(),
@@ -148,6 +184,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         name: 'subject-detail',
         builder: (context, state) => SubjectDetailView(
           subjectId: state.pathParameters['subjectId']!,
+          initialTab: int.tryParse(state.uri.queryParameters['tab'] ?? ''),
         ),
       ),
       GoRoute(
@@ -175,12 +212,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         name: 'academic-subject-detail',
         builder: (context, state) => StudentSubjectDetailView(
           subjectId: state.pathParameters['subjectId']!,
+          initialTab: int.tryParse(state.uri.queryParameters['tab'] ?? ''),
         ),
       ),
       GoRoute(
         path: '/academics/faculty',
         name: 'academic-faculty-directory',
         builder: (context, state) => const FacultyDirectoryView(),
+      ),
+      GoRoute(
+        path: '/academics/timetable',
+        name: 'academic-timetable',
+        builder: (context, state) => const StudentTimetableView(),
       ),
 
       // 3. Main Persistent Tab Navigation Shell (Stateful IndexedStack)

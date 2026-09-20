@@ -116,8 +116,12 @@ model College {
   companies    Company[]
   chat_rooms   ChatRoom[]
   media_assets MediaAsset[]
-  subjects     Subject[]
-  stories      Story[]
+  subjects          Subject[]
+  stories           Story[]
+  academic_years    AcademicYear[]
+  academic_programs AcademicProgram[]
+  academic_classes  AcademicClass[]
+  rooms             Room[]
 
   @@map("colleges")
 }
@@ -136,8 +140,10 @@ model Department {
   posts     Post[]
   chat_room ChatRoom?
   events    Event[]
-  subjects  Subject[]
-  clubs     Club[]
+  subjects          Subject[]
+  clubs             Club[]
+  academic_programs AcademicProgram[]
+  academic_classes  AcademicClass[]
 
   @@unique([college_id, code])
   @@index([college_id])
@@ -218,6 +224,20 @@ model User {
   faculty_assignments    FacultySubject[]            @relation("FacultySubjectAssignments")
   stories                Story[]
   story_views            StoryView[]
+  created_assignments    SubjectAssignment[]
+  assignment_submissions AssignmentSubmission[]
+  attendance_sessions    SubjectAttendanceSession[]
+  attendance_records     StudentAttendanceRecord[]
+  faculty_schedules      FacultySchedule[]
+  created_assessments    SubjectAssessment[]
+  assessment_results        StudentAssessmentResult[]   @relation("StudentAssessmentResults")
+  evaluated_assessments     StudentAssessmentResult[]   @relation("EvaluatedAssessmentResults")
+  academic_profile          StudentAcademicProfile?
+  academic_overrides        StudentAcademicOverride[]
+  term_faculty_assignments  FacultySubjectAssignment[]
+  marked_attendance_records StudentAttendanceRecord[]   @relation("MarkedAttendanceRecords")
+  advised_classes           AcademicClass[]             @relation("ClassAdvisor")
+  substitute_schedules      FacultySchedule[]           @relation("SubstituteFacultySchedule")
 
   @@index([college_id])
   @@index([department_id])
@@ -1187,49 +1207,65 @@ model Subject {
   section       String   @default("A") @db.VarChar(20)
   credits       Int      @default(3)
   description   String?  @db.Text
-  academic_year String?  @default("2024-2025") @db.VarChar(50)
-  created_at    DateTime @default(now())
-  updated_at    DateTime @updatedAt
+  subject_type  String?  @default("CORE") @db.VarChar(50)
+  hours_per_week Int?    @default(4)
+  academic_year       String?                     @default("2024-2025") @db.VarChar(50)
+  academic_term_id    String?                     @db.Uuid
+  created_at          DateTime                    @default(now())
+  updated_at          DateTime                    @updatedAt
 
-  college       College               @relation(fields: [college_id], references: [id], onDelete: Cascade)
-  department    Department?           @relation(fields: [department_id], references: [id], onDelete: SetNull)
-  faculty             User                  @relation("FacultySubjects", fields: [faculty_id], references: [id], onDelete: Cascade)
-  resources           SubjectResource[]
-  announcements       SubjectAnnouncement[]
-  enrollments         SubjectEnrollment[]
-  faculty_assignments FacultySubject[]
+  college                  College                     @relation(fields: [college_id], references: [id], onDelete: Cascade)
+  department               Department?                 @relation(fields: [department_id], references: [id], onDelete: SetNull)
+  faculty                  User                        @relation("FacultySubjects", fields: [faculty_id], references: [id], onDelete: Cascade)
+  academic_term            AcademicTerm?               @relation(fields: [academic_term_id], references: [id], onDelete: SetNull)
+  resources                SubjectResource[]
+  announcements            SubjectAnnouncement[]
+  enrollments              SubjectEnrollment[]
+  faculty_assignments      FacultySubject[]
+  assignments              SubjectAssignment[]
+  attendance_sessions      SubjectAttendanceSession[]
+  attendance_records       StudentAttendanceRecord[]
+  schedules                FacultySchedule[]
+  assessments              SubjectAssessment[]
+  assessment_results       StudentAssessmentResult[]
+  curriculum_subjects      CurriculumSubject[]
+  term_faculty_assignments FacultySubjectAssignment[]
 
   @@unique([college_id, code, semester, section])
   @@index([faculty_id])
   @@index([department_id])
+  @@index([academic_term_id])
   @@map("subjects")
 }
 
 model SubjectResource {
-  id             String   @id @default(uuid()) @db.Uuid
-  subject_id     String   @db.Uuid
-  uploaded_by_id String   @db.Uuid
-  title          String   @db.VarChar(255)
-  description    String?  @db.Text
-  file_url       String   @db.Text
-  file_type      String   @db.VarChar(100)
-  unit           String?  @db.VarChar(100)
-  topic          String?  @db.VarChar(255)
-  resource_type  String   @default("NOTES") @db.VarChar(50)
-  visibility     String   @default("PUBLIC") @db.VarChar(50)
-  thumbnail_url  String?  @db.Text
-  academic_year  String?  @default("2024-2025") @db.VarChar(50)
-  download_count Int      @default(0)
-  view_count     Int      @default(0)
-  created_at     DateTime @default(now())
-  updated_at     DateTime @default(now()) @updatedAt
+  id               String        @id @default(uuid()) @db.Uuid
+  subject_id       String        @db.Uuid
+  uploaded_by_id   String        @db.Uuid
+  academic_term_id String?       @db.Uuid
+  title            String        @db.VarChar(255)
+  description      String?       @db.Text
+  file_url         String        @db.Text
+  file_type        String        @db.VarChar(100)
+  unit             String?       @db.VarChar(100)
+  topic            String?       @db.VarChar(255)
+  resource_type    String        @default("NOTES") @db.VarChar(50)
+  visibility       String        @default("PUBLIC") @db.VarChar(50)
+  thumbnail_url    String?       @db.Text
+  academic_year    String?       @default("2024-2025") @db.VarChar(50)
+  download_count   Int           @default(0)
+  view_count       Int           @default(0)
+  created_at       DateTime      @default(now())
+  updated_at       DateTime      @default(now()) @updatedAt
 
-  subject     Subject @relation(fields: [subject_id], references: [id], onDelete: Cascade)
-  uploaded_by User    @relation(fields: [uploaded_by_id], references: [id], onDelete: Cascade)
+  subject       Subject       @relation(fields: [subject_id], references: [id], onDelete: Cascade)
+  uploaded_by   User          @relation(fields: [uploaded_by_id], references: [id], onDelete: Cascade)
+  academic_term AcademicTerm? @relation(fields: [academic_term_id], references: [id], onDelete: SetNull)
 
   @@index([subject_id])
   @@index([subject_id, unit])
   @@index([resource_type])
+  @@index([academic_term_id])
   @@map("subject_resources")
 }
 
@@ -1287,16 +1323,22 @@ model SubjectAnnouncement {
 }
 
 model SubjectEnrollment {
-  id          String   @id @default(uuid()) @db.Uuid
-  subject_id  String   @db.Uuid
-  student_id  String   @db.Uuid
-  enrolled_at DateTime @default(now())
+  id               String        @id @default(uuid()) @db.Uuid
+  subject_id       String        @db.Uuid
+  student_id       String        @db.Uuid
+  academic_term_id String?       @db.Uuid
+  section          String?       @default("A") @db.VarChar(20)
+  status           String        @default("ACTIVE") @db.VarChar(50)
+  enrolled_at      DateTime      @default(now())
+  dropped_at       DateTime?
 
-  subject Subject @relation(fields: [subject_id], references: [id], onDelete: Cascade)
-  student User    @relation(fields: [student_id], references: [id], onDelete: Cascade)
+  subject       Subject       @relation(fields: [subject_id], references: [id], onDelete: Cascade)
+  student       User          @relation(fields: [student_id], references: [id], onDelete: Cascade)
+  academic_term AcademicTerm? @relation(fields: [academic_term_id], references: [id], onDelete: SetNull)
 
   @@unique([subject_id, student_id])
   @@index([student_id])
+  @@index([academic_term_id])
   @@map("subject_enrollments")
 }
 
@@ -1580,3 +1622,415 @@ model ProjectEvidence {
   @@index([user_id])
   @@map("project_evidences")
 }
+
+// ==========================================
+// 11. ACADEMIC SCHEDULE, ASSIGNMENTS & ATTENDANCE
+// ==========================================
+
+model AcademicYear {
+  id         String         @id @default(uuid()) @db.Uuid
+  college_id String         @db.Uuid
+  year_name  String         @db.VarChar(50)
+  start_date DateTime       @db.Date
+  end_date   DateTime       @db.Date
+  is_active  Boolean        @default(false)
+  created_at DateTime       @default(now())
+  updated_at DateTime       @default(now()) @updatedAt
+
+  college College        @relation(fields: [college_id], references: [id], onDelete: Cascade)
+  terms   AcademicTerm[]
+
+  @@unique([college_id, year_name])
+  @@index([college_id])
+  @@map("academic_years")
+}
+
+model AcademicTerm {
+  id               String   @id @default(uuid()) @db.Uuid
+  academic_year_id String   @db.Uuid
+  name             String   @db.VarChar(100)
+  term_type        String   @default("ODD") @db.VarChar(20)
+  semester_number  Int
+  start_date       DateTime @db.Date
+  end_date         DateTime @db.Date
+  status           String   @default("UPCOMING") @db.VarChar(50)
+  created_at       DateTime @default(now())
+  updated_at       DateTime @default(now()) @updatedAt
+
+  academic_year       AcademicYear                @relation(fields: [academic_year_id], references: [id], onDelete: Cascade)
+  subjects            Subject[]
+  resources           SubjectResource[]
+  enrollments         SubjectEnrollment[]
+  faculty_assignments FacultySubjectAssignment[]
+  faculty_schedules   FacultySchedule[]
+  attendance_sessions SubjectAttendanceSession[]
+  assignments         SubjectAssignment[]
+  assessments         SubjectAssessment[]
+  student_overrides   StudentAcademicOverride[]
+
+  @@unique([academic_year_id, semester_number])
+  @@index([academic_year_id])
+  @@map("academic_terms")
+}
+
+model AcademicProgram {
+  id              String   @id @default(uuid()) @db.Uuid
+  college_id      String   @db.Uuid
+  department_id   String   @db.Uuid
+  name            String   @db.VarChar(255)
+  code            String   @db.VarChar(50)
+  degree_type     String   @default("UNDERGRADUATE") @db.VarChar(50)
+  total_semesters Int      @default(8)
+  is_active       Boolean  @default(true)
+  created_at      DateTime @default(now())
+  updated_at      DateTime @default(now()) @updatedAt
+
+  college             College                  @relation(fields: [college_id], references: [id], onDelete: Cascade)
+  department          Department               @relation(fields: [department_id], references: [id], onDelete: Cascade)
+  curriculum_subjects CurriculumSubject[]
+  student_profiles    StudentAcademicProfile[]
+  academic_classes    AcademicClass[]
+
+  @@unique([college_id, code])
+  @@index([college_id])
+  @@index([department_id])
+  @@map("academic_programs")
+}
+
+model CurriculumSubject {
+  id              String   @id @default(uuid()) @db.Uuid
+  program_id      String   @db.Uuid
+  subject_id      String   @db.Uuid
+  batch_year      Int
+  semester_number Int
+  subject_type    String   @default("CORE") @db.VarChar(50)
+  version         String   @default("v1") @db.VarChar(20)
+  credits         Int      @default(3)
+  hours_per_week  Int      @default(4)
+  created_at      DateTime @default(now())
+
+  program AcademicProgram @relation(fields: [program_id], references: [id], onDelete: Cascade)
+  subject Subject         @relation(fields: [subject_id], references: [id], onDelete: Cascade)
+
+  @@unique([program_id, batch_year, semester_number, subject_id])
+  @@index([program_id])
+  @@index([subject_id])
+  @@map("curriculum_subjects")
+}
+
+model StudentAcademicProfile {
+  id             String   @id @default(uuid()) @db.Uuid
+  student_id     String   @unique @db.Uuid
+  program_id     String?  @db.Uuid
+  admission_year Int      @default(2023)
+  batch_name     String?  @db.VarChar(50)
+  current_status String   @default("ACTIVE") @db.VarChar(50)
+  section        String   @default("A") @db.VarChar(20)
+  batch_group    String?  @db.VarChar(50)
+  created_at     DateTime @default(now())
+  updated_at     DateTime @default(now()) @updatedAt
+
+  student User             @relation(fields: [student_id], references: [id], onDelete: Cascade)
+  program AcademicProgram? @relation(fields: [program_id], references: [id], onDelete: SetNull)
+
+  @@index([student_id])
+  @@index([program_id])
+  @@map("student_academic_profiles")
+}
+
+model StudentAcademicOverride {
+  id                String   @id @default(uuid()) @db.Uuid
+  student_id        String   @db.Uuid
+  academic_term_id  String   @db.Uuid
+  override_semester Int
+  reason            String?  @db.Text
+  authorized_by     String?  @db.VarChar(255)
+  created_at        DateTime @default(now())
+
+  student User         @relation(fields: [student_id], references: [id], onDelete: Cascade)
+  term    AcademicTerm @relation(fields: [academic_term_id], references: [id], onDelete: Cascade)
+
+  @@unique([student_id, academic_term_id])
+  @@index([student_id])
+  @@index([academic_term_id])
+  @@map("student_academic_overrides")
+}
+
+model FacultySubjectAssignment {
+  id               String   @id @default(uuid()) @db.Uuid
+  faculty_id       String   @db.Uuid
+  subject_id       String   @db.Uuid
+  academic_term_id String   @db.Uuid
+  section          String   @default("A") @db.VarChar(20)
+  role             String   @default("PRIMARY_INSTRUCTOR") @db.VarChar(50)
+  is_primary       Boolean  @default(true)
+  is_active        Boolean  @default(true)
+  created_at       DateTime @default(now())
+
+  faculty User         @relation(fields: [faculty_id], references: [id], onDelete: Cascade)
+  subject Subject      @relation(fields: [subject_id], references: [id], onDelete: Cascade)
+  term    AcademicTerm @relation(fields: [academic_term_id], references: [id], onDelete: Cascade)
+
+  @@unique([faculty_id, subject_id, academic_term_id, section])
+  @@index([faculty_id])
+  @@index([subject_id])
+  @@index([academic_term_id])
+  @@map("faculty_subject_assignments")
+}
+
+model FacultySchedule {
+  id               String        @id @default(uuid()) @db.Uuid
+  faculty_id       String        @db.Uuid
+  subject_id       String?       @db.Uuid
+  academic_term_id String?       @db.Uuid
+  subject_code     String?       @db.VarChar(50)
+  subject_name     String?       @db.VarChar(255)
+  room_or_venue    String?       @db.VarChar(100)
+  start_time       String        @db.VarChar(50)
+  end_time         String        @db.VarChar(50)
+  semester         String?       @db.VarChar(50)
+  section          String?       @db.VarChar(20)
+  day_of_week      String        @db.VarChar(50)
+  topic            String?       @db.VarChar(255)
+  session_type     String?       @default("THEORY") @db.VarChar(50)
+  status           String?       @default("SCHEDULED") @db.VarChar(50)
+  effective_from   DateTime?     @db.Date
+  effective_until  DateTime?     @db.Date
+  class_id         String?       @db.Uuid
+  room_id          String?       @db.Uuid
+  substitute_faculty_id String?  @db.Uuid
+  batch_group      String?       @db.VarChar(50)
+  created_at       DateTime      @default(now())
+  updated_at       DateTime      @default(now()) @updatedAt
+
+  faculty            User                      @relation(fields: [faculty_id], references: [id], onDelete: Cascade)
+  subject            Subject?                  @relation(fields: [subject_id], references: [id], onDelete: SetNull)
+  academic_term      AcademicTerm?             @relation(fields: [academic_term_id], references: [id], onDelete: SetNull)
+  class              AcademicClass?            @relation(fields: [class_id], references: [id], onDelete: SetNull)
+  room               Room?                     @relation(fields: [room_id], references: [id], onDelete: SetNull)
+  substitute_faculty User?                     @relation("SubstituteFacultySchedule", fields: [substitute_faculty_id], references: [id], onDelete: SetNull)
+  attendance_sessions SubjectAttendanceSession[]
+
+  @@index([faculty_id])
+  @@index([subject_id])
+  @@index([academic_term_id])
+  @@index([class_id])
+  @@index([room_id])
+  @@map("faculty_schedules")
+}
+
+model SubjectAssignment {
+  id               String        @id @default(uuid()) @db.Uuid
+  subject_id       String        @db.Uuid
+  faculty_id       String        @db.Uuid
+  academic_term_id String?       @db.Uuid
+  section          String?       @default("A") @db.VarChar(20)
+  title            String        @db.VarChar(255)
+  description      String?       @db.Text
+  unit             String?       @db.VarChar(100)
+  topic            String?       @db.VarChar(255)
+  attachments      Json?         @default("[]")
+  max_marks        Int           @default(100)
+  due_at           DateTime
+  submission_type  String        @default("FILE") @db.VarChar(50)
+  allow_late       Boolean       @default(true)
+  created_at       DateTime      @default(now())
+  updated_at       DateTime      @default(now()) @updatedAt
+
+  subject       Subject                @relation(fields: [subject_id], references: [id], onDelete: Cascade)
+  faculty       User                   @relation(fields: [faculty_id], references: [id], onDelete: Cascade)
+  academic_term AcademicTerm?          @relation(fields: [academic_term_id], references: [id], onDelete: SetNull)
+  submissions   AssignmentSubmission[]
+
+  @@index([subject_id])
+  @@index([faculty_id])
+  @@index([academic_term_id])
+  @@map("subject_assignments")
+}
+
+model AssignmentSubmission {
+  id              String    @id @default(uuid()) @db.Uuid
+  assignment_id   String    @db.Uuid
+  student_id      String    @db.Uuid
+  submission_type String    @default("FILE") @db.VarChar(50)
+  file_url        String?   @db.Text
+  link_url        String?   @db.Text
+  text_content    String?   @db.Text
+  marks           Float?
+  feedback        String?   @db.Text
+  status          String    @default("SUBMITTED") @db.VarChar(50)
+  submitted_at    DateTime  @default(now())
+  graded_at       DateTime?
+  graded_by_id    String?   @db.Uuid
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @default(now()) @updatedAt
+
+  assignment SubjectAssignment @relation(fields: [assignment_id], references: [id], onDelete: Cascade)
+  student    User              @relation(fields: [student_id], references: [id], onDelete: Cascade)
+
+  @@unique([assignment_id, student_id])
+  @@index([assignment_id])
+  @@index([student_id])
+  @@map("assignment_submissions")
+}
+
+model SubjectAttendanceSession {
+  id               String        @id @default(uuid()) @db.Uuid
+  subject_id       String        @db.Uuid
+  faculty_id       String        @db.Uuid
+  academic_term_id String?       @db.Uuid
+  section          String?       @default("A") @db.VarChar(20)
+  session_date     DateTime      @default(now()) @db.Date
+  start_time       String?       @db.VarChar(20)
+  end_time         String?       @db.VarChar(20)
+  topic            String?       @db.VarChar(255)
+  status           String        @default("OPEN") @db.VarChar(50)
+  total_students   Int           @default(0)
+  present_count    Int           @default(0)
+  schedule_id      String?       @db.Uuid
+  created_at       DateTime      @default(now())
+
+  subject          Subject                   @relation(fields: [subject_id], references: [id], onDelete: Cascade)
+  faculty          User                      @relation(fields: [faculty_id], references: [id], onDelete: Cascade)
+  academic_term    AcademicTerm?             @relation(fields: [academic_term_id], references: [id], onDelete: SetNull)
+  faculty_schedule FacultySchedule?          @relation(fields: [schedule_id], references: [id], onDelete: SetNull)
+  records          StudentAttendanceRecord[]
+
+  @@index([subject_id])
+  @@index([faculty_id])
+  @@index([academic_term_id])
+  @@index([schedule_id])
+  @@map("subject_attendance_sessions")
+}
+
+model StudentAttendanceRecord {
+  id           String   @id @default(uuid()) @db.Uuid
+  session_id   String   @db.Uuid
+  subject_id   String   @db.Uuid
+  student_id   String   @db.Uuid
+  status       String   @default("PRESENT") @db.VarChar(20)
+  marked_by_id String?  @db.Uuid
+  remarks      String?  @db.Text
+  created_at   DateTime @default(now())
+
+  session   SubjectAttendanceSession @relation(fields: [session_id], references: [id], onDelete: Cascade)
+  subject   Subject                  @relation(fields: [subject_id], references: [id], onDelete: Cascade)
+  student   User                     @relation(fields: [student_id], references: [id], onDelete: Cascade)
+  marked_by User?                    @relation("MarkedAttendanceRecords", fields: [marked_by_id], references: [id], onDelete: SetNull)
+
+  @@unique([session_id, student_id])
+  @@index([session_id])
+  @@index([subject_id])
+  @@index([student_id])
+  @@map("student_attendance_records")
+}
+
+model SubjectAssessment {
+  id               String        @id @default(uuid()) @db.Uuid
+  subject_id       String        @db.Uuid
+  faculty_id       String        @db.Uuid
+  academic_term_id String?       @db.Uuid
+  section          String?       @default("A") @db.VarChar(20)
+  title            String        @db.VarChar(255)
+  description      String?       @db.Text
+  assessment_type  String        @default("INTERNAL_EXAM") @db.VarChar(50)
+  unit             String?       @db.VarChar(100)
+  topic            String?       @db.VarChar(255)
+  total_marks      Int           @default(50)
+  passing_marks    Int           @default(20)
+  duration_minutes Int?          @default(60)
+  scheduled_at     DateTime?
+  status           String        @default("SCHEDULED") @db.VarChar(50)
+  created_at       DateTime      @default(now())
+  updated_at       DateTime      @default(now()) @updatedAt
+
+  subject       Subject                   @relation(fields: [subject_id], references: [id], onDelete: Cascade)
+  faculty       User                      @relation(fields: [faculty_id], references: [id], onDelete: Cascade)
+  academic_term AcademicTerm?             @relation(fields: [academic_term_id], references: [id], onDelete: SetNull)
+  results       StudentAssessmentResult[]
+
+  @@index([subject_id])
+  @@index([faculty_id])
+  @@index([academic_term_id])
+  @@map("subject_assessments")
+}
+
+model StudentAssessmentResult {
+  id              String    @id @default(uuid()) @db.Uuid
+  assessment_id   String    @db.Uuid
+  subject_id      String    @db.Uuid
+  student_id      String    @db.Uuid
+  marks_obtained  Float?
+  grade           String?   @db.VarChar(10)
+  remarks         String?   @db.Text
+  status          String    @default("EVALUATED") @db.VarChar(50)
+  evaluated_at    DateTime? @default(now())
+  evaluated_by_id String?   @db.Uuid
+  created_at      DateTime  @default(now())
+
+  assessment   SubjectAssessment @relation(fields: [assessment_id], references: [id], onDelete: Cascade)
+  subject      Subject           @relation(fields: [subject_id], references: [id], onDelete: Cascade)
+  student      User              @relation("StudentAssessmentResults", fields: [student_id], references: [id], onDelete: Cascade)
+  evaluated_by User?             @relation("EvaluatedAssessmentResults", fields: [evaluated_by_id], references: [id], onDelete: SetNull)
+
+  @@unique([assessment_id, student_id])
+  @@index([assessment_id])
+  @@index([subject_id])
+  @@index([student_id])
+  @@map("student_assessment_results")
+}
+
+model Room {
+  id         String   @id @default(uuid()) @db.Uuid
+  college_id String   @db.Uuid
+  code       String   @db.VarChar(50)
+  name       String   @db.VarChar(100)
+  building   String?  @db.VarChar(100)
+  floor      Int?     @default(2)
+  capacity   Int      @default(60)
+  room_type  String   @default("LECTURE_HALL") @db.VarChar(50)
+  is_active  Boolean  @default(true)
+  created_at DateTime @default(now())
+  updated_at DateTime @default(now()) @updatedAt
+
+  college    College         @relation(fields: [college_id], references: [id], onDelete: Cascade)
+  classes    AcademicClass[]
+  schedules  FacultySchedule[]
+
+  @@unique([college_id, code])
+  @@index([college_id])
+  @@map("rooms")
+}
+
+model AcademicClass {
+  id               String   @id @default(uuid()) @db.Uuid
+  college_id       String   @db.Uuid
+  department_id    String   @db.Uuid
+  program_id       String?  @db.Uuid
+  name             String   @db.VarChar(100)
+  year_of_study    Int      @default(4)
+  semester         Int      @default(7)
+  section          String   @default("A") @db.VarChar(20)
+  class_advisor_id String?  @db.Uuid
+  room_id          String?  @db.Uuid
+  created_at       DateTime @default(now())
+  updated_at       DateTime @default(now()) @updatedAt
+
+  college       College          @relation(fields: [college_id], references: [id], onDelete: Cascade)
+  department    Department       @relation(fields: [department_id], references: [id], onDelete: Cascade)
+  program       AcademicProgram? @relation(fields: [program_id], references: [id], onDelete: SetNull)
+  class_advisor User?            @relation("ClassAdvisor", fields: [class_advisor_id], references: [id], onDelete: SetNull)
+  room          Room?            @relation(fields: [room_id], references: [id], onDelete: SetNull)
+  schedules     FacultySchedule[]
+
+  @@unique([college_id, department_id, year_of_study, semester, section])
+  @@index([college_id])
+  @@index([department_id])
+  @@index([program_id])
+  @@index([class_advisor_id])
+  @@index([room_id])
+  @@map("academic_classes")
+}
+
+
+

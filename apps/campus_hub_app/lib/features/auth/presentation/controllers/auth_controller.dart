@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/models/auth_user.dart';
 import '../../data/repositories/auth_repository_impl.dart';
 import '../../../notifications/data/notifications_repository.dart';
+import '../../../chat/data/socket_chat_service.dart';
 
 class AuthController extends AsyncNotifier<AuthUser?> {
   @override
@@ -12,7 +13,13 @@ class AuthController extends AsyncNotifier<AuthUser?> {
     final result = await repository.autoLogin();
 
     return result.when(
-      success: (user) => user,
+      success: (user) {
+        // Connect socket on successful auto-login
+        try {
+          ref.read(socketChatServiceProvider).connect();
+        } catch (_) {}
+        return user;
+      },
       failure: (_) => null,
     );
   }
@@ -25,9 +32,15 @@ class AuthController extends AsyncNotifier<AuthUser?> {
     return result.when(
       success: (user) {
         state = AsyncValue.data(user);
+        // Connect live notification and chat socket
+        try {
+          ref.read(socketChatServiceProvider).connect();
+        } catch (_) {}
         // Non-blocking device token registration
         try {
-          ref.read(notificationsRepositoryProvider).registerFcmToken('fcm_token_$email');
+          ref
+              .read(notificationsRepositoryProvider)
+              .registerFcmToken('fcm_token_$email');
         } catch (_) {}
         return true;
       },
@@ -87,8 +100,13 @@ class AuthController extends AsyncNotifier<AuthUser?> {
     try {
       final user = state.asData?.value;
       if (user != null) {
-        await ref.read(notificationsRepositoryProvider).unregisterFcmToken('fcm_token_${user.email}');
+        await ref
+            .read(notificationsRepositoryProvider)
+            .unregisterFcmToken('fcm_token_${user.email}');
       }
+    } catch (_) {}
+    try {
+      ref.read(socketChatServiceProvider).disconnect();
     } catch (_) {}
     final repository = ref.read(authRepositoryProvider);
     await repository.logout();
@@ -96,4 +114,5 @@ class AuthController extends AsyncNotifier<AuthUser?> {
   }
 }
 
-final authControllerProvider = AsyncNotifierProvider<AuthController, AuthUser?>(AuthController.new);
+final authControllerProvider =
+    AsyncNotifierProvider<AuthController, AuthUser?>(AuthController.new);

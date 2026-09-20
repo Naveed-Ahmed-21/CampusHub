@@ -5,6 +5,7 @@ import '../../../events/presentation/views/events_list_view.dart';
 import '../../../clubs/presentation/views/clubs_list_view.dart';
 import '../../../feed/presentation/views/feed_view.dart';
 import '../widgets/qr_attendance_scanner_dialog.dart';
+import '../widgets/faculty_drawer_widget.dart';
 
 class FacultyCampusView extends ConsumerStatefulWidget {
   const FacultyCampusView({super.key});
@@ -32,6 +33,7 @@ class _FacultyCampusViewState extends ConsumerState<FacultyCampusView>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      drawer: const FacultyDrawerWidget(),
       appBar: AppBar(
         title: const Text(
           'Campus Ecosystem',
@@ -57,16 +59,18 @@ class _FacultyCampusViewState extends ConsumerState<FacultyCampusView>
           tabs: const [
             Tab(icon: Icon(Icons.feed_outlined, size: 20), text: 'Feeds'),
             Tab(icon: Icon(Icons.event, size: 20), text: 'Events'),
-            Tab(icon: Icon(Icons.groups_outlined, size: 20), text: 'Clubs & Advisory'),
+            Tab(
+                icon: Icon(Icons.groups_outlined, size: 20),
+                text: 'Clubs & Advisory'),
           ],
         ),
       ),
       body: TabBarView(
         controller: _tabController,
         children: const [
-          FeedView(),
-          EventsListView(),
-          ClubsListView(),
+          FeedView(showAppBar: false),
+          EventsListView(showAppBar: false),
+          ClubsListView(showAppBar: false),
         ],
       ),
     );
