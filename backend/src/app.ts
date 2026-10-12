@@ -24,6 +24,7 @@ import { mediaRouter } from './modules/media/routes/media.routes';
 import { facultyRouter } from './modules/faculty/faculty.routes';
 import { academicsRouter } from './modules/academics/academics.routes';
 import { studentRouter } from './modules/academics/student.routes';
+import { deptAdminRouter } from './modules/dept-admin/dept-admin.routes';
 
 export const createApp = (): Application => {
   const app: Application = express();
@@ -117,6 +118,7 @@ export const createApp = (): Application => {
   app.use('/api/v1/faculty', facultyRouter);
   app.use('/api/v1/academics', academicsRouter);
   app.use('/api/v1/student', studentRouter);
+  app.use('/api/v1/dept-admin', deptAdminRouter);
 
   // Global Error Handler
   app.use(errorHandler);

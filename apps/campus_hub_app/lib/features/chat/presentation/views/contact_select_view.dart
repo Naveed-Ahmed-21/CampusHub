@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/constants/api_endpoints.dart';
 import '../providers/chat_provider.dart';
 import '../../domain/chat_models.dart';
-import '../../data/chat_repository.dart';
+import '../utils/chat_navigation_helper.dart';
+import '../../../../core/widgets/campus_back_button.dart';
+import '../../../../core/widgets/campus_app_bar.dart';
+import '../../../../core/widgets/campus_avatar.dart';
+import '../../../../core/widgets/atmospheric_background.dart';
 
 class ContactSelectView extends ConsumerStatefulWidget {
   const ContactSelectView({super.key});
@@ -29,18 +32,16 @@ class _ContactSelectViewState extends ConsumerState<ContactSelectView> {
     setState(() => _isCreatingChat = true);
 
     try {
-      final repo = ref.read(chatRepositoryProvider);
-      final room = await repo.getOrCreateDirectChat(user.id);
-      ref.invalidate(userChatRoomsProvider);
-      if (mounted) {
-        context.pushReplacement('/chat/room/${room.id}');
-      }
-    } catch (e) {
+      await ChatNavigationHelper.startOrOpenDirectChat(
+        context,
+        ref,
+        targetUserId: user.id,
+        targetUserName: user.fullName,
+        targetUserAvatar: user.avatarUrl,
+      );
+    } finally {
       if (mounted) {
         setState(() => _isCreatingChat = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to start chat: $e')),
-        );
       }
     }
   }
@@ -50,14 +51,13 @@ class _ContactSelectViewState extends ConsumerState<ContactSelectView> {
     final usersAsync = ref.watch(campusUsersProvider(_searchQuery));
     final theme = Theme.of(context);
 
-    return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
+    return AtmosphericBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: const CampusAppBar(
+          leading: CampusBackButton(),
+          title: 'New Conversation',
         ),
-        title: const Text('New Conversation'),
-      ),
       body: Column(
         children: [
           // Search Input Bar
@@ -156,25 +156,11 @@ class _ContactSelectViewState extends ConsumerState<ContactSelectView> {
                           onTap: () => _startDirectChatWithUser(user),
                           leading: Stack(
                             children: [
-                              GestureDetector(
+                              CampusAvatar(
+                                imageUrl: user.avatarUrl,
+                                name: user.fullName,
+                                radius: 22,
                                 onTap: () => context.push('/profile/${user.id}'),
-                                child: CircleAvatar(
-                                  radius: 22,
-                                  backgroundColor: theme.colorScheme.primaryContainer,
-                                  backgroundImage: user.avatarUrl != null && user.avatarUrl!.isNotEmpty
-                                      ? NetworkImage(ApiEndpoints.resolveUrl(user.avatarUrl!))
-                                      : null,
-                                  child: user.avatarUrl == null || user.avatarUrl!.isEmpty
-                                      ? Text(
-                                          user.firstName.isNotEmpty ? user.firstName[0].toUpperCase() : 'U',
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 16,
-                                            color: theme.colorScheme.onPrimaryContainer,
-                                          ),
-                                        )
-                                      : null,
-                                ),
                               ),
                               if (user.isOnline)
                                 Positioned(
@@ -256,6 +242,7 @@ class _ContactSelectViewState extends ConsumerState<ContactSelectView> {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 }

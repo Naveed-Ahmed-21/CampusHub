@@ -7,6 +7,9 @@ import '../../domain/models/post_item.dart';
 import '../widgets/feed_post_card_widget.dart';
 import '../widgets/comments_sheet.dart';
 import '../widgets/create_post_sheet.dart';
+import '../../../../core/widgets/campus_app_bar.dart';
+import '../../../../core/widgets/campus_back_button.dart';
+import '../../../../core/widgets/atmospheric_background.dart';
 
 final collaborationPostsProvider = FutureProvider.autoDispose.family<List<PostItem>, String>((ref, categoryFilter) async {
   final repo = ref.watch(feedRepositoryProvider);
@@ -59,31 +62,33 @@ class _CampusCollaborationViewState extends ConsumerState<CampusCollaborationVie
     final theme = Theme.of(context);
     final postsAsync = ref.watch(collaborationPostsProvider(_selectedCategory));
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Campus Collaboration',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+    return AtmosphericBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: CampusAppBar(
+          leading: const CampusBackButton(),
+          title: 'Campus Collaboration',
+          subtitle: 'Cross-Department Opportunities',
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.add_box_outlined),
+              tooltip: 'Create Post',
+              onPressed: _openCreatePost,
+            ),
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              tooltip: 'Refresh',
+              onPressed: () => ref.invalidate(collaborationPostsProvider),
+            ),
+          ],
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add_box_outlined),
-            tooltip: 'Create Post',
-            onPressed: _openCreatePost,
-          ),
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Refresh',
-            onPressed: () => ref.invalidate(collaborationPostsProvider),
-          ),
-        ],
-      ),
-      body: ResponsiveLayout(
-        mobile: _buildContent(context, theme, postsAsync, isDesktop: false),
-        desktop: Center(
-          child: Container(
-            constraints: const BoxConstraints(maxWidth: 750),
-            child: _buildContent(context, theme, postsAsync, isDesktop: true),
+        body: ResponsiveLayout(
+          mobile: _buildContent(context, theme, postsAsync, isDesktop: false),
+          desktop: Center(
+            child: Container(
+              constraints: const BoxConstraints(maxWidth: 750),
+              child: _buildContent(context, theme, postsAsync, isDesktop: true),
+            ),
           ),
         ),
       ),

@@ -189,4 +189,94 @@ export class ChatController {
 
     ResponseUtil.success(res, message, 'Message deleted for everyone');
   });
+
+  // ==========================================
+  // Student Chat Settings
+  // ==========================================
+  getChatSettings = asyncHandler(async (req: Request, res: Response) => {
+    const user = req.user!;
+    const settings = await this.chatService.getChatSettings(user.userId, user.role);
+    ResponseUtil.success(res, settings, 'Student chat settings retrieved');
+  });
+
+  updateChatSettings = asyncHandler(async (req: Request, res: Response) => {
+    const user = req.user!;
+    const settings = await this.chatService.updateChatSettings(user.userId, user.role, req.body);
+    ResponseUtil.success(res, settings, 'Student chat settings updated successfully');
+  });
+
+  // ==========================================
+  // Permission & Pre-Conversation Check
+  // ==========================================
+  checkChatPermission = asyncHandler(async (req: Request, res: Response) => {
+    const user = req.user!;
+    const { targetUserId } = req.params;
+    const result = await this.chatService.checkChatPermission(user.userId, targetUserId, user.collegeId);
+    ResponseUtil.success(res, result, 'Chat permission evaluated');
+  });
+
+  // ==========================================
+  // Chat Requests
+  // ==========================================
+  createChatRequest = asyncHandler(async (req: Request, res: Response) => {
+    const user = req.user!;
+    const chatRequest = await this.chatService.createChatRequest(user.userId, user.collegeId, req.body);
+    ResponseUtil.success(res, chatRequest, 'Chat request sent successfully', 201);
+  });
+
+  getIncomingRequests = asyncHandler(async (req: Request, res: Response) => {
+    const user = req.user!;
+    const requests = await this.chatService.getIncomingChatRequests(user.userId);
+    ResponseUtil.success(res, requests, 'Incoming chat requests retrieved');
+  });
+
+  getSentRequests = asyncHandler(async (req: Request, res: Response) => {
+    const user = req.user!;
+    const requests = await this.chatService.getSentChatRequests(user.userId);
+    ResponseUtil.success(res, requests, 'Sent chat requests retrieved');
+  });
+
+  acceptChatRequest = asyncHandler(async (req: Request, res: Response) => {
+    const user = req.user!;
+    const { requestId } = req.params;
+    const result = await this.chatService.acceptChatRequest(requestId, user.userId, user.collegeId);
+    ResponseUtil.success(res, result, 'Chat request accepted');
+  });
+
+  declineChatRequest = asyncHandler(async (req: Request, res: Response) => {
+    const user = req.user!;
+    const { requestId } = req.params;
+    const result = await this.chatService.declineChatRequest(requestId, user.userId);
+    ResponseUtil.success(res, result, 'Chat request declined');
+  });
+
+  cancelChatRequest = asyncHandler(async (req: Request, res: Response) => {
+    const user = req.user!;
+    const { requestId } = req.params;
+    const result = await this.chatService.cancelChatRequest(requestId, user.userId);
+    ResponseUtil.success(res, result, 'Chat request cancelled');
+  });
+
+  // ==========================================
+  // Chat-Only Blocking
+  // ==========================================
+  blockUser = asyncHandler(async (req: Request, res: Response) => {
+    const user = req.user!;
+    const { targetUserId } = req.body;
+    const block = await this.chatService.blockUser(user.userId, targetUserId);
+    ResponseUtil.success(res, block, 'User messages blocked');
+  });
+
+  unblockUser = asyncHandler(async (req: Request, res: Response) => {
+    const user = req.user!;
+    const { targetUserId } = req.body;
+    const result = await this.chatService.unblockUser(user.userId, targetUserId);
+    ResponseUtil.success(res, result, 'User messages unblocked');
+  });
+
+  getBlockedUsers = asyncHandler(async (req: Request, res: Response) => {
+    const user = req.user!;
+    const blockedUsers = await this.chatService.getBlockedUsers(user.userId);
+    ResponseUtil.success(res, blockedUsers, 'Blocked users retrieved');
+  });
 }

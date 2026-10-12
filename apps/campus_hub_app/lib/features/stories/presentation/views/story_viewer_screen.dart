@@ -1,3 +1,4 @@
+import '../../../../core/widgets/campus_avatar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/api_endpoints.dart';
@@ -250,26 +251,10 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen>
                     // User Info Bar
                     Row(
                       children: [
-                        CircleAvatar(
+                        CampusAvatar(
+                          imageUrl: currentGroup.userAvatar,
+                          name: currentGroup.userName,
                           radius: 18,
-                          backgroundColor: Colors.teal.shade700,
-                          backgroundImage: currentGroup.userAvatar != null &&
-                                  currentGroup.userAvatar!.isNotEmpty
-                              ? NetworkImage(ApiEndpoints.resolveUrl(currentGroup.userAvatar!))
-                              : null,
-                          child: currentGroup.userAvatar == null ||
-                                  currentGroup.userAvatar!.isEmpty
-                              ? Text(
-                                  currentGroup.userName.isNotEmpty
-                                      ? currentGroup.userName[0].toUpperCase()
-                                      : 'C',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 14,
-                                  ),
-                                )
-                              : null,
                         ),
                         const SizedBox(width: 10),
                         Expanded(

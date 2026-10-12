@@ -16,15 +16,19 @@ import '../../../chat/presentation/views/chat_room_view.dart';
 import '../../../feed/presentation/widgets/create_post_sheet.dart';
 import '../../../feed/presentation/widgets/feed_post_card_widget.dart';
 import '../../../feed/presentation/widgets/comments_sheet.dart';
-import '../../../../core/constants/api_endpoints.dart';
 import '../../../../shared/widgets/full_screen_image_viewer.dart';
+import '../../../../core/widgets/campus_back_button.dart';
+import '../../../../core/widgets/campus_app_bar.dart';
+import '../../../../core/widgets/campus_avatar.dart';
+import '../../../../core/widgets/atmospheric_background.dart';
+import '../../../../core/utils/app_date_formatter.dart';
 
 String formatDateTime(DateTime dt) {
-  return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+  return AppDateFormatter.formatDateTime(dt);
 }
 
 String formatTime(DateTime dt) {
-  return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+  return AppDateFormatter.formatTime(dt);
 }
 
 class ClubDetailView extends ConsumerStatefulWidget {
@@ -350,60 +354,49 @@ class _ClubDetailViewState extends ConsumerState<ClubDetailView>
     final clubAsync = ref.watch(clubDetailsProvider(widget.clubId));
     final membersAsync = ref.watch(clubMembersProvider(widget.clubId));
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Club Details'),
-      ),
-      body: clubAsync.when(
-        data: (club) {
-          final theme = Theme.of(context);
-          final currentUser = ref.watch(authControllerProvider).asData?.value;
-          final isMember = membersAsync.valueOrNull?.any((m) => m.userId == currentUser?.id) ?? false;
+    return AtmosphericBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: const CampusAppBar(
+          leading: CampusBackButton(),
+          title: 'Club Details',
+        ),
+        body: clubAsync.when(
+          data: (club) {
+            final theme = Theme.of(context);
+            final currentUser = ref.watch(authControllerProvider).asData?.value;
+            final isMember = membersAsync.valueOrNull?.any((m) => m.userId == currentUser?.id) ?? false;
 
-          return NestedScrollView(
-            headerSliverBuilder: (context, innerBoxIsScrolled) => [
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          GestureDetector(
-                            onTap: () {
-                              if (club.logoUrl != null && club.logoUrl!.isNotEmpty) {
-                                FullScreenImageViewer.openSingle(
-                                  context,
-                                  imageUrl: club.logoUrl!,
-                                  heroTag: 'club_logo_${club.id}',
-                                  title: club.name,
-                                  subtitle: club.category,
-                                );
-                              }
-                            },
-                            child: Hero(
-                              tag: 'club_logo_${club.id}',
-                              child: CircleAvatar(
+            return NestedScrollView(
+              headerSliverBuilder: (context, innerBoxIsScrolled) => [
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            GestureDetector(
+                              onTap: () {
+                                if (club.logoUrl != null && club.logoUrl!.isNotEmpty) {
+                                  FullScreenImageViewer.openSingle(
+                                    context,
+                                    imageUrl: club.logoUrl!,
+                                    heroTag: 'club_logo_${club.id}',
+                                    title: club.name,
+                                    subtitle: club.category,
+                                  );
+                                }
+                              },
+                              child: CampusAvatar(
+                                imageUrl: club.logoUrl,
+                                name: club.name,
                                 radius: 36,
-                                backgroundColor: theme.colorScheme.primaryContainer,
-                                backgroundImage: club.logoUrl != null
-                                    ? NetworkImage(ApiEndpoints.resolveUrl(club.logoUrl!))
-                                    : null,
-                                child: club.logoUrl == null
-                                    ? Text(
-                                        club.name.substring(0, 1).toUpperCase(),
-                                        style: TextStyle(
-                                          fontSize: 32,
-                                          fontWeight: FontWeight.bold,
-                                          color: theme.colorScheme.onPrimaryContainer,
-                                        ),
-                                      )
-                                    : null,
+                                heroTag: 'club_logo_${club.id}',
                               ),
                             ),
-                          ),
                           const SizedBox(width: 16),
                           Expanded(
                             child: Column(
@@ -470,6 +463,55 @@ class _ClubDetailViewState extends ConsumerState<ClubDetailView>
                           style: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 14),
                         ),
                       ],
+                      if (club.status != 'APPROVED') ...[
+                        const SizedBox(height: 14),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: (club.status == 'REJECTED' ? Colors.red : Colors.orange).withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: (club.status == 'REJECTED' ? Colors.red : Colors.orange).withValues(alpha: 0.4),
+                            ),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Icon(
+                                club.status == 'REJECTED' ? Icons.error_outline : Icons.access_time_rounded,
+                                color: club.status == 'REJECTED' ? Colors.red : Colors.orange.shade800,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      club.status == 'REJECTED' ? 'Club Proposal Rejected' : 'Pending Administrative Approval',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13.5,
+                                        color: club.status == 'REJECTED' ? Colors.red : Colors.orange.shade800,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 3),
+                                    Text(
+                                      club.status == 'REJECTED'
+                                          ? (club.rejectionReason ?? 'This club proposal was declined by the college administrator.')
+                                          : 'This club proposal is currently under administrative review. Once approved, the club will appear in the Campus directory, and member joining, feed posting, events, and group conversations will be activated.',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: theme.colorScheme.onSurfaceVariant,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 16),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -487,20 +529,38 @@ class _ClubDetailViewState extends ConsumerState<ClubDetailView>
                               ),
                             ],
                           ),
-                          isMember
-                              ? OutlinedButton.icon(
-                                  icon: Icon(Icons.exit_to_app, size: 16, color: theme.colorScheme.error),
-                                  label: Text('Leave Club', style: TextStyle(color: theme.colorScheme.error)),
-                                  style: OutlinedButton.styleFrom(
-                                    side: BorderSide(color: theme.colorScheme.error.withValues(alpha: 0.5)),
+                          if (club.status == 'APPROVED') ...[
+                            isMember
+                                ? OutlinedButton.icon(
+                                    icon: Icon(Icons.exit_to_app, size: 16, color: theme.colorScheme.error),
+                                    label: Text('Leave Club', style: TextStyle(color: theme.colorScheme.error)),
+                                    style: OutlinedButton.styleFrom(
+                                      side: BorderSide(color: theme.colorScheme.error.withValues(alpha: 0.5)),
+                                    ),
+                                    onPressed: _isActionLoading ? null : _leaveClub,
+                                  )
+                                : FilledButton.icon(
+                                    icon: const Icon(Icons.person_add, size: 16),
+                                    label: const Text('Join Club'),
+                                    onPressed: _isActionLoading ? null : _joinClub,
                                   ),
-                                  onPressed: _isActionLoading ? null : _leaveClub,
-                                )
-                              : FilledButton.icon(
-                                  icon: const Icon(Icons.person_add, size: 16),
-                                  label: const Text('Join Club'),
-                                  onPressed: _isActionLoading ? null : _joinClub,
+                          ] else ...[
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                club.status == 'REJECTED' ? 'Proposal Rejected' : 'Under Review',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: club.status == 'REJECTED' ? Colors.red : Colors.orange.shade800,
                                 ),
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ],
@@ -537,13 +597,13 @@ class _ClubDetailViewState extends ConsumerState<ClubDetailView>
                 _buildMembersTab(club),
 
                 // 3. Club Events Tab
-                _buildEventsTab(),
+                _buildEventsTab(club),
 
                 // 4. Club Resources Tab
                 _buildResourcesTab(),
 
                 // 5. Club Real-time Chat Tab
-                _buildChatTab(isMember),
+                _buildChatTab(isMember, club),
               ],
             ),
           );
@@ -551,8 +611,9 @@ class _ClubDetailViewState extends ConsumerState<ClubDetailView>
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, stack) => Center(child: Text('Error loading club: $err')),
       ),
-    );
-  }
+    ),
+  );
+}
 
   // 1. Feed Tab
   Widget _buildFeedTab(Club club) {
@@ -560,12 +621,14 @@ class _ClubDetailViewState extends ConsumerState<ClubDetailView>
     final theme = Theme.of(context);
 
     return Scaffold(
-      floatingActionButton: FloatingActionButton.extended(
-        heroTag: null,
-        onPressed: () => _showCreatePostSheet(club),
-        icon: const Icon(Icons.add_comment),
-        label: const Text('Post to Club'),
-      ),
+      floatingActionButton: club.status == 'APPROVED'
+          ? FloatingActionButton.extended(
+              heroTag: null,
+              onPressed: () => _showCreatePostSheet(club),
+              icon: const Icon(Icons.add_comment),
+              label: const Text('Post to Club'),
+            )
+          : null,
       body: feedAsync.when(
         data: (posts) {
           if (posts.isEmpty) {
@@ -582,13 +645,19 @@ class _ClubDetailViewState extends ConsumerState<ClubDetailView>
                         const SizedBox(height: 48),
                         Icon(Icons.dynamic_feed_outlined, size: 56, color: theme.colorScheme.outline),
                         const SizedBox(height: 12),
-                        const Text('No announcements or feed posts yet!'),
-                        const SizedBox(height: 16),
-                        FilledButton.icon(
-                          onPressed: () => _showCreatePostSheet(club),
-                          icon: const Icon(Icons.add),
-                          label: const Text('Create First Club Post'),
+                        Text(
+                          club.status == 'APPROVED'
+                              ? 'No announcements or feed posts yet!'
+                              : 'Club feed posts will become available once approved.',
                         ),
+                        if (club.status == 'APPROVED') ...[
+                          const SizedBox(height: 16),
+                          FilledButton.icon(
+                            onPressed: () => _showCreatePostSheet(club),
+                            icon: const Icon(Icons.add),
+                            label: const Text('Create First Club Post'),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -748,13 +817,10 @@ class _ClubDetailViewState extends ConsumerState<ClubDetailView>
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Row(
                   children: [
-                    CircleAvatar(
+                    CampusAvatar(
+                      imageUrl: member.avatarUrl,
+                      name: member.fullName,
                       radius: 20,
-                      backgroundColor: theme.colorScheme.primaryContainer,
-                      child: Text(
-                        member.firstName.isNotEmpty ? member.firstName[0].toUpperCase() : 'M',
-                        style: TextStyle(fontWeight: FontWeight.bold, color: theme.colorScheme.primary),
-                      ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -917,20 +983,10 @@ class _ClubDetailViewState extends ConsumerState<ClubDetailView>
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                           child: Row(
                             children: [
-                              CircleAvatar(
+                              CampusAvatar(
+                                imageUrl: member.avatarUrl,
+                                name: member.fullName,
                                 radius: 22,
-                                backgroundColor: isLeadOrCreator
-                                    ? theme.colorScheme.primaryContainer
-                                    : theme.colorScheme.surfaceContainerHighest,
-                                child: Text(
-                                  member.firstName.isNotEmpty ? member.firstName[0].toUpperCase() : 'M',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: isLeadOrCreator
-                                        ? theme.colorScheme.primary
-                                        : theme.colorScheme.onSurfaceVariant,
-                                  ),
-                                ),
                               ),
                               const SizedBox(width: 12),
                               Expanded(
@@ -1010,17 +1066,19 @@ class _ClubDetailViewState extends ConsumerState<ClubDetailView>
   }
 
   // 3. Events Tab
-  Widget _buildEventsTab() {
+  Widget _buildEventsTab(Club club) {
     final eventsAsync = ref.watch(clubEventsProvider(widget.clubId));
     final theme = Theme.of(context);
 
     return Scaffold(
-      floatingActionButton: FloatingActionButton.extended(
-        heroTag: null,
-        onPressed: _showCreateEventDialog,
-        icon: const Icon(Icons.event_available),
-        label: const Text('Add Event'),
-      ),
+      floatingActionButton: club.status == 'APPROVED'
+          ? FloatingActionButton.extended(
+              heroTag: null,
+              onPressed: _showCreateEventDialog,
+              icon: const Icon(Icons.event_available),
+              label: const Text('Add Event'),
+            )
+          : null,
       body: eventsAsync.when(
         data: (events) {
           if (events.isEmpty) {
@@ -1032,7 +1090,11 @@ class _ClubDetailViewState extends ConsumerState<ClubDetailView>
                   children: [
                     Icon(Icons.event_busy_outlined, size: 56, color: theme.colorScheme.outline),
                     const SizedBox(height: 12),
-                    const Text('No club events scheduled yet.'),
+                    Text(
+                      club.status == 'APPROVED'
+                          ? 'No club events scheduled yet.'
+                          : 'Club event scheduling is disabled until the club is approved.',
+                    ),
                   ],
                 ),
               ),
@@ -1141,8 +1203,34 @@ class _ClubDetailViewState extends ConsumerState<ClubDetailView>
   }
 
   // 5. Chat Tab
-  Widget _buildChatTab(bool isMember) {
+  Widget _buildChatTab(bool isMember, Club club) {
     final theme = Theme.of(context);
+
+    if (club.status != 'APPROVED') {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.lock_clock, size: 64, color: Colors.orange.shade400),
+              const SizedBox(height: 16),
+              const Text(
+                'Club Chat Locked',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Official group discussions will be unlocked once this club is approved by college administration.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     if (!isMember) {
       return Center(
         child: Padding(
@@ -1229,7 +1317,7 @@ class _SliverTabBarDelegate extends SliverPersistentHeaderDelegate {
 
   @override
   bool shouldRebuild(_SliverTabBarDelegate oldDelegate) {
-    return false;
+    return true;
   }
 }
 

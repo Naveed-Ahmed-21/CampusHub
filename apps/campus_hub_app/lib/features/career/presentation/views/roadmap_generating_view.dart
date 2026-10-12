@@ -5,6 +5,9 @@ import '../../data/career_repository.dart';
 import '../providers/career_provider.dart';
 import '../theme/career_theme.dart';
 import '../widgets/career_shared_widgets.dart';
+import '../../../../core/widgets/campus_back_button.dart';
+import '../../../../core/widgets/campus_app_bar.dart';
+import '../../../../core/theme/app_colors.dart';
 import 'career_roadmap_view.dart';
 
 class RoadmapGeneratingView extends ConsumerStatefulWidget {
@@ -130,15 +133,15 @@ class _RoadmapGeneratingViewState extends ConsumerState<RoadmapGeneratingView> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryTextColor = isDark ? Colors.white : AppColors.primaryText;
+    final secondaryTextColor = isDark ? AppColors.darkSecondaryText : AppColors.secondaryText;
+
     return Scaffold(
-      backgroundColor: CareerTheme.background,
-      appBar: AppBar(
-        backgroundColor: CareerTheme.background,
-        elevation: 0,
-        leading: BackButton(
-          color: Colors.white,
-          onPressed: () => Navigator.of(context).pop(),
-        ),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      appBar: const CampusAppBar(
+        title: 'Building Your Roadmap',
+        leading: CampusBackButton(),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -147,20 +150,20 @@ class _RoadmapGeneratingViewState extends ConsumerState<RoadmapGeneratingView> {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               // Title & Subtitle
-              const Text(
+              Text(
                 'Building Your Roadmap',
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.w800,
-                  color: Colors.white,
+                  color: primaryTextColor,
                   letterSpacing: -0.3,
                 ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 6),
-              const Text(
+              Text(
                 'Our AI is analyzing your goals and creating a personalized curriculum...',
-                style: TextStyle(fontSize: 13, color: CareerTheme.textMuted, height: 1.4),
+                style: TextStyle(fontSize: 13, color: secondaryTextColor, height: 1.4),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 32),
@@ -179,14 +182,14 @@ class _RoadmapGeneratingViewState extends ConsumerState<RoadmapGeneratingView> {
               if (_errorMessage != null)
                 CareerGlassCard(
                   padding: const EdgeInsets.all(16),
-                  borderColor: CareerTheme.error.withValues(alpha: 0.4),
+                  borderColor: AppColors.error.withValues(alpha: 0.4),
                   child: Column(
                     children: [
-                      const Icon(Icons.error_outline_rounded, color: CareerTheme.error, size: 36),
+                      const Icon(Icons.error_outline_rounded, color: AppColors.error, size: 36),
                       const SizedBox(height: 10),
                       Text(
                         _errorMessage!,
-                        style: const TextStyle(fontSize: 13, color: Colors.white70),
+                        style: TextStyle(fontSize: 13, color: secondaryTextColor),
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 16),
@@ -221,18 +224,18 @@ class _RoadmapGeneratingViewState extends ConsumerState<RoadmapGeneratingView> {
                               width: 22,
                               height: 22,
                               decoration: const BoxDecoration(
-                                color: CareerTheme.success,
+                                color: AppColors.success,
                                 shape: BoxShape.circle,
                               ),
                               child: const Icon(Icons.check, size: 14, color: Colors.white),
                             )
                           else if (isCurrent)
-                            const SizedBox(
+                            SizedBox(
                               width: 22,
                               height: 22,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2.2,
-                                color: CareerTheme.primaryCyan,
+                                color: isDark ? Colors.white : AppColors.pureBlack,
                               ),
                             )
                           else
@@ -241,7 +244,10 @@ class _RoadmapGeneratingViewState extends ConsumerState<RoadmapGeneratingView> {
                               height: 22,
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                border: Border.all(color: CareerTheme.locked, width: 1.5),
+                                border: Border.all(
+                                  color: isDark ? AppColors.darkBorder : const Color(0xFFE2E8F0),
+                                  width: 1.5,
+                                ),
                               ),
                             ),
                           const SizedBox(width: 14),
@@ -252,8 +258,8 @@ class _RoadmapGeneratingViewState extends ConsumerState<RoadmapGeneratingView> {
                                 fontSize: 13,
                                 fontWeight: isCurrent ? FontWeight.w700 : FontWeight.w500,
                                 color: isDone
-                                    ? Colors.white
-                                    : (isCurrent ? CareerTheme.primaryCyan : CareerTheme.textSubtle),
+                                    ? primaryTextColor
+                                    : (isCurrent ? primaryTextColor : secondaryTextColor),
                               ),
                             ),
                           ),
@@ -268,13 +274,13 @@ class _RoadmapGeneratingViewState extends ConsumerState<RoadmapGeneratingView> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
+                  Text(
                     'Progress',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: CareerTheme.textMuted),
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: secondaryTextColor),
                   ),
                   Text(
                     '${_progressPercentage.round()}%',
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: CareerTheme.primaryCyan),
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: primaryTextColor),
                   ),
                 ],
               ),
@@ -284,8 +290,10 @@ class _RoadmapGeneratingViewState extends ConsumerState<RoadmapGeneratingView> {
                 child: LinearProgressIndicator(
                   value: _progressPercentage / 100.0,
                   minHeight: 8,
-                  backgroundColor: CareerTheme.surfaceElevated,
-                  valueColor: const AlwaysStoppedAnimation<Color>(CareerTheme.primaryCyan),
+                  backgroundColor: isDark ? AppColors.darkElevatedSurface : const Color(0xFFE2E8F0),
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    isDark ? Colors.white : AppColors.pureBlack,
+                  ),
                 ),
               ),
               const SizedBox(height: 28),
@@ -294,23 +302,23 @@ class _RoadmapGeneratingViewState extends ConsumerState<RoadmapGeneratingView> {
               CareerGlassCard(
                 padding: const EdgeInsets.all(14),
                 borderRadius: CareerTheme.radiusMedium,
-                backgroundColor: CareerTheme.surfaceElevated.withValues(alpha: 0.6),
-                child: const Row(
+                backgroundColor: isDark ? AppColors.darkElevatedSurface.withValues(alpha: 0.6) : const Color(0xFFF7F9F9),
+                child: Row(
                   children: [
-                    Text('💡', style: TextStyle(fontSize: 18)),
-                    SizedBox(width: 12),
+                    const Text('💡', style: TextStyle(fontSize: 18)),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             'This usually takes 20-40 seconds',
-                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white),
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: primaryTextColor),
                           ),
-                          SizedBox(height: 2),
+                          const SizedBox(height: 2),
                           Text(
                             "We're searching real-time resources from YouTube and trusted documentation.",
-                            style: TextStyle(fontSize: 11, color: CareerTheme.textMuted, height: 1.3),
+                            style: TextStyle(fontSize: 11, color: secondaryTextColor, height: 1.3),
                           ),
                         ],
                       ),

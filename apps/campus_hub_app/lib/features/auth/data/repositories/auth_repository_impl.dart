@@ -81,7 +81,106 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
+  Future<ApiResult<Map<String, dynamic>>> verifyForgotPasswordOtp({
+    required String email,
+    required String otp,
+  }) async {
+    try {
+      final res = await _remoteDataSource.verifyForgotPasswordOtp(email: email, otp: otp);
+      return ApiResult.success(res);
+    } on DioException catch (e) {
+      return ApiResult.failure(ApiException.fromDioException(e));
+    } catch (e) {
+      return ApiResult.failure(ApiException(message: e.toString()));
+    }
+  }
+
+  @override
+  Future<ApiResult<String>> resetPassword({
+    required String token,
+    required String newPassword,
+  }) async {
+    try {
+      final message = await _remoteDataSource.resetPassword(token: token, newPassword: newPassword);
+      return ApiResult.success(message);
+    } on DioException catch (e) {
+      return ApiResult.failure(ApiException.fromDioException(e));
+    } catch (e) {
+      return ApiResult.failure(ApiException(message: e.toString()));
+    }
+  }
+
+  @override
+  Future<ApiResult<Map<String, dynamic>>> checkStatus({required String email}) async {
+    try {
+      final res = await _remoteDataSource.checkStatus(email);
+      return ApiResult.success(res);
+    } on DioException catch (e) {
+      return ApiResult.failure(ApiException.fromDioException(e));
+    } catch (e) {
+      return ApiResult.failure(ApiException(message: e.toString()));
+    }
+  }
+
+  @override
+  Future<ApiResult<Map<String, dynamic>>> sendFirstLoginOtp({required String email}) async {
+    try {
+      final res = await _remoteDataSource.sendFirstLoginOtp(email);
+      return ApiResult.success(res);
+    } on DioException catch (e) {
+      return ApiResult.failure(ApiException.fromDioException(e));
+    } catch (e) {
+      return ApiResult.failure(ApiException(message: e.toString()));
+    }
+  }
+
+  @override
+  Future<ApiResult<Map<String, dynamic>>> verifyFirstLoginOtp({
+    required String email,
+    required String otp,
+  }) async {
+    try {
+      final res = await _remoteDataSource.verifyFirstLoginOtp(email, otp);
+      return ApiResult.success(res);
+    } on DioException catch (e) {
+      return ApiResult.failure(ApiException.fromDioException(e));
+    } catch (e) {
+      return ApiResult.failure(ApiException(message: e.toString()));
+    }
+  }
+
+  @override
+  Future<ApiResult<AuthUser>> setupPassword({
+    required String email,
+    required String newPassword,
+    String? token,
+    String? otp,
+  }) async {
+    try {
+      final res = await _remoteDataSource.setupPassword(
+        email: email,
+        newPassword: newPassword,
+        token: token,
+        otp: otp,
+      );
+      final user = AuthUser.fromJson(res['user']);
+      final tokens = res['tokens'];
+
+      await _storage.saveAccessToken(tokens['accessToken'] ?? tokens['access_token']);
+      await _storage.saveRefreshToken(tokens['refreshToken'] ?? tokens['refresh_token']);
+      await _storage.saveUserId(user.id);
+
+      return ApiResult.success(user);
+    } on DioException catch (e) {
+      return ApiResult.failure(ApiException.fromDioException(e));
+    } catch (e) {
+      return ApiResult.failure(ApiException(message: e.toString()));
+    }
+  }
+
+  @override
   Future<ApiResult<AuthUser?>> autoLogin() async {
+
     try {
       final token = await _storage.getAccessToken();
       if (token == null || token.isEmpty) {

@@ -81,14 +81,10 @@ class ProfileRepositoryImpl implements ProfileRepository {
     try {
       final profile = await _remote.addSkill(skillName, proficiency);
       return ApiResult.success(profile);
-    } catch (_) {
-      // Mock fallback
-      final current = await _remote.fetchProfile();
-      final newSkills = [
-        ...current.skills,
-        SkillItem(id: DateTime.now().millisecondsSinceEpoch.toString(), skillName: skillName, proficiency: proficiency)
-      ];
-      return ApiResult.success(current.copyWith(skills: newSkills));
+    } on DioException catch (e) {
+      return ApiResult.failure(ApiException.fromDioException(e));
+    } catch (e) {
+      return ApiResult.failure(ApiException(message: e.toString()));
     }
   }
 
@@ -97,10 +93,10 @@ class ProfileRepositoryImpl implements ProfileRepository {
     try {
       final profile = await _remote.removeSkill(skillId);
       return ApiResult.success(profile);
-    } catch (_) {
-      final current = await _remote.fetchProfile();
-      final newSkills = current.skills.where((s) => s.id != skillId).toList();
-      return ApiResult.success(current.copyWith(skills: newSkills));
+    } on DioException catch (e) {
+      return ApiResult.failure(ApiException.fromDioException(e));
+    } catch (e) {
+      return ApiResult.failure(ApiException(message: e.toString()));
     }
   }
 
@@ -119,19 +115,10 @@ class ProfileRepositoryImpl implements ProfileRepository {
         repoUrl: repoUrl,
       );
       return ApiResult.success(profile);
-    } catch (_) {
-      final current = await _remote.fetchProfile();
-      final newProjects = [
-        ...current.projects,
-        ProjectItem(
-          id: DateTime.now().millisecondsSinceEpoch.toString(),
-          title: title,
-          description: description,
-          projectUrl: projectUrl,
-          repoUrl: repoUrl,
-        )
-      ];
-      return ApiResult.success(current.copyWith(projects: newProjects));
+    } on DioException catch (e) {
+      return ApiResult.failure(ApiException.fromDioException(e));
+    } catch (e) {
+      return ApiResult.failure(ApiException(message: e.toString()));
     }
   }
 
@@ -140,10 +127,10 @@ class ProfileRepositoryImpl implements ProfileRepository {
     try {
       final profile = await _remote.removeProject(projectId);
       return ApiResult.success(profile);
-    } catch (_) {
-      final current = await _remote.fetchProfile();
-      final newProjects = current.projects.where((p) => p.id != projectId).toList();
-      return ApiResult.success(current.copyWith(projects: newProjects));
+    } on DioException catch (e) {
+      return ApiResult.failure(ApiException.fromDioException(e));
+    } catch (e) {
+      return ApiResult.failure(ApiException(message: e.toString()));
     }
   }
 

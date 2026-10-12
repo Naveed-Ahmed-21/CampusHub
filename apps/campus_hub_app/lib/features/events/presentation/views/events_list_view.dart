@@ -3,6 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/events_provider.dart';
 import '../../data/events_repository.dart';
 import '../../domain/event_models.dart';
+import '../../../../core/widgets/campus_app_bar.dart';
+import '../../../../core/widgets/campus_back_button.dart';
+import '../../../../core/widgets/campus_top_notification.dart';
+import '../../../../core/utils/app_date_formatter.dart';
 import 'create_event_dialog.dart';
 import 'qr_ticket_dialog.dart';
 
@@ -67,13 +71,63 @@ class _EventsListViewState extends ConsumerState<EventsListView>
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text('Registration error: $e'),
-              backgroundColor: Colors.red),
+        CampusTopNotification.showError(
+          context,
+          title: 'Registration Error',
+          message: e.toString().replaceAll('Exception: ', ''),
         );
       }
     }
+  }
+
+  Widget _buildScopeTabBar(ThemeData theme) {
+    final isDark = theme.brightness == Brightness.dark;
+    return Container(
+      height: 42,
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: isDark
+            ? theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4)
+            : const Color(0xFFF1F5F9),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: isDark ? 0.2 : 0.4),
+        ),
+      ),
+      child: TabBar(
+        controller: _scopeTabController,
+        dividerColor: Colors.transparent,
+        indicatorSize: TabBarIndicatorSize.tab,
+        labelColor: Colors.white,
+        unselectedLabelColor: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
+        labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 11.5),
+        unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 11.5),
+        indicator: BoxDecoration(
+          borderRadius: BorderRadius.circular(11),
+          gradient: LinearGradient(
+            colors: [
+              theme.colorScheme.primary,
+              theme.colorScheme.primary.withValues(alpha: 0.85),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: theme.colorScheme.primary.withValues(alpha: 0.3),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        tabs: const [
+          Tab(text: 'All'),
+          Tab(text: 'College'),
+          Tab(text: 'Department'),
+          Tab(text: 'Clubs'),
+        ],
+      ),
+    );
   }
 
   @override
@@ -90,8 +144,9 @@ class _EventsListViewState extends ConsumerState<EventsListView>
 
     return Scaffold(
       appBar: widget.showAppBar
-          ? AppBar(
-              title: const Text('Campus Events'),
+          ? CampusAppBar(
+              title: 'Campus Events',
+              leading: const CampusBackButton(),
               actions: [
                 IconButton(
                   icon: Icon(
@@ -110,17 +165,6 @@ class _EventsListViewState extends ConsumerState<EventsListView>
                   },
                 ),
               ],
-              bottom: TabBar(
-                controller: _scopeTabController,
-                labelColor: theme.colorScheme.primary,
-                unselectedLabelColor: Colors.grey,
-                tabs: const [
-                  Tab(text: 'All Events'),
-                  Tab(text: 'College'),
-                  Tab(text: 'Dept'),
-                  Tab(text: 'Clubs'),
-                ],
-              ),
             )
           : null,
       floatingActionButton: FloatingActionButton.extended(
@@ -131,47 +175,57 @@ class _EventsListViewState extends ConsumerState<EventsListView>
       ),
       body: Column(
         children: [
-          if (!widget.showAppBar)
-            Container(
-              color: theme.scaffoldBackgroundColor,
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TabBar(
-                      controller: _scopeTabController,
-                      labelColor: theme.colorScheme.primary,
-                      unselectedLabelColor: Colors.grey,
-                      tabs: const [
-                        Tab(text: 'All Events'),
-                        Tab(text: 'College'),
-                        Tab(text: 'Dept'),
-                        Tab(text: 'Clubs'),
-                      ],
-                    ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 10, 14, 8),
+            child: widget.showAppBar
+                ? _buildScopeTabBar(theme)
+                : Row(
+                    children: [
+                      Expanded(
+                        child: _buildScopeTabBar(theme),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        height: 42,
+                        decoration: BoxDecoration(
+                          color: theme.brightness == Brightness.dark
+                              ? theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4)
+                              : const Color(0xFFF1F5F9),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: theme.colorScheme.outlineVariant.withValues(
+                              alpha: theme.brightness == Brightness.dark ? 0.2 : 0.4,
+                            ),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              visualDensity: VisualDensity.compact,
+                              icon: Icon(
+                                _isCalendarView ? Icons.view_list : Icons.calendar_month,
+                                size: 18,
+                                color: theme.colorScheme.primary,
+                              ),
+                              tooltip: _isCalendarView ? 'Switch to List' : 'Switch to Calendar',
+                              onPressed: () => setState(() => _isCalendarView = !_isCalendarView),
+                            ),
+                            IconButton(
+                              visualDensity: VisualDensity.compact,
+                              icon: const Icon(Icons.refresh, size: 18),
+                              tooltip: 'Refresh Events',
+                              onPressed: () {
+                                ref.invalidate(eventsListProvider);
+                                ref.invalidate(userEventRegistrationsProvider);
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                  IconButton(
-                    icon: Icon(
-                        _isCalendarView
-                            ? Icons.view_list
-                            : Icons.calendar_month,
-                        size: 20),
-                    tooltip: _isCalendarView
-                        ? 'Switch to List'
-                        : 'Switch to Calendar',
-                    onPressed: () =>
-                        setState(() => _isCalendarView = !_isCalendarView),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.refresh, size: 20),
-                    onPressed: () {
-                      ref.invalidate(eventsListProvider);
-                      ref.invalidate(userEventRegistrationsProvider);
-                    },
-                  ),
-                ],
-              ),
-            ),
+          ),
           Expanded(
             child: _isCalendarView
                 ? _buildCalendarView(eventsAsync.valueOrNull ?? [])
@@ -346,7 +400,7 @@ class _EventsListViewState extends ConsumerState<EventsListView>
                     const Icon(Icons.access_time, size: 16, color: Colors.grey),
                     const SizedBox(width: 4),
                     Text(
-                      '${event.startTime.hour}:${event.startTime.minute.toString().padLeft(2, '0')}',
+                      AppDateFormatter.formatTime(event.startTime),
                       style:
                           TextStyle(color: Colors.grey.shade700, fontSize: 13),
                     ),
@@ -448,7 +502,7 @@ class _EventsListViewState extends ConsumerState<EventsListView>
                       title: Text(event.title,
                           style: const TextStyle(fontWeight: FontWeight.bold)),
                       subtitle: Text(
-                          '${event.venue ?? 'Campus'} • ${event.startTime.hour}:${event.startTime.minute.toString().padLeft(2, '0')}'),
+                          '${event.venue ?? 'Campus'} • ${AppDateFormatter.formatTime(event.startTime)} • ${AppDateFormatter.formatDate(event.startTime)}'),
                     );
                   },
                 ),

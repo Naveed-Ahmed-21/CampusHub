@@ -8,6 +8,11 @@ import '../../data/academics_remote_datasource.dart';
 import '../../domain/models/academic_models.dart';
 import '../../../faculty/domain/models/faculty_models.dart';
 import '../../../chat/data/chat_repository.dart';
+import '../../../../core/widgets/campus_back_button.dart';
+import '../../../../core/widgets/campus_app_bar.dart';
+import '../../../../core/utils/app_date_formatter.dart';
+import '../../../../core/services/campus_download_service.dart';
+import '../../../../core/services/file_open_service.dart';
 
 class StudentSubjectDetailView extends ConsumerStatefulWidget {
   final String subjectId;
@@ -77,19 +82,16 @@ class _StudentSubjectDetailViewState
         .read(academicsRemoteDatasourceProvider)
         .recordResourceView(resource.id);
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          duration: const Duration(seconds: 4),
-          backgroundColor: Colors.teal.shade800,
-          content: Text(
-              'Opening resource: ${resource.title}\nURL: ${resource.fileUrl}'),
-          action: SnackBarAction(
-            label: 'DISMISS',
-            textColor: Colors.white,
-            onPressed: () {},
-          ),
-        ),
-      );
+      if (resource.fileUrl.startsWith('http')) {
+        await CampusDownloadService.downloadResource(
+          context: context,
+          fileUrl: resource.fileUrl,
+          fileName: '${resource.title}.${resource.fileType.toLowerCase().replaceAll('.', '')}',
+          subFolder: 'AcademicResources',
+        );
+      } else {
+        await FileOpenService.openLocalFile(resource.fileUrl, context: context);
+      }
     }
   }
 
@@ -99,11 +101,11 @@ class _StudentSubjectDetailViewState
         .read(academicsRemoteDatasourceProvider)
         .recordResourceDownload(resource.id);
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: Colors.blue.shade800,
-          content: Text('Download started for: ${resource.title}'),
-        ),
+      await CampusDownloadService.downloadResource(
+        context: context,
+        fileUrl: resource.fileUrl,
+        fileName: '${resource.title}.${resource.fileType.toLowerCase().replaceAll('.', '')}',
+        subFolder: 'AcademicResources',
       );
     }
   }
@@ -117,23 +119,10 @@ class _StudentSubjectDetailViewState
       value: detailAsync,
       data: (subject) {
         return Scaffold(
-          appBar: AppBar(
-            title: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  subject.name,
-                  style: const TextStyle(
-                      fontWeight: FontWeight.bold, fontSize: 16),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                Text(
-                  '${subject.code} • ${subject.semester} • Section ${subject.section}',
-                  style: const TextStyle(fontSize: 11, color: Colors.grey),
-                ),
-              ],
-            ),
+          appBar: CampusAppBar(
+            leading: const CampusBackButton(),
+            title: subject.name,
+            subtitle: '${subject.code} • ${subject.semester} • Section ${subject.section}',
             actions: [
               IconButton(
                 icon: const Icon(Icons.refresh),
@@ -145,41 +134,6 @@ class _StudentSubjectDetailViewState
               ),
               const SizedBox(width: 8),
             ],
-            bottom: TabBar(
-              controller: _tabController,
-              isScrollable: true,
-              tabAlignment: TabAlignment.start,
-              tabs: [
-                Tab(
-                  icon: const Icon(Icons.layers_outlined, size: 18),
-                  text: 'Units & Materials (${subject.allResources.length})',
-                ),
-                const Tab(
-                  icon: Icon(Icons.menu_book_outlined, size: 18),
-                  text: 'Course Syllabus',
-                ),
-                const Tab(
-                  icon: Icon(Icons.assignment_outlined, size: 18),
-                  text: 'Assignments',
-                ),
-                const Tab(
-                  icon: Icon(Icons.quiz_outlined, size: 18),
-                  text: 'Assessments',
-                ),
-                const Tab(
-                  icon: Icon(Icons.how_to_reg_outlined, size: 18),
-                  text: 'Attendance',
-                ),
-                const Tab(
-                  icon: Icon(Icons.person_outline, size: 18),
-                  text: 'Faculty & Office Hours',
-                ),
-                Tab(
-                  icon: const Icon(Icons.campaign_outlined, size: 18),
-                  text: 'Announcements (${subject.announcements.length})',
-                ),
-              ],
-            ),
           ),
           body: ResponsiveLayout(
             mobile: _buildTabBarViews(context, subject),
@@ -197,10 +151,81 @@ class _StudentSubjectDetailViewState
 
   Widget _buildTabBarViews(
       BuildContext context, AcademicSubjectDetailModel subject) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Column(
       children: [
         // Subject Quick Header Banner
         _buildHeroBanner(context, subject),
+
+        // iOS Frosted Pill TabBar
+        Padding(
+          padding: const EdgeInsets.fromLTRB(14, 6, 14, 8),
+          child: Container(
+            height: 42,
+            padding: const EdgeInsets.all(3),
+            decoration: BoxDecoration(
+              color: isDark
+                  ? theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4)
+                  : const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: theme.colorScheme.outlineVariant.withValues(alpha: isDark ? 0.2 : 0.4),
+              ),
+            ),
+            child: TabBar(
+              controller: _tabController,
+              isScrollable: true,
+              tabAlignment: TabAlignment.start,
+              dividerColor: Colors.transparent,
+              indicatorSize: TabBarIndicatorSize.tab,
+              labelColor: Colors.white,
+              unselectedLabelColor: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
+              labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+              unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 12),
+              indicator: BoxDecoration(
+                borderRadius: BorderRadius.circular(11),
+                gradient: LinearGradient(
+                  colors: [
+                    theme.colorScheme.primary,
+                    theme.colorScheme.primary.withValues(alpha: 0.85),
+                  ],
+                ),
+              ),
+              tabs: [
+                Tab(
+                  icon: const Icon(Icons.layers_outlined, size: 16),
+                  text: 'Units & Materials (${subject.allResources.length})',
+                ),
+                const Tab(
+                  icon: Icon(Icons.menu_book_outlined, size: 16),
+                  text: 'Course Syllabus',
+                ),
+                const Tab(
+                  icon: Icon(Icons.assignment_outlined, size: 16),
+                  text: 'Assignments',
+                ),
+                const Tab(
+                  icon: Icon(Icons.quiz_outlined, size: 16),
+                  text: 'Assessments',
+                ),
+                const Tab(
+                  icon: Icon(Icons.how_to_reg_outlined, size: 16),
+                  text: 'Attendance',
+                ),
+                const Tab(
+                  icon: Icon(Icons.person_outline, size: 16),
+                  text: 'Faculty & Office Hours',
+                ),
+                Tab(
+                  icon: const Icon(Icons.campaign_outlined, size: 16),
+                  text: 'Announcements (${subject.announcements.length})',
+                ),
+              ],
+            ),
+          ),
+        ),
 
         // Tabs Content
         Expanded(
@@ -1101,10 +1126,8 @@ class _StudentSubjectDetailViewState
     AcademicSubjectDetailModel subject,
   ) {
     final theme = Theme.of(context);
-    final dateStr =
-        '${announcement.createdAt.day.toString().padLeft(2, '0')}/${announcement.createdAt.month.toString().padLeft(2, '0')}/${announcement.createdAt.year}';
-    final timeStr =
-        '${announcement.createdAt.hour.toString().padLeft(2, '0')}:${announcement.createdAt.minute.toString().padLeft(2, '0')}';
+    final dateStr = AppDateFormatter.formatDate(announcement.createdAt);
+    final timeStr = AppDateFormatter.formatTime(announcement.createdAt);
 
     showModalBottomSheet(
       context: context,

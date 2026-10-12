@@ -4,60 +4,85 @@ import 'package:flutter/material.dart';
 /// Inspired by the Apple-grade dark glassmorphism reference specification.
 abstract class CareerTheme {
   // Background & Surface Palettes
-  static const Color background = Color(0xFF070B14); // Deep Obsidian Navy
-  static const Color surface = Color(0xFF101827); // Dark Glass Surface
-  static const Color surfaceSecondary = Color(0xFF162033); // Elevated Glass Surface
-  static const Color surfaceElevated = Color(0xFF1E293B); // High-contrast Container
-  static const Color surfaceMuted = Color(0xFF0F172A); // Slate 900
+  static const Color background = Color(0xFF000000); // Pure deep black
+  static const Color surface = Color(0xFF16181C); // Elevated Dark Surface
+  static const Color surfaceSecondary = Color(0xFF202327); // Secondary Container
+  static const Color surfaceElevated = Color(0xFF272C30); // High-contrast Container
+  static const Color surfaceMuted = Color(0xFF16181C);
 
   // Primary & Accent Brand Colors
-  static const Color primaryCyan = Color(0xFF38BDF8); // Electric Sky / Cyan
-  static const Color primaryBlue = Color(0xFF0284C7); // Vibrant Blue
-  static const Color accentIndigo = Color(0xFF6366F1); // Radiant Indigo
-  static const Color accentPurple = Color(0xFF8B5CF6); // Soft Lavender
-  static const Color accentLavender = Color(0xFFA855F7); // High-voltage Violet
-  static const Color accentPink = Color(0xFFEC4899); // Deliverable Magenta
+  static const Color primaryCyan = Color(0xFFFFFFFF); // Pure White in monochrome
+  static const Color primaryBlue = Color(0xFFFFFFFF); // Pure White
+  static const Color accentIndigo = Color(0xFFE7E9EA);
+  static const Color accentPurple = Color(0xFFD1D5DB);
+  static const Color accentLavender = Color(0xFF9CA3AF);
+  static const Color accentPink = Color(0xFFE5E7EB);
 
   // Semantic Status Colors
   static const Color success = Color(0xFF10B981); // Emerald Mint (Completed / Mastered)
-  static const Color inProgress = Color(0xFF38BDF8); // Electric Cyan (Active / In Progress)
+  static const Color inProgress = Color(0xFFFFFFFF); // Active / In Progress
   static const Color warning = Color(0xFFF59E0B); // Radiant Amber
-  static const Color error = Color(0xFFEF4444); // YouTube Red / Danger
-  static const Color locked = Color(0xFF475569); // Muted Slate (Locked State)
-  static const Color lockedText = Color(0xFF64748B); // Slate 500
+  static const Color error = Color(0xFFEF4444); // Red
+  static const Color locked = Color(0xFF71767B); // Muted Slate (Locked State)
+  static const Color lockedText = Color(0xFF71767B);
 
   // Text Colors
   static const Color textPrimary = Color(0xFFFFFFFF);
-  static const Color textSecondary = Color(0xFFCBD5E1); // Slate 300
-  static const Color textMuted = Color(0xFF94A3B8); // Slate 400
-  static const Color textSubtle = Color(0xFF64748B); // Slate 500
+  static const Color textSecondary = Color(0xFFCBD5E1);
+  static const Color textMuted = Color(0xFF71767B);
+  static const Color textSubtle = Color(0xFF71767B);
 
   // Border & Glow Accents
-  static const Color glassBorder = Color(0x1FFFFFFF); // 12% White Border
-  static const Color glassBorderHover = Color(0x3338BDF8); // 20% Cyan Glow Border
-  static const Color accentGlow = Color(0x336366F1); // Subtle Indigo Glow
+  static const Color glassBorder = Color(0xFF2F3336); // Hairline Divider
+  static const Color glassBorderHover = Color(0xFF536471);
+  static const Color accentGlow = Colors.transparent;
+
+  // Dynamic theme-aware helpers
+  static Color getBackground(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark ? const Color(0xFF000000) : const Color(0xFFFFFFFF);
+
+  static Color getSurface(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark ? const Color(0xFF16181C) : const Color(0xFFFFFFFF);
+
+  static Color getSurfaceElevated(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark ? const Color(0xFF272C30) : const Color(0xFFF7F9F9);
+
+  static Color getBorder(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark ? const Color(0xFF2F3336) : const Color(0xFFEFF3F4);
+
+  static Color getTextPrimary(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark ? const Color(0xFFFFFFFF) : const Color(0xFF0F1419);
+
+  static Color getTextSecondary(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark ? const Color(0xFF94A3B8) : const Color(0xFF475569);
+
+  static Color getTextMuted(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark ? const Color(0xFF71767B) : const Color(0xFF64748B);
+
+  static Color getPrimary(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark ? const Color(0xFFFFFFFF) : const Color(0xFF000000);
 
   // Gradients
   static const LinearGradient primaryGradient = LinearGradient(
-    colors: [Color(0xFF38BDF8), Color(0xFF6366F1)],
+    colors: [Color(0xFFFFFFFF), Color(0xFFE7E9EA)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
 
   static const LinearGradient heroOrbGradient = LinearGradient(
-    colors: [Color(0xFF4F46E5), Color(0xFF06B6D4)],
+    colors: [Color(0xFF2F3336), Color(0xFF16181C)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
 
   static const LinearGradient cardGradient = LinearGradient(
-    colors: [Color(0xFF101827), Color(0xFF162033)],
+    colors: [Color(0xFF16181C), Color(0xFF16181C)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
 
   static const LinearGradient cardGlowGradient = LinearGradient(
-    colors: [Color(0xFF1E1B4B), Color(0xFF162033)],
+    colors: [Color(0xFF202327), Color(0xFF16181C)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );

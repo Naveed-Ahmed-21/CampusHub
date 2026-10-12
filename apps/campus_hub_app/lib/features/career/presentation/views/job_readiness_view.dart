@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/career_provider.dart';
 import '../theme/career_theme.dart';
 import '../widgets/career_shared_widgets.dart';
+import '../../../../core/widgets/campus_back_button.dart';
+import '../../../../core/widgets/campus_app_bar.dart';
 import 'adaptive_quiz_view.dart';
 import 'projects_evidence_view.dart';
 import 'interview_prep_view.dart';
@@ -29,27 +31,10 @@ class JobReadinessView extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: CareerTheme.background,
-      appBar: AppBar(
-        backgroundColor: CareerTheme.background,
-        elevation: 0,
-        leading: BackButton(
-          color: Colors.white,
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: const Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Job Readiness',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: -0.3),
-            ),
-            SizedBox(height: 2),
-            Text(
-              '6-Dimension Placement Analytics',
-              style: TextStyle(fontSize: 11, color: CareerTheme.textMuted),
-            ),
-          ],
-        ),
+      appBar: const CampusAppBar(
+        title: 'Job Readiness',
+        subtitle: '6-Dimension Placement Analytics',
+        leading: CampusBackButton(),
       ),
       body: RefreshIndicator(
         color: CareerTheme.primaryCyan,

@@ -1,4 +1,4 @@
-import { ChatRoomType } from '@prisma/client';
+import { ChatRoomType, ChatRequestStatus } from '@prisma/client';
 
 export const ALLOWED_REACTIONS = ['❤️', '😂', '😮', '😢', '👍', '👎'] as const;
 export type AllowedReactionEmoji = (typeof ALLOWED_REACTIONS)[number];
@@ -31,4 +31,38 @@ export interface QueryRoomsDto {
   search?: string;
   page?: number;
   limit?: number;
+}
+
+export interface UpdateChatSettingsDto {
+  requireStudentConversationApproval: boolean;
+}
+
+export interface CreateChatRequestDto {
+  recipientId: string;
+  introductoryMessage: string;
+}
+
+export type ChatPermissionAction =
+  | 'ALLOW_DIRECT_CHAT'
+  | 'REQUIRE_CHAT_REQUEST'
+  | 'REQUEST_PENDING'
+  | 'BLOCKED';
+
+export interface ChatPermissionDto {
+  action: ChatPermissionAction;
+  roomId?: string;
+  requestId?: string;
+  isBlockedByYou: boolean;
+  isBlockedByThem: boolean;
+  targetUser: {
+    id: string;
+    name: string;
+    role: string;
+    avatar_url?: string | null;
+    department?: string | null;
+  };
+}
+
+export interface BlockUserDto {
+  targetUserId: string;
 }

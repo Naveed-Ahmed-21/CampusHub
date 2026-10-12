@@ -20,7 +20,7 @@ class LoggingInterceptor extends Interceptor {
 
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) {
-    if (kDebugMode) {
+    if (kDebugMode && err.type != DioExceptionType.cancel) {
       debugPrint('[HTTP ERROR] ${err.response?.statusCode} <= ${err.requestOptions.uri}');
     }
     super.onError(err, handler);

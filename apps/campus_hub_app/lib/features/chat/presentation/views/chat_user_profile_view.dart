@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import '../../domain/chat_models.dart';
-import '../../data/chat_repository.dart';
-import '../providers/chat_provider.dart';
+import '../utils/chat_navigation_helper.dart';
+import '../../../../core/constants/api_endpoints.dart';
+import '../../../../core/widgets/campus_back_button.dart';
+import '../../../../core/widgets/campus_app_bar.dart';
+
+import '../../../profile/presentation/widgets/profile_story_avatar.dart';
+import '../../../../shared/widgets/full_screen_image_viewer.dart';
 
 class ChatUserProfileView extends ConsumerWidget {
   final ChatParticipantUser user;
@@ -52,12 +56,9 @@ class ChatUserProfileView extends ConsumerWidget {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
-        ),
-        title: const Text('Contact Details'),
+      appBar: const CampusAppBar(
+        leading: CampusBackButton(),
+        title: 'Contact Details',
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20.0),
@@ -69,14 +70,27 @@ class ChatUserProfileView extends ConsumerWidget {
                 children: [
                   Stack(
                     children: [
-                      CircleAvatar(
+                      ProfileStoryAvatar(
+                        userId: user.id,
+                        avatarUrl: user.avatarUrl,
+                        name: user.fullName,
                         radius: 54,
-                        backgroundColor: theme.colorScheme.primaryContainer,
-                        child: Text(
-                          user.firstName.isNotEmpty ? user.firstName[0].toUpperCase() : 'U',
-                          style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: theme.colorScheme.primary),
-                        ),
+                        heroTag: 'chat_user_avatar_${user.id}',
+                        fallbackOnTap: () {
+                          final hasAvatar = user.avatarUrl != null && user.avatarUrl!.trim().isNotEmpty;
+                          final resolvedAvatarUrl = hasAvatar ? ApiEndpoints.resolveUrl(user.avatarUrl!.trim()) : null;
+                          if (resolvedAvatarUrl != null) {
+                            FullScreenImageViewer.openSingle(
+                              context,
+                              imageUrl: resolvedAvatarUrl,
+                              heroTag: 'chat_user_avatar_${user.id}',
+                              title: user.fullName,
+                              subtitle: user.role,
+                            );
+                          }
+                        },
                       ),
+
                       if (user.isOnline)
                         Positioned(
                           right: 4,
@@ -111,16 +125,13 @@ class ChatUserProfileView extends ConsumerWidget {
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 _buildActionItem(context, Icons.message, 'Message', theme.colorScheme.primary, () async {
-                  if (roomId != null) {
-                    context.push('/chat/room/$roomId');
-                  } else {
-                    final repo = ref.read(chatRepositoryProvider);
-                    final room = await repo.getOrCreateDirectChat(user.id);
-                    ref.invalidate(userChatRoomsProvider);
-                    if (context.mounted) {
-                      context.push('/chat/room/${room.id}');
-                    }
-                  }
+                  await ChatNavigationHelper.startOrOpenDirectChat(
+                    context,
+                    ref,
+                    targetUserId: user.id,
+                    targetUserName: user.fullName,
+                    targetUserAvatar: user.avatarUrl,
+                  );
                 }),
                 _buildActionItem(context, Icons.phone, 'Call', Colors.green, () {
                   ScaffoldMessenger.of(context).showSnackBar(

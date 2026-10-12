@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/constants/api_endpoints.dart';
 import '../../../../core/services/media_picker_service.dart';
 import '../../../../core/services/media_upload_service.dart';
+import '../../../../core/widgets/campus_app_bar.dart';
+import '../../../../core/widgets/campus_back_button.dart';
+import '../../../../core/widgets/campus_avatar.dart';
+import '../../../../core/widgets/atmospheric_background.dart';
 import '../providers/chat_provider.dart';
 import '../../domain/chat_models.dart';
 import '../../data/chat_repository.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
-import 'chat_user_profile_view.dart';
 import '../../../../shared/widgets/full_screen_image_viewer.dart';
+import '../../../../shared/widgets/user_picker_bottom_sheet.dart';
 
 class GroupInfoView extends ConsumerStatefulWidget {
   final String roomId;
@@ -155,76 +158,32 @@ class _GroupInfoViewState extends ConsumerState<GroupInfoView> {
   }
 
   void _showAddMemberDialog(ChatRoomModel room) {
-    String searchQuery = '';
-    showDialog(
+    UserPickerBottomSheet.show(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setDialogState) {
-          final usersAsync = ref.watch(campusUsersProvider(searchQuery));
-          final existingIds = room.participants.map((p) => p.id).toSet();
-
-          return AlertDialog(
-            title: const Text('Add Member to Group'),
-            content: SizedBox(
-              width: double.maxFinite,
-              height: 350,
-              child: Column(
-                children: [
-                  TextField(
-                    decoration: const InputDecoration(
-                      hintText: 'Search member by name/email',
-                      prefixIcon: Icon(Icons.search),
-                    ),
-                    onChanged: (val) => setDialogState(() => searchQuery = val.trim()),
-                  ),
-                  const SizedBox(height: 12),
-                  Expanded(
-                    child: usersAsync.when(
-                      data: (users) {
-                        final available = users.where((u) => !existingIds.contains(u.id)).toList();
-                        if (available.isEmpty) {
-                          return const Center(child: Text('No available users found'));
-                        }
-                        return ListView.builder(
-                          itemCount: available.length,
-                          itemBuilder: (context, index) {
-                            final user = available[index];
-                            return ListTile(
-                              leading: CircleAvatar(child: Text(user.firstName[0].toUpperCase())),
-                              title: Text(user.fullName),
-                              subtitle: Text(user.email),
-                              trailing: const Icon(Icons.person_add, color: Colors.green),
-                              onTap: () async {
-                                final messenger = ScaffoldMessenger.of(context);
-                                Navigator.pop(ctx);
-                                final repo = ref.read(chatRepositoryProvider);
-                                await repo.addRoomMember(room.id, user.id);
-                                ref.invalidate(userChatRoomsProvider);
-                                messenger.showSnackBar(
-                                  SnackBar(content: Text('Added ${user.fullName} to group')),
-                                );
-                              },
-                            );
-                          },
-                        );
-                      },
-                      loading: () => const Center(child: CircularProgressIndicator()),
-                      error: (err, stack) => Center(child: Text('Error: $err')),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-            ],
-          );
-        },
-      ),
+      mode: UserPickerMode.addGroupMember,
+      title: 'Add Member to ${room.name ?? "Group"}',
+      roomId: room.id,
+      excludedUserIds: room.participants.map((p) => p.id).toSet(),
     );
   }
 
   Future<void> _leaveGroup(ChatRoomModel room, String currentUserId) async {
+    final isInstitutional = (room.name?.trim() == 'Whole College') ||
+        (room.name?.startsWith('Batch ') ?? false) ||
+        (room.name?.contains('Department') ?? false) ||
+        (room.departmentId != null) ||
+        (room.name != null && room.name!.contains('(') && room.name!.contains(')'));
+
+    if (isInstitutional) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Leaving official institutional groups is not permitted.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -268,72 +227,64 @@ class _GroupInfoViewState extends ConsumerState<GroupInfoView> {
     final currentUserId = currentUser?.id ?? '';
     final theme = Theme.of(context);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Group Info'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () => ref.invalidate(chatRoomDetailsProvider(widget.roomId)),
-          ),
-        ],
-      ),
-      body: roomAsync.when(
-        data: (room) {
-          final memberCount = room.memberCount > 0 ? room.memberCount : room.participants.length;
-          final onlineCount = room.onlineMemberCount > 0
-              ? room.onlineMemberCount
-              : room.participants.where((p) => p.isOnline).length;
+    return AtmosphericBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: CampusAppBar(
+          leading: const CampusBackButton(),
+          title: 'Group Info',
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: () => ref.invalidate(chatRoomDetailsProvider(widget.roomId)),
+            ),
+          ],
+        ),
+        body: roomAsync.when(
+          data: (room) {
+            final memberCount = room.memberCount > 0 ? room.memberCount : room.participants.length;
+            final onlineCount = room.onlineMemberCount > 0
+                ? room.onlineMemberCount
+                : room.participants.where((p) => p.isOnline).length;
 
-          final isCreator = room.createdById == currentUserId;
-          final userParticipant = room.participants.where((p) => p.id == currentUserId).firstOrNull;
-          final isAdmin = (userParticipant != null && userParticipant.role == 'ADMIN') || isCreator;
-          final isMember = userParticipant != null || isCreator;
-          final canEditGroupImage = room.isPrivate ? isAdmin : isMember;
+            final isCreator = room.createdById == currentUserId;
+            final userParticipant = room.participants.where((p) => p.id == currentUserId).firstOrNull;
+            final isAdmin = (userParticipant != null && userParticipant.role == 'ADMIN') || isCreator;
+            final isMember = userParticipant != null || isCreator;
+            final canEditGroupImage = room.isPrivate ? isAdmin : isMember;
 
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                // Group Header Tile
-                Card(
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                  child: Padding(
-                    padding: const EdgeInsets.all(24.0),
-                    child: Column(
-                      children: [
-                        Stack(
-                          children: [
-                            GestureDetector(
-                              onTap: () {
-                                if (room.avatarUrl != null && room.avatarUrl!.isNotEmpty) {
-                                  FullScreenImageViewer.openSingle(
-                                    context,
-                                    imageUrl: room.avatarUrl!,
-                                    heroTag: 'group_avatar_${room.id}',
-                                    title: room.getDisplayName(currentUserId),
-                                    subtitle: room.description ?? 'Group Conversation',
-                                  );
-                                }
-                              },
-                              child: Hero(
-                                tag: 'group_avatar_${room.id}',
-                                child: CircleAvatar(
+            return SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  // Group Header Tile
+                  Card(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                    child: Padding(
+                      padding: const EdgeInsets.all(24.0),
+                      child: Column(
+                        children: [
+                          Stack(
+                            children: [
+                              GestureDetector(
+                                onTap: () {
+                                  if (room.avatarUrl != null && room.avatarUrl!.isNotEmpty) {
+                                    FullScreenImageViewer.openSingle(
+                                      context,
+                                      imageUrl: room.avatarUrl!,
+                                      heroTag: 'group_avatar_${room.id}',
+                                      title: room.getDisplayName(currentUserId),
+                                      subtitle: room.description ?? 'Group Conversation',
+                                    );
+                                  }
+                                },
+                                child: CampusAvatar(
+                                  imageUrl: room.avatarUrl,
+                                  name: room.name ?? 'Group',
                                   radius: 50,
-                                  backgroundColor: theme.colorScheme.primaryContainer,
-                                  backgroundImage: room.avatarUrl != null && room.avatarUrl!.isNotEmpty
-                                      ? NetworkImage(ApiEndpoints.resolveUrl(room.avatarUrl!))
-                                      : null,
-                                  child: room.avatarUrl == null || room.avatarUrl!.isEmpty
-                                      ? Icon(
-                                          room.isPrivate ? Icons.lock : Icons.groups,
-                                          size: 48,
-                                          color: theme.colorScheme.primary,
-                                        )
-                                      : null,
+                                  heroTag: 'group_avatar_${room.id}',
                                 ),
                               ),
-                            ),
                             if (canEditGroupImage)
                               Positioned(
                                 bottom: 0,
@@ -458,22 +409,16 @@ class _GroupInfoViewState extends ConsumerState<GroupInfoView> {
 
                     return ListTile(
                       onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (ctx) => ChatUserProfileView(user: member, roomId: room.id),
-                          ),
-                        );
+                        if (isMe) {
+                          context.push('/profile');
+                        } else {
+                          context.push('/profile/user/${member.id}');
+                        }
                       },
-                      leading: CircleAvatar(
-                        backgroundColor: isMe ? Colors.amber.shade100 : Colors.blue.shade100,
-                        child: Text(
-                          member.firstName.isNotEmpty ? member.firstName[0].toUpperCase() : 'M',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: isMe ? Colors.amber.shade900 : Colors.blue.shade800,
-                          ),
-                        ),
+                      leading: CampusAvatar(
+                        imageUrl: member.avatarUrl,
+                        name: member.fullName,
+                        radius: 20,
                       ),
                       title: Text(
                         isMe ? '${member.fullName} (You)' : member.fullName,
@@ -489,16 +434,52 @@ class _GroupInfoViewState extends ConsumerState<GroupInfoView> {
 
                 const SizedBox(height: 24),
 
-                // Exit Group Button
-                ListTile(
-                  onTap: () => _leaveGroup(room, currentUserId),
-                  leading: const Icon(Icons.exit_to_app, color: Colors.red),
-                  title: const Text('Leave Group Conversation', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    side: BorderSide(color: Colors.red.shade200),
+                // Exit Group or Institutional Badge
+                if ((room.name?.trim() == 'Whole College') ||
+                    (room.name?.startsWith('Batch ') ?? false) ||
+                    (room.name?.contains('Department') ?? false) ||
+                    (room.departmentId != null) ||
+                    (room.name != null && room.name!.contains('(') && room.name!.contains(')')))
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: Colors.blue.withValues(alpha: 0.25)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.verified_user_rounded, color: Colors.blue, size: 22),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Official Institutional Group',
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: Colors.blue),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Membership is managed automatically by CampusHub based on your department and batch enrollment.',
+                                style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                else
+                  ListTile(
+                    onTap: () => _leaveGroup(room, currentUserId),
+                    leading: const Icon(Icons.exit_to_app, color: Colors.red),
+                    title: const Text('Leave Group Conversation', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: BorderSide(color: Colors.red.shade200),
+                    ),
                   ),
-                ),
               ],
             ),
           );
@@ -506,6 +487,7 @@ class _GroupInfoViewState extends ConsumerState<GroupInfoView> {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, stack) => Center(child: Text('Error loading room: $err')),
       ),
-    );
-  }
+    ),
+  );
+}
 }

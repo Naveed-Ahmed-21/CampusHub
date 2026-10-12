@@ -1,12 +1,13 @@
+import '../../core/widgets/campus_avatar.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../core/constants/api_endpoints.dart';
 import '../../features/auth/presentation/controllers/auth_controller.dart';
 import '../../features/chat/data/chat_repository.dart';
 import '../../features/chat/domain/chat_models.dart';
 import '../../features/chat/presentation/providers/chat_provider.dart';
+import '../../features/chat/presentation/utils/chat_navigation_helper.dart';
 import '../../features/clubs/data/clubs_repository.dart';
 import '../../features/clubs/presentation/providers/club_provider.dart';
 
@@ -106,13 +107,15 @@ class _UserPickerBottomSheetState extends ConsumerState<UserPickerBottomSheet> {
 
     try {
       if (widget.mode == UserPickerMode.newChat) {
-        final repo = ref.read(chatRepositoryProvider);
-        final room = await repo.getOrCreateDirectChat(user.id);
-        ref.invalidate(userChatRoomsProvider);
-
         if (mounted) {
           Navigator.of(context).pop(user);
-          context.push('/chat/room/${room.id}');
+          await ChatNavigationHelper.startOrOpenDirectChat(
+            context,
+            ref,
+            targetUserId: user.id,
+            targetUserName: user.fullName,
+            targetUserAvatar: user.avatarUrl,
+          );
         }
       } else if (widget.mode == UserPickerMode.addClubMember && widget.clubId != null) {
         final repo = ref.read(clubsRepositoryProvider);
@@ -391,22 +394,10 @@ class _UserPickerBottomSheetState extends ConsumerState<UserPickerBottomSheet> {
                               // Avatar (tappable to view profile)
                               GestureDetector(
                                 onTap: () => context.push('/profile/${user.id}'),
-                                child: CircleAvatar(
+                                child: CampusAvatar(
+                                  imageUrl: user.avatarUrl,
+                                  name: user.fullName,
                                   radius: 22,
-                                  backgroundColor: roleColor.withValues(alpha: 0.15),
-                                  backgroundImage: user.avatarUrl != null && user.avatarUrl!.isNotEmpty
-                                      ? NetworkImage(ApiEndpoints.resolveUrl(user.avatarUrl!))
-                                      : null,
-                                  child: user.avatarUrl == null || user.avatarUrl!.isEmpty
-                                      ? Text(
-                                          user.firstName.isNotEmpty ? user.firstName[0].toUpperCase() : 'U',
-                                          style: TextStyle(
-                                            color: roleColor,
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 15,
-                                          ),
-                                        )
-                                      : null,
                                 ),
                               ),
                               const SizedBox(width: 12),

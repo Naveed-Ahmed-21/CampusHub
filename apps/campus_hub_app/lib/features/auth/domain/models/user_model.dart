@@ -44,6 +44,10 @@ class UserModel {
   UserRole get userRole => UserRole.fromString(role);
   bool get isStudent => userRole == UserRole.student;
   bool get isFaculty => userRole == UserRole.faculty;
-  bool get isPlacementOfficer => userRole == UserRole.placementOfficer;
+  bool get isPlacementOfficer => userRole == UserRole.placement;
   bool get isAdmin => userRole == UserRole.admin;
+  bool get isSuperAdmin => false;
+  bool get isCollegeAdmin => false;
+  bool get isDeptAdmin => false;
+  bool get isClubCoordinator => false;
 }

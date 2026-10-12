@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { logger } from '../logger/logger.service.js';
+import { logger } from '../logger/logger.service';
 
 class PrismaService extends PrismaClient {
   constructor() {

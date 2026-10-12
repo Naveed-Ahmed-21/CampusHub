@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/portfolio_provider.dart';
+import '../../../../core/widgets/campus_avatar.dart';
+import '../../../../core/widgets/campus_app_bar.dart';
+import '../../../../core/widgets/campus_back_button.dart';
 
 class PublicPortfolioView extends ConsumerWidget {
   final String identifier;
@@ -12,8 +15,9 @@ class PublicPortfolioView extends ConsumerWidget {
     final portfolioAsync = ref.watch(publicPortfolioProvider(identifier));
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Public Portfolio'),
+      appBar: const CampusAppBar(
+        leading: CampusBackButton(),
+        title: 'Public Portfolio',
       ),
       body: portfolioAsync.when(
         data: (portfolio) {
@@ -26,13 +30,10 @@ class PublicPortfolioView extends ConsumerWidget {
                 Center(
                   child: Column(
                     children: [
-                      CircleAvatar(
+                      CampusAvatar(
+                        imageUrl: portfolio.avatarUrl,
+                        name: portfolio.userName,
                         radius: 44,
-                        backgroundColor: Colors.indigo.shade100,
-                        child: Text(
-                          portfolio.userName.isNotEmpty ? portfolio.userName[0].toUpperCase() : 'S',
-                          style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.indigo),
-                        ),
                       ),
                       const SizedBox(height: 12),
                       Text(portfolio.userName, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),

@@ -1,6 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_glass.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/widgets/atmospheric_background.dart';
+import '../../../../core/widgets/campus_glass_card.dart';
+import '../../../../core/widgets/campus_button.dart';
+import '../../../../core/widgets/campus_dialog.dart';
+import '../../../../core/widgets/campus_bottom_nav.dart';
+import '../../../../core/widgets/campus_back_button.dart';
+import '../../../../core/widgets/campus_app_bar.dart';
 import '../../../../shared/responsive/responsive_layout.dart';
 import '../../../../shared/widgets/async_value_widget.dart';
 import '../controllers/academics_controller.dart';
@@ -36,11 +46,11 @@ class _StudentSubjectsViewState extends ConsumerState<StudentSubjectsView> {
   ];
 
   final List<String> _sections = [
-    'All Sections',
-    'Section A',
-    'Section B',
-    'Section C',
-    'Section D',
+    'All Years',
+    'Year 1',
+    'Year 2',
+    'Year 3',
+    'Year 4',
   ];
 
   @override
@@ -53,18 +63,20 @@ class _StudentSubjectsViewState extends ConsumerState<StudentSubjectsView> {
       BuildContext context, AcademicSubjectModel subject) {
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete Subject?'),
+      builder: (ctx) => CampusDialog(
+        title: 'Delete Subject?',
         content: Text(
           'Are you sure you want to delete ${subject.code} - ${subject.name}? This will remove all materials, units, and announcements linked to this subject.',
         ),
         actions: [
-          TextButton(
+          CampusButton(
+            label: 'Cancel',
+            type: CampusButtonType.ghost,
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel'),
           ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+          CampusButton(
+            label: 'Delete',
+            type: CampusButtonType.danger,
             onPressed: () async {
               Navigator.of(ctx).pop();
               final ok = await ref
@@ -74,7 +86,7 @@ class _StudentSubjectsViewState extends ConsumerState<StudentSubjectsView> {
                 ref.invalidate(academicSubjectsProvider);
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    backgroundColor: ok ? Colors.teal.shade700 : Colors.red,
+                    backgroundColor: ok ? AppColors.success : AppColors.error,
                     content: Text(ok
                         ? 'Subject deleted successfully'
                         : 'Failed to delete subject'),
@@ -82,7 +94,6 @@ class _StudentSubjectsViewState extends ConsumerState<StudentSubjectsView> {
                 );
               }
             },
-            child: const Text('Delete'),
           ),
         ],
       ),
@@ -101,21 +112,9 @@ class _StudentSubjectsViewState extends ConsumerState<StudentSubjectsView> {
     return Scaffold(
       drawer:
           isFaculty ? const FacultyDrawerWidget() : const StudentDrawerWidget(),
-      appBar: AppBar(
-        title: const Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.school, color: Colors.blue, size: 20),
-            SizedBox(width: 8),
-            Flexible(
-              child: Text(
-                'Academic Subjects',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
+      appBar: CampusAppBar(
+        leading: const CampusBackButton(),
+        title: 'Academic Subjects',
         actions: [
           IconButton(
             icon: const Icon(Icons.calendar_today_outlined),
@@ -138,14 +137,16 @@ class _StudentSubjectsViewState extends ConsumerState<StudentSubjectsView> {
           const SizedBox(width: 8),
         ],
       ),
-      body: ResponsiveLayout(
-        mobile: _buildBody(context, ref, subjectsAsync, filter,
-            isFaculty: isFaculty, isDesktop: false),
-        desktop: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 960),
-            child: _buildBody(context, ref, subjectsAsync, filter,
-                isFaculty: isFaculty, isDesktop: true),
+      body: AtmosphericBackground(
+        child: ResponsiveLayout(
+          mobile: _buildBody(context, ref, subjectsAsync, filter,
+              isFaculty: isFaculty, isDesktop: false),
+          desktop: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 960),
+              child: _buildBody(context, ref, subjectsAsync, filter,
+                  isFaculty: isFaculty, isDesktop: true),
+            ),
           ),
         ),
       ),
@@ -277,7 +278,7 @@ class _StudentSubjectsViewState extends ConsumerState<StudentSubjectsView> {
                     const Padding(
                       padding: EdgeInsets.only(right: 8.0),
                       child: Text(
-                        'Section:',
+                        'Year / Section:',
                         style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
@@ -285,13 +286,14 @@ class _StudentSubjectsViewState extends ConsumerState<StudentSubjectsView> {
                       ),
                     ),
                     ..._sections.map((sec) {
-                      final cleanSec = sec == 'All Sections'
-                          ? null
-                          : sec.replaceAll('Section ', '').trim();
-                      final isSelected = sec == 'All Sections'
+                      final cleanSec = sec == 'All Years' ? null : sec;
+                      final isSelected = sec == 'All Years'
                           ? filter.section == null
                           : (filter.section == sec ||
-                              filter.section == cleanSec);
+                              (sec == 'Year 1' && filter.section == 'A') ||
+                              (sec == 'Year 2' && filter.section == 'B') ||
+                              (sec == 'Year 3' && filter.section == 'C') ||
+                              (sec == 'Year 4' && filter.section == 'D'));
                       return Padding(
                         padding: const EdgeInsets.only(right: 6.0),
                         child: ChoiceChip(
@@ -367,9 +369,11 @@ class _StudentSubjectsViewState extends ConsumerState<StudentSubjectsView> {
                   }
                 },
                 child: ListView.builder(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: isDesktop ? 24 : 16,
-                    vertical: 16,
+                  padding: EdgeInsets.fromLTRB(
+                    isDesktop ? 24 : 16,
+                    16,
+                    isDesktop ? 24 : 16,
+                    isDesktop ? 16 : CampusBottomNav.getBottomClearance(context),
                   ),
                   itemCount: subjects.length + 1,
                   itemBuilder: (context, index) {
@@ -394,30 +398,19 @@ class _StudentSubjectsViewState extends ConsumerState<StudentSubjectsView> {
       {required bool isFaculty}) {
     final theme = Theme.of(context);
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 14),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(
-          color: subject.isEnrolled
-              ? Colors.blue.withValues(alpha: 0.3)
-              : Colors.grey.shade200,
-          width: subject.isEnrolled ? 1.5 : 1.0,
-        ),
-      ),
-      elevation: subject.isEnrolled ? 2 : 0,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: CampusGlassCard(
+        intensity: GlassIntensity.subtle,
         onTap: () {
           context.push('/academics/subjects/${subject.id}');
         },
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Top Row: Code Badge + Enrolled Badge + Credits + Faculty Menu
-              Row(
+        padding: AppSpacing.p16,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Top Row: Code Badge + Enrolled Badge + Credits + Faculty Menu
+            Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Row(
@@ -631,8 +624,7 @@ class _StudentSubjectsViewState extends ConsumerState<StudentSubjectsView> {
             ],
           ),
         ),
-      ),
-    );
+      );
   }
 
   Widget _buildAcademicsSummaryHeader(
@@ -923,15 +915,9 @@ class _StudentSubjectsViewState extends ConsumerState<StudentSubjectsView> {
                     ? '${pendingList.first.title} (${_getDueCountdown(pendingList.first.dueAt)})'
                     : 'All coursework submitted',
                 icon: Icons.assignment_outlined,
-                accentColor: pendingList.isNotEmpty
-                    ? Colors.amber.shade900
-                    : Colors.teal,
-                bgColor: pendingList.isNotEmpty
-                    ? Colors.amber.withValues(alpha: 0.1)
-                    : Colors.teal.withValues(alpha: 0.08),
-                borderColor: pendingList.isNotEmpty
-                    ? Colors.amber.withValues(alpha: 0.3)
-                    : Colors.teal.withValues(alpha: 0.2),
+                accentColor: AppColors.primaryBlue,
+                bgColor: AppColors.primaryBlue.withValues(alpha: 0.08),
+                borderColor: AppColors.primaryBlue.withValues(alpha: 0.2),
                 onTap: () => _showPendingAssignmentsSheet(context, pendingList),
               );
 
@@ -943,9 +929,9 @@ class _StudentSubjectsViewState extends ConsumerState<StudentSubjectsView> {
                     ? '${scheduledAssessments.first.title} (${_getScheduleCountdown(scheduledAssessments.first.scheduledAt)})'
                     : 'No internal exams scheduled',
                 icon: Icons.quiz_outlined,
-                accentColor: Colors.purple.shade700,
-                bgColor: Colors.purple.withValues(alpha: 0.08),
-                borderColor: Colors.purple.withValues(alpha: 0.25),
+                accentColor: AppColors.primaryBlue,
+                bgColor: AppColors.primaryBlue.withValues(alpha: 0.08),
+                borderColor: AppColors.primaryBlue.withValues(alpha: 0.2),
                 onTap: () => _showUpcomingAssessmentsSheet(
                     context, scheduledAssessments),
               );
@@ -958,9 +944,9 @@ class _StudentSubjectsViewState extends ConsumerState<StudentSubjectsView> {
                     ? '${todaySlots.first.subjectCode} @ ${todaySlots.first.startTime} (${todaySlots.first.roomOrVenue})'
                     : 'No lectures scheduled today',
                 icon: Icons.schedule_outlined,
-                accentColor: Colors.blue.shade700,
-                bgColor: Colors.blue.withValues(alpha: 0.08),
-                borderColor: Colors.blue.withValues(alpha: 0.25),
+                accentColor: AppColors.primaryBlue,
+                bgColor: AppColors.primaryBlue.withValues(alpha: 0.08),
+                borderColor: AppColors.primaryBlue.withValues(alpha: 0.2),
                 onTap: () => context.push('/academics/timetable'),
               );
 
@@ -1005,7 +991,6 @@ class _StudentSubjectsViewState extends ConsumerState<StudentSubjectsView> {
                   context,
                   icon: Icons.work_outline,
                   label: 'Career & Placement Hub',
-                  color: Colors.deepPurple,
                   onTap: () => context.push('/career'),
                 ),
                 const SizedBox(width: 8),
@@ -1013,7 +998,6 @@ class _StudentSubjectsViewState extends ConsumerState<StudentSubjectsView> {
                   context,
                   icon: Icons.history_edu,
                   label: 'Attendance Records',
-                  color: Colors.teal,
                   onTap: () {
                     // Filter to enrolled
                     if (!ref.read(academicFilterProvider).onlyEnrolled) {
@@ -1041,6 +1025,10 @@ class _StudentSubjectsViewState extends ConsumerState<StudentSubjectsView> {
     required Color borderColor,
     required VoidCallback onTap,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final titleColor = isDark ? AppColors.darkText : AppColors.primaryNavy;
+    final subColor = isDark ? AppColors.darkSecondaryText : AppColors.secondaryText;
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(14),
@@ -1071,7 +1059,7 @@ class _StudentSubjectsViewState extends ConsumerState<StudentSubjectsView> {
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 13,
-                      color: accentColor,
+                      color: titleColor,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -1080,7 +1068,7 @@ class _StudentSubjectsViewState extends ConsumerState<StudentSubjectsView> {
                   Text(
                     subtitle,
                     style: TextStyle(
-                      color: Colors.grey.shade700,
+                      color: subColor,
                       fontSize: 11,
                     ),
                     maxLines: 1,
@@ -1101,7 +1089,7 @@ class _StudentSubjectsViewState extends ConsumerState<StudentSubjectsView> {
     BuildContext context, {
     required IconData icon,
     required String label,
-    Color color = Colors.blue,
+    Color color = AppColors.primaryBlue,
     required VoidCallback onTap,
   }) {
     return InkWell(
@@ -1216,11 +1204,11 @@ class _StudentSubjectsViewState extends ConsumerState<StudentSubjectsView> {
                         leading: Container(
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: Colors.amber.withValues(alpha: 0.15),
+                            color: AppColors.primaryBlue.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          child: Icon(Icons.assignment_outlined,
-                              color: Colors.amber.shade900, size: 20),
+                          child: const Icon(Icons.assignment_outlined,
+                              color: AppColors.primaryBlue, size: 20),
                         ),
                         title: Text(a.title,
                             style: const TextStyle(
@@ -1318,11 +1306,11 @@ class _StudentSubjectsViewState extends ConsumerState<StudentSubjectsView> {
                         leading: Container(
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: Colors.purple.withValues(alpha: 0.12),
+                            color: AppColors.primaryBlue.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: const Icon(Icons.quiz_outlined,
-                              color: Colors.purple, size: 20),
+                              color: AppColors.primaryBlue, size: 20),
                         ),
                         title: Text(a.title,
                             style: const TextStyle(

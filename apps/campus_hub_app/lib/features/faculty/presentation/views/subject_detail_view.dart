@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/constants/api_endpoints.dart';
+import '../../../../core/utils/app_date_formatter.dart';
 import '../../../../shared/responsive/responsive_layout.dart';
 import '../../../../shared/widgets/async_value_widget.dart';
 import '../../../chat/data/chat_repository.dart';
@@ -11,6 +11,16 @@ import '../widgets/upload_resource_dialog.dart';
 import '../widgets/add_announcement_dialog.dart';
 import '../widgets/add_subject_dialog.dart';
 import '../widgets/session_attendance_sheet.dart';
+import '../../../../core/widgets/campus_app_bar.dart';
+import '../../../../core/widgets/campus_back_button.dart';
+import '../../../../core/widgets/atmospheric_background.dart';
+import '../../../../core/widgets/campus_avatar.dart';
+import '../../../../core/services/file_open_service.dart';
+import '../../../../core/services/campus_download_service.dart';
+import '../../../../shared/widgets/full_screen_image_viewer.dart';
+import '../../../../shared/widgets/full_screen_video_viewer.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../career/presentation/views/user_roadmaps_list_view.dart';
 
 class SubjectDetailView extends ConsumerStatefulWidget {
   final String subjectId;
@@ -142,145 +152,224 @@ class _SubjectDetailViewState extends ConsumerState<SubjectDetailView>
     return AsyncValueWidget(
       value: subjectAsync,
       data: (subject) {
-        return Scaffold(
-          appBar: AppBar(
-            title: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  subject.name,
-                  style: const TextStyle(
-                      fontWeight: FontWeight.bold, fontSize: 16),
-                ),
-                Text(
-                  '${subject.code} • ${subject.semester} (Section ${subject.section})',
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
-                ),
-              ],
-            ),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.upload_file),
-                tooltip: 'Upload Study Material',
-                onPressed: () => showDialog(
-                  context: context,
-                  builder: (ctx) => UploadResourceDialog(
-                    subjectId: subject.id,
-                    subjectName: subject.name,
-                    defaultResourceType: '',
-                  ),
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.campaign_outlined),
-                tooltip: 'Post Announcement',
-                onPressed: () => showDialog(
-                  context: context,
-                  builder: (ctx) => AddAnnouncementDialog(
-                    subjectId: subject.id,
-                    subjectName: subject.name,
-                  ),
-                ),
-              ),
-              PopupMenuButton<String>(
-                icon: const Icon(Icons.more_vert),
-                onSelected: (val) {
-                  if (val == 'edit') {
-                    showDialog(
-                      context: context,
-                      builder: (ctx) =>
-                          AddSubjectDialog(subjectToEdit: subject),
-                    );
-                  } else if (val == 'delete') {
-                    _confirmDeleteSubject(context, subject);
-                  }
-                },
-                itemBuilder: (ctx) => [
-                  const PopupMenuItem(
-                    value: 'edit',
-                    child: Row(
-                      children: [
-                        Icon(Icons.edit_outlined, size: 18, color: Colors.teal),
-                        SizedBox(width: 8),
-                        Text('Edit Subject Details'),
-                      ],
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+
+        return AtmosphericBackground(
+          child: Scaffold(
+            backgroundColor: Colors.transparent,
+            appBar: CampusAppBar(
+              leading: const CampusBackButton(),
+              title: subject.name,
+              subtitle: '${subject.code} • ${subject.semester} (Sec ${subject.section})',
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.upload_file),
+                  tooltip: 'Upload Study Material',
+                  onPressed: () => showDialog(
+                    context: context,
+                    builder: (ctx) => UploadResourceDialog(
+                      subjectId: subject.id,
+                      subjectName: subject.name,
+                      defaultResourceType: '',
                     ),
                   ),
-                  const PopupMenuItem(
-                    value: 'delete',
-                    child: Row(
-                      children: [
-                        Icon(Icons.delete_outline, size: 18, color: Colors.red),
-                        SizedBox(width: 8),
-                        Text('Delete Subject',
-                            style: TextStyle(color: Colors.red)),
-                      ],
+                ),
+                IconButton(
+                  icon: const Icon(Icons.campaign_outlined),
+                  tooltip: 'Post Announcement',
+                  onPressed: () => showDialog(
+                    context: context,
+                    builder: (ctx) => AddAnnouncementDialog(
+                      subjectId: subject.id,
+                      subjectName: subject.name,
                     ),
                   ),
-                ],
-              ),
-            ],
-            bottom: TabBar(
-              controller: _tabController,
-              isScrollable: true,
-              tabAlignment: TabAlignment.start,
-              tabs: const [
-                Tab(icon: Icon(Icons.info_outline, size: 18), text: 'Overview'),
-                Tab(
-                    icon: Icon(Icons.menu_book_outlined, size: 18),
-                    text: 'Syllabus'),
-                Tab(
-                    icon: Icon(Icons.folder_open, size: 18),
-                    text: 'Study Materials'),
-                Tab(
-                    icon: Icon(Icons.assignment_outlined, size: 18),
-                    text: 'Assignments'),
-                Tab(
-                    icon: Icon(Icons.quiz_outlined, size: 18),
-                    text: 'Assessments'),
-                Tab(
-                    icon: Icon(Icons.how_to_reg_outlined, size: 18),
-                    text: 'Attendance'),
-                Tab(
-                    icon: Icon(Icons.campaign, size: 18),
-                    text: 'Announcements'),
-                Tab(
-                    icon: Icon(Icons.group_outlined, size: 18),
-                    text: 'Enrolled Students'),
-              ],
-            ),
-          ),
-          body: ResponsiveLayout(
-            mobile: TabBarView(
-              controller: _tabController,
-              children: [
-                _buildOverviewTab(context, subject),
-                _buildSyllabusTab(context, subject),
-                _buildResourcesTab(context, subject),
-                _buildAssignmentsTab(context, subject),
-                _buildAssessmentsTab(context, subject),
-                _buildAttendanceTab(context, subject),
-                _buildAnnouncementsTab(context, subject),
-                _buildStudentsTab(context, subject),
-              ],
-            ),
-            desktop: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 900),
-                child: TabBarView(
-                  controller: _tabController,
-                  children: [
-                    _buildOverviewTab(context, subject),
-                    _buildSyllabusTab(context, subject),
-                    _buildResourcesTab(context, subject),
-                    _buildAssignmentsTab(context, subject),
-                    _buildAssessmentsTab(context, subject),
-                    _buildAttendanceTab(context, subject),
-                    _buildAnnouncementsTab(context, subject),
-                    _buildStudentsTab(context, subject),
+                ),
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_vert),
+                  onSelected: (val) {
+                    if (val == 'edit') {
+                      showDialog(
+                        context: context,
+                        builder: (ctx) =>
+                            AddSubjectDialog(subjectToEdit: subject),
+                      );
+                    } else if (val == 'delete') {
+                      _confirmDeleteSubject(context, subject);
+                    }
+                  },
+                  itemBuilder: (ctx) => [
+                    const PopupMenuItem(
+                      value: 'edit',
+                      child: Row(
+                        children: [
+                          Icon(Icons.edit_outlined, size: 18, color: Colors.teal),
+                          SizedBox(width: 8),
+                          Text('Edit Subject Details'),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: 'delete',
+                      child: Row(
+                        children: [
+                          Icon(Icons.delete_outline, size: 18, color: Colors.red),
+                          SizedBox(width: 8),
+                          Text('Delete Subject',
+                              style: TextStyle(color: Colors.red)),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
-              ),
+              ],
+            ),
+            body: Column(
+              children: [
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  height: 48,
+                  padding: const EdgeInsets.all(3),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0x9910243D) : const Color(0xCCFFFFFF),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.06),
+                    ),
+                  ),
+                  child: TabBar(
+                    controller: _tabController,
+                    isScrollable: true,
+                    tabAlignment: TabAlignment.start,
+                    indicator: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primary,
+                      borderRadius: BorderRadius.circular(11),
+                    ),
+                    indicatorSize: TabBarIndicatorSize.tab,
+                    dividerColor: Colors.transparent,
+                    labelColor: Colors.white,
+                    unselectedLabelColor: Theme.of(context).colorScheme.onSurfaceVariant,
+                    labelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                    tabs: const [
+                      Tab(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.info_outline, size: 16),
+                            SizedBox(width: 6),
+                            Text('Overview'),
+                          ],
+                        ),
+                      ),
+                      Tab(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.menu_book_outlined, size: 16),
+                            SizedBox(width: 6),
+                            Text('Syllabus'),
+                          ],
+                        ),
+                      ),
+                      Tab(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.folder_open, size: 16),
+                            SizedBox(width: 6),
+                            Text('Study Materials'),
+                          ],
+                        ),
+                      ),
+                      Tab(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.assignment_outlined, size: 16),
+                            SizedBox(width: 6),
+                            Text('Assignments'),
+                          ],
+                        ),
+                      ),
+                      Tab(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.quiz_outlined, size: 16),
+                            SizedBox(width: 6),
+                            Text('Assessments'),
+                          ],
+                        ),
+                      ),
+                      Tab(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.how_to_reg_outlined, size: 16),
+                            SizedBox(width: 6),
+                            Text('Attendance'),
+                          ],
+                        ),
+                      ),
+                      Tab(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.campaign, size: 16),
+                            SizedBox(width: 6),
+                            Text('Announcements'),
+                          ],
+                        ),
+                      ),
+                      Tab(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.group_outlined, size: 16),
+                            SizedBox(width: 6),
+                            Text('Enrolled Students'),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: ResponsiveLayout(
+                    mobile: TabBarView(
+                      controller: _tabController,
+                      children: [
+                        _buildOverviewTab(context, subject),
+                        _buildSyllabusTab(context, subject),
+                        _buildResourcesTab(context, subject),
+                        _buildAssignmentsTab(context, subject),
+                        _buildAssessmentsTab(context, subject),
+                        _buildAttendanceTab(context, subject),
+                        _buildAnnouncementsTab(context, subject),
+                        _buildStudentsTab(context, subject),
+                      ],
+                    ),
+                    desktop: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 900),
+                        child: TabBarView(
+                          controller: _tabController,
+                          children: [
+                            _buildOverviewTab(context, subject),
+                            _buildSyllabusTab(context, subject),
+                            _buildResourcesTab(context, subject),
+                            _buildAssignmentsTab(context, subject),
+                            _buildAssessmentsTab(context, subject),
+                            _buildAttendanceTab(context, subject),
+                            _buildAnnouncementsTab(context, subject),
+                            _buildStudentsTab(context, subject),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         );
@@ -466,7 +555,17 @@ class _SubjectDetailViewState extends ConsumerState<SubjectDetailView>
                   Align(
                     alignment: Alignment.centerRight,
                     child: TextButton.icon(
-                      onPressed: () => context.push('/career'),
+                      onPressed: () {
+                        try {
+                          context.push('/career-hub');
+                        } catch (_) {
+                          try {
+                            UserRoadmapsListView.open(context);
+                          } catch (_) {
+                            context.push('/career');
+                          }
+                        }
+                      },
                       icon: const Icon(Icons.arrow_forward, size: 16),
                       label: const Text('View Career Roadmaps'),
                     ),
@@ -478,6 +577,72 @@ class _SubjectDetailViewState extends ConsumerState<SubjectDetailView>
         ],
       ),
     );
+  }
+
+  Future<void> _openStudyMaterial(
+      BuildContext context, SubjectResource resource) async {
+    final url = resource.fileUrl.trim();
+    if (url.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No file URL available for this material.')),
+      );
+      return;
+    }
+
+    final lower = url.toLowerCase();
+    final isImage = lower.endsWith('.jpg') ||
+        lower.endsWith('.jpeg') ||
+        lower.endsWith('.png') ||
+        lower.endsWith('.webp') ||
+        lower.endsWith('.gif') ||
+        resource.fileType.toUpperCase() == 'IMAGE';
+
+    final isVideo = lower.endsWith('.mp4') ||
+        lower.endsWith('.mov') ||
+        lower.endsWith('.webm') ||
+        lower.endsWith('.mkv') ||
+        resource.fileType.toUpperCase() == 'VIDEO';
+
+    try {
+      if (isImage) {
+        FullScreenImageViewer.openSingle(
+          context,
+          imageUrl: url,
+          title: resource.title,
+        );
+        return;
+      }
+
+      if (isVideo) {
+        FullScreenVideoViewer.open(
+          context,
+          videoUrl: url,
+          title: resource.title,
+        );
+        return;
+      }
+
+      if (url.startsWith('http://') || url.startsWith('https://')) {
+        await CampusDownloadService.downloadResource(
+          context: context,
+          fileUrl: url,
+          fileName:
+              '${resource.title}.${resource.fileType.toLowerCase().replaceAll('.', '')}',
+          subFolder: 'AcademicResources',
+        );
+      } else {
+        await FileOpenService.openLocalFile(url, context: context);
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not open file: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildResourcesTab(BuildContext context, FacultySubject subject) {
@@ -517,6 +682,7 @@ class _SubjectDetailViewState extends ConsumerState<SubjectDetailView>
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
           child: ListTile(
+            onTap: () => _openStudyMaterial(context, resource),
             leading: Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
@@ -586,12 +752,7 @@ class _SubjectDetailViewState extends ConsumerState<SubjectDetailView>
                 IconButton(
                   icon: const Icon(Icons.open_in_new, color: Colors.blue),
                   tooltip: 'Open resource',
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                          content: Text('Resource Link: ${resource.fileUrl}')),
-                    );
-                  },
+                  onPressed: () => _openStudyMaterial(context, resource),
                 ),
                 PopupMenuButton<String>(
                   icon:
@@ -631,10 +792,8 @@ class _SubjectDetailViewState extends ConsumerState<SubjectDetailView>
     FacultySubject subject,
   ) {
     final theme = Theme.of(context);
-    final dateStr =
-        '${announcement.createdAt.day.toString().padLeft(2, '0')}/${announcement.createdAt.month.toString().padLeft(2, '0')}/${announcement.createdAt.year}';
-    final timeStr =
-        '${announcement.createdAt.hour.toString().padLeft(2, '0')}:${announcement.createdAt.minute.toString().padLeft(2, '0')}';
+    final dateStr = AppDateFormatter.formatDate(announcement.createdAt);
+    final timeStr = AppDateFormatter.formatTime(announcement.createdAt);
 
     showModalBottomSheet(
       context: context,
@@ -1033,18 +1192,24 @@ class _SubjectDetailViewState extends ConsumerState<SubjectDetailView>
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Row(
-                        children: [
-                          Icon(Icons.menu_book,
-                              color: theme.colorScheme.primary, size: 22),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Course Syllabus & Objectives',
-                            style: theme.textTheme.titleMedium
-                                ?.copyWith(fontWeight: FontWeight.bold),
-                          ),
-                        ],
+                      Expanded(
+                        child: Row(
+                          children: [
+                            Icon(Icons.menu_book,
+                                color: theme.colorScheme.primary, size: 22),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Course Syllabus & Objectives',
+                                style: theme.textTheme.titleMedium
+                                    ?.copyWith(fontWeight: FontWeight.bold),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
+                      const SizedBox(width: 8),
                       FilledButton.tonalIcon(
                         onPressed: () =>
                             _showEditSyllabusDialog(context, subject),
@@ -1076,16 +1241,14 @@ class _SubjectDetailViewState extends ConsumerState<SubjectDetailView>
                         ?.copyWith(fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 12),
-                  Row(
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
                     children: [
                       _buildInfoBadge(
                           context, Icons.tag, 'Code: ${subject.code}'),
-                      const SizedBox(width: 8),
                       _buildInfoBadge(context, Icons.stars_outlined,
                           '${subject.credits} Credits'),
-                      const SizedBox(width: 8),
-                      _buildInfoBadge(context, Icons.calendar_today_outlined,
-                          subject.academicYear),
                     ],
                   ),
                 ],
@@ -1215,32 +1378,14 @@ class _SubjectDetailViewState extends ConsumerState<SubjectDetailView>
             const SizedBox(height: 20),
             Row(
               children: [
-                GestureDetector(
+                CampusAvatar(
+                  imageUrl: student.avatarUrl,
+                  name: student.name,
+                  radius: 32,
                   onTap: () {
                     Navigator.pop(ctx);
                     context.push('/profile/${student.id}');
                   },
-                  child: CircleAvatar(
-                    radius: 32,
-                    backgroundColor: Colors.blue.withValues(alpha: 0.15),
-                    backgroundImage: student.avatarUrl != null &&
-                            student.avatarUrl!.isNotEmpty
-                        ? NetworkImage(
-                            ApiEndpoints.resolveUrl(student.avatarUrl!))
-                        : null,
-                    child:
-                        student.avatarUrl == null || student.avatarUrl!.isEmpty
-                            ? Text(
-                                student.name.isNotEmpty
-                                    ? student.name[0].toUpperCase()
-                                    : 'S',
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 22,
-                                    color: Colors.blue),
-                              )
-                            : null,
-                  ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -1396,29 +1541,11 @@ class _SubjectDetailViewState extends ConsumerState<SubjectDetailView>
                     const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 child: Row(
                   children: [
-                    GestureDetector(
+                    CampusAvatar(
+                      imageUrl: student.avatarUrl,
+                      name: student.name,
+                      radius: 24,
                       onTap: () => context.push('/profile/${student.id}'),
-                      child: CircleAvatar(
-                        radius: 24,
-                        backgroundColor: Colors.blue.withValues(alpha: 0.15),
-                        backgroundImage: student.avatarUrl != null &&
-                                student.avatarUrl!.isNotEmpty
-                            ? NetworkImage(
-                                ApiEndpoints.resolveUrl(student.avatarUrl!))
-                            : null,
-                        child: student.avatarUrl == null ||
-                                student.avatarUrl!.isEmpty
-                            ? Text(
-                                student.name.isNotEmpty
-                                    ? student.name[0].toUpperCase()
-                                    : 'S',
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.blue,
-                                    fontSize: 16),
-                              )
-                            : null,
-                      ),
                     ),
                     const SizedBox(width: 14),
                     Expanded(
@@ -1505,13 +1632,17 @@ class _SubjectDetailViewState extends ConsumerState<SubjectDetailView>
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Course Assignments',
-                style: Theme.of(context)
-                    .textTheme
-                    .titleMedium
-                    ?.copyWith(fontWeight: FontWeight.bold),
+              Expanded(
+                child: Text(
+                  'Course Assignments',
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleMedium
+                      ?.copyWith(fontWeight: FontWeight.bold),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
+              const SizedBox(width: 8),
               FilledButton.icon(
                 style: FilledButton.styleFrom(
                   backgroundColor: Colors.teal.shade700,
@@ -2020,17 +2151,10 @@ class _SubjectDetailViewState extends ConsumerState<SubjectDetailView>
                                 children: [
                                   Row(
                                     children: [
-                                      CircleAvatar(
+                                      CampusAvatar(
+                                        imageUrl: sub.studentAvatarUrl,
+                                        name: sub.studentName,
                                         radius: 18,
-                                        backgroundColor: Colors.teal.shade100,
-                                        child: Text(
-                                          sub.studentName.isNotEmpty
-                                              ? sub.studentName[0].toUpperCase()
-                                              : 'S',
-                                          style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.teal.shade900),
-                                        ),
                                       ),
                                       const SizedBox(width: 10),
                                       Expanded(
@@ -2262,10 +2386,14 @@ class _SubjectDetailViewState extends ConsumerState<SubjectDetailView>
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Internal Assessments & Tests',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              Expanded(
+                child: Text(
+                  'Internal Assessments & Tests',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
+              const SizedBox(width: 8),
               FilledButton.icon(
                 style: FilledButton.styleFrom(
                   backgroundColor: Colors.purple.shade700,
@@ -2495,18 +2623,22 @@ class _SubjectDetailViewState extends ConsumerState<SubjectDetailView>
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(
-                                a.averageMarks != null
-                                    ? 'Class Avg: ${a.averageMarks} / ${a.totalMarks}'
-                                    : 'Awaiting Grading',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 12,
-                                  color: a.averageMarks != null
-                                      ? Colors.teal.shade800
-                                      : Colors.grey,
+                              Expanded(
+                                child: Text(
+                                  a.averageMarks != null
+                                      ? 'Class Avg: ${a.averageMarks} / ${a.totalMarks}'
+                                      : 'Awaiting Grading',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 12,
+                                    color: a.averageMarks != null
+                                        ? Colors.teal.shade800
+                                        : Colors.grey,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
+                              const SizedBox(width: 8),
                               FilledButton.tonalIcon(
                                 style: FilledButton.styleFrom(
                                     visualDensity: VisualDensity.compact),
@@ -2707,6 +2839,7 @@ class _SubjectDetailViewState extends ConsumerState<SubjectDetailView>
   }
 
   Widget _buildAttendanceTab(BuildContext context, FacultySubject subject) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final sessionsAsync =
         ref.watch(facultyAttendanceSessionsProvider(subject.id));
 
@@ -2722,13 +2855,17 @@ class _SubjectDetailViewState extends ConsumerState<SubjectDetailView>
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Class Attendance Records',
-                style: Theme.of(context)
-                    .textTheme
-                    .titleMedium
-                    ?.copyWith(fontWeight: FontWeight.bold),
+              Expanded(
+                child: Text(
+                  'Class Attendance Records',
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleMedium
+                      ?.copyWith(fontWeight: FontWeight.bold),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
+              const SizedBox(width: 8),
               FilledButton.icon(
                 style: FilledButton.styleFrom(
                   backgroundColor: Colors.teal.shade700,
@@ -2814,55 +2951,57 @@ class _SubjectDetailViewState extends ConsumerState<SubjectDetailView>
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            // 1. Header: Date + Status Badge + Percentage Badge
                             Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Container(
                                   padding: const EdgeInsets.all(10),
                                   decoration: BoxDecoration(
-                                    color: Colors.teal.withValues(alpha: 0.1),
+                                    color: (isDark ? AppColors.accentCyan : AppColors.primaryBlue)
+                                        .withValues(alpha: 0.12),
                                     borderRadius: BorderRadius.circular(10),
                                   ),
-                                  child: const Icon(Icons.event_note,
-                                      color: Colors.teal, size: 20),
+                                  child: Icon(
+                                    Icons.event_note,
+                                    color: isDark ? AppColors.accentCyan : AppColors.primaryBlue,
+                                    size: 20,
+                                  ),
                                 ),
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Row(
                                         children: [
-                                          Text(
-                                            'Session Date: ${session.sessionDate}',
-                                            style: const TextStyle(
+                                          Expanded(
+                                            child: Text(
+                                              'Session Date: ${session.sessionDate}',
+                                              style: const TextStyle(
                                                 fontWeight: FontWeight.bold,
-                                                fontSize: 15),
+                                                fontSize: 14,
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
                                           ),
-                                          const SizedBox(width: 8),
+                                          const SizedBox(width: 6),
                                           Container(
-                                            padding: const EdgeInsets.symmetric(
-                                                horizontal: 6, vertical: 2),
+                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                             decoration: BoxDecoration(
                                               color: isLocked
-                                                  ? Colors.red
-                                                      .withValues(alpha: 0.12)
-                                                  : Colors.green
-                                                      .withValues(alpha: 0.12),
-                                              borderRadius:
-                                                  BorderRadius.circular(4),
+                                                  ? Colors.red.withValues(alpha: 0.12)
+                                                  : Colors.green.withValues(alpha: 0.12),
+                                              borderRadius: BorderRadius.circular(4),
                                             ),
                                             child: Row(
                                               mainAxisSize: MainAxisSize.min,
                                               children: [
                                                 Icon(
-                                                  isLocked
-                                                      ? Icons.lock
-                                                      : Icons.lock_open,
+                                                  isLocked ? Icons.lock : Icons.lock_open,
                                                   size: 10,
-                                                  color: isLocked
-                                                      ? Colors.red
-                                                      : Colors.green,
+                                                  color: isLocked ? Colors.red : Colors.green,
                                                 ),
                                                 const SizedBox(width: 3),
                                                 Text(
@@ -2870,9 +3009,7 @@ class _SubjectDetailViewState extends ConsumerState<SubjectDetailView>
                                                   style: TextStyle(
                                                     fontSize: 10,
                                                     fontWeight: FontWeight.bold,
-                                                    color: isLocked
-                                                        ? Colors.red.shade800
-                                                        : Colors.green.shade800,
+                                                    color: isLocked ? Colors.red.shade800 : Colors.green.shade800,
                                                   ),
                                                 ),
                                               ],
@@ -2880,67 +3017,86 @@ class _SubjectDetailViewState extends ConsumerState<SubjectDetailView>
                                           ),
                                         ],
                                       ),
-                                      if (session.topic != null &&
-                                          session.topic!.isNotEmpty)
+                                      if (session.topic != null && session.topic!.isNotEmpty) ...[
+                                        const SizedBox(height: 3),
                                         Text(
                                           'Topic: ${session.topic}',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
                                           style: TextStyle(
-                                              color: Colors.teal.shade800,
-                                              fontSize: 12),
+                                            color: isDark ? AppColors.accentCyan : AppColors.primaryBlue,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w500,
+                                          ),
                                         ),
+                                      ],
                                     ],
                                   ),
                                 ),
+                                const SizedBox(width: 8),
                                 Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 10, vertical: 4),
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                   decoration: BoxDecoration(
                                     color: pct >= 75
-                                        ? Colors.green.withValues(alpha: 0.12)
-                                        : Colors.amber.withValues(alpha: 0.15),
+                                        ? Colors.green.withValues(alpha: 0.14)
+                                        : Colors.amber.withValues(alpha: 0.16),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Text(
                                     '$pct% Present',
                                     style: TextStyle(
-                                      color: pct >= 75
-                                          ? Colors.green.shade800
-                                          : Colors.amber.shade900,
+                                      color: pct >= 75 ? Colors.green.shade800 : Colors.amber.shade900,
                                       fontWeight: FontWeight.bold,
-                                      fontSize: 12,
+                                      fontSize: 11.5,
                                     ),
                                   ),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 10),
+                            const SizedBox(height: 12),
+                            // 2. Footer: Attendance count & Action
                             Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Row(
-                                  children: [
-                                    Icon(Icons.people_alt_outlined,
-                                        size: 14, color: Colors.grey.shade600),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      '${session.presentCount} of ${session.totalStudents} students attended',
-                                      style: TextStyle(
-                                          color: Colors.grey.shade700,
-                                          fontSize: 12),
-                                    ),
-                                  ],
+                                Expanded(
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.people_alt_outlined,
+                                        size: 14,
+                                        color: Colors.grey.shade600,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Expanded(
+                                        child: Text(
+                                          '${session.presentCount} of ${session.totalStudents} students attended',
+                                          style: TextStyle(
+                                            color: Colors.grey.shade700,
+                                            fontSize: 12,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                                const Row(
+                                const SizedBox(width: 8),
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Text(
                                       'Mark / View Roster',
                                       style: TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.teal,
-                                          fontWeight: FontWeight.bold),
+                                        fontSize: 12,
+                                        color: isDark ? AppColors.accentCyan : AppColors.primaryBlue,
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
-                                    Icon(Icons.chevron_right,
-                                        size: 16, color: Colors.teal),
+                                    Icon(
+                                      Icons.chevron_right,
+                                      size: 16,
+                                      color: isDark ? AppColors.accentCyan : AppColors.primaryBlue,
+                                    ),
                                   ],
                                 ),
                               ],
@@ -3000,12 +3156,17 @@ class _SubjectDetailViewState extends ConsumerState<SubjectDetailView>
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      'Roster (${students.length} Students)',
-                      style: const TextStyle(
-                          fontWeight: FontWeight.bold, fontSize: 13),
+                    Expanded(
+                      child: Text(
+                        'Roster (${students.length} Students)',
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 13),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
+                    const SizedBox(width: 8),
                     Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         TextButton(
                           style: TextButton.styleFrom(
@@ -3287,29 +3448,10 @@ class _GradeAssessmentSheetState extends ConsumerState<_GradeAssessmentSheet> {
                               children: [
                                 Row(
                                   children: [
-                                    CircleAvatar(
+                                    CampusAvatar(
+                                      imageUrl: student.avatarUrl,
+                                      name: student.name,
                                       radius: 18,
-                                      backgroundColor: Colors.purple.shade100,
-                                      backgroundImage:
-                                          student.avatarUrl != null &&
-                                                  student.avatarUrl!.isNotEmpty
-                                              ? NetworkImage(
-                                                  ApiEndpoints.resolveUrl(
-                                                      student.avatarUrl!))
-                                              : null,
-                                      child: student.avatarUrl == null ||
-                                              student.avatarUrl!.isEmpty
-                                          ? Text(
-                                              student.name.isNotEmpty
-                                                  ? student.name[0]
-                                                      .toUpperCase()
-                                                  : 'S',
-                                              style: TextStyle(
-                                                  fontWeight: FontWeight.bold,
-                                                  color:
-                                                      Colors.purple.shade900),
-                                            )
-                                          : null,
                                     ),
                                     const SizedBox(width: 10),
                                     Expanded(

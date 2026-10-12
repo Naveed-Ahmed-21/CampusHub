@@ -25,7 +25,7 @@ void main() {
       );
 
       expect(find.text('For You'), findsOneWidget);
-      expect(find.text('My Department'), findsOneWidget);
+      expect(find.text('Department'), findsOneWidget);
       expect(find.text('Related'), findsOneWidget);
       expect(find.text('Cross Department'), findsNothing);
 

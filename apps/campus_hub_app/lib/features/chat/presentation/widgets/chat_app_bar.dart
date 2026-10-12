@@ -1,13 +1,17 @@
 import 'dart:async';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/constants/api_endpoints.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../data/socket_chat_service.dart';
+import '../../data/chat_repository.dart';
 import '../../domain/chat_models.dart';
 import '../providers/chat_provider.dart';
 import '../utils/presence_formatter.dart';
+import '../../../../core/widgets/campus_back_button.dart';
+import '../../../../core/widgets/campus_avatar.dart';
+import '../../../../core/theme/app_colors.dart';
 
 class ChatAppBar extends ConsumerStatefulWidget implements PreferredSizeWidget {
   final String roomId;
@@ -132,14 +136,20 @@ class _ChatAppBarState extends ConsumerState<ChatAppBar> {
 
     final statusColor = isTyping
         ? Colors.green.shade700
-        : (isOnline ? Colors.green.shade600 : theme.colorScheme.outline);
+        : (isOnline ? Colors.green.shade600 : theme.colorScheme.onSurfaceVariant);
 
+    final isDark = theme.brightness == Brightness.dark;
     return AppBar(
-      titleSpacing: 0,
-      leading: IconButton(
-        icon: const Icon(Icons.arrow_back),
-        onPressed: () => Navigator.of(context).maybePop(),
+      elevation: 0,
+      backgroundColor: isDark ? AppColors.darkAppBarSurface : AppColors.lightAppBarSurface,
+      flexibleSpace: ClipRect(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 16.0, sigmaY: 16.0),
+          child: Container(color: Colors.transparent),
+        ),
       ),
+      titleSpacing: 0,
+      leading: const CampusBackButton(),
       title: InkWell(
         borderRadius: BorderRadius.circular(10),
         onTap: () {
@@ -153,26 +163,10 @@ class _ChatAppBarState extends ConsumerState<ChatAppBar> {
             children: [
               Stack(
                 children: [
-                  CircleAvatar(
+                  CampusAvatar(
+                    imageUrl: otherParticipant.avatarUrl,
+                    name: otherParticipant.firstName,
                     radius: 20,
-                    backgroundColor: theme.colorScheme.primaryContainer,
-                    backgroundImage: otherParticipant.avatarUrl != null &&
-                            otherParticipant.avatarUrl!.isNotEmpty
-                        ? NetworkImage(ApiEndpoints.resolveUrl(otherParticipant.avatarUrl!))
-                        : null,
-                    child: otherParticipant.avatarUrl == null ||
-                            otherParticipant.avatarUrl!.isEmpty
-                        ? Text(
-                            otherParticipant.firstName.isNotEmpty
-                                ? otherParticipant.firstName[0].toUpperCase()
-                                : 'U',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                              color: theme.colorScheme.onPrimaryContainer,
-                            ),
-                          )
-                        : null,
                   ),
                   if (isOnline)
                     Positioned(
@@ -239,7 +233,136 @@ class _ChatAppBarState extends ConsumerState<ChatAppBar> {
                 }
               },
             ),
+            if (otherParticipant.id.isNotEmpty)
+              PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert),
+                onSelected: (val) {
+                  if (val == 'profile') {
+                    context.push('/profile/${otherParticipant.id}');
+                  } else if (val == 'block') {
+                    _showBlockDialog(context, otherParticipant);
+                  } else if (val == 'unblock') {
+                    _showUnblockDialog(context, otherParticipant);
+                  }
+                },
+                itemBuilder: (ctx) {
+                  final perm = ref.read(chatPermissionProvider(otherParticipant.id)).valueOrNull;
+                  final isBlockedByYou = perm?.isBlockedByYou ?? false;
+                  return [
+                    const PopupMenuItem(
+                      value: 'profile',
+                      child: Row(
+                        children: [
+                          Icon(Icons.person_outline, size: 20),
+                          SizedBox(width: 8),
+                          Text('View Profile'),
+                        ],
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: isBlockedByYou ? 'unblock' : 'block',
+                      child: Row(
+                        children: [
+                          Icon(
+                            isBlockedByYou ? Icons.lock_open : Icons.block,
+                            size: 20,
+                            color: isBlockedByYou ? Colors.green : Colors.red,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            isBlockedByYou ? 'Unblock Messages' : 'Block Messages',
+                            style: TextStyle(
+                              color: isBlockedByYou ? Colors.green : Colors.red,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ];
+                },
+              ),
           ],
+    );
+  }
+
+  void _showBlockDialog(BuildContext context, ChatParticipantUser user) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Block ${user.fullName}?'),
+        content: const Text(
+          'They will not be able to message you in chat. Academic enrollments, attendance, and campus club memberships are not affected.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () async {
+              Navigator.of(ctx).pop();
+              try {
+                final repo = ref.read(chatRepositoryProvider);
+                await repo.blockUser(user.id);
+                ref.invalidate(chatPermissionProvider(user.id));
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Blocked messages from ${user.fullName}')),
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Failed to block user: $e'), backgroundColor: Colors.red),
+                  );
+                }
+              }
+            },
+            child: const Text('Block Messages'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showUnblockDialog(BuildContext context, ChatParticipantUser user) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Unblock ${user.fullName}?'),
+        content: const Text('They will be able to send you messages in chat again.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              Navigator.of(ctx).pop();
+              try {
+                final repo = ref.read(chatRepositoryProvider);
+                await repo.unblockUser(user.id);
+                ref.invalidate(chatPermissionProvider(user.id));
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Unblocked messages from ${user.fullName}')),
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Failed to unblock user: $e'), backgroundColor: Colors.red),
+                  );
+                }
+              }
+            },
+            child: const Text('Unblock Messages'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -270,12 +393,18 @@ class _ChatAppBarState extends ConsumerState<ChatAppBar> {
       typingUserName: isTyping ? typingUser : null,
     );
 
+    final isDark = theme.brightness == Brightness.dark;
     return AppBar(
-      titleSpacing: 0,
-      leading: IconButton(
-        icon: const Icon(Icons.arrow_back),
-        onPressed: () => Navigator.of(context).maybePop(),
+      elevation: 0,
+      backgroundColor: isDark ? AppColors.darkAppBarSurface : AppColors.lightAppBarSurface,
+      flexibleSpace: ClipRect(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 16.0, sigmaY: 16.0),
+          child: Container(color: Colors.transparent),
+        ),
       ),
+      titleSpacing: 0,
+      leading: const CampusBackButton(),
       title: InkWell(
         borderRadius: BorderRadius.circular(10),
         onTap: () {
@@ -285,20 +414,21 @@ class _ChatAppBarState extends ConsumerState<ChatAppBar> {
           padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 4.0),
           child: Row(
             children: [
-              CircleAvatar(
-                radius: 20,
-                backgroundColor: theme.colorScheme.secondaryContainer,
-                backgroundImage: room.avatarUrl != null && room.avatarUrl!.isNotEmpty
-                    ? NetworkImage(ApiEndpoints.resolveUrl(room.avatarUrl!))
-                    : null,
-                child: room.avatarUrl == null || room.avatarUrl!.isEmpty
-                    ? Icon(
+              (room.avatarUrl != null && room.avatarUrl!.isNotEmpty)
+                  ? CampusAvatar(
+                      imageUrl: room.avatarUrl,
+                      name: room.name ?? 'Group',
+                      radius: 20,
+                    )
+                  : CircleAvatar(
+                      radius: 20,
+                      backgroundColor: theme.colorScheme.secondaryContainer,
+                      child: Icon(
                         room.isPrivate ? Icons.lock : Icons.groups,
                         color: theme.colorScheme.onSecondaryContainer,
                         size: 22,
-                      )
-                    : null,
-              ),
+                      ),
+                    ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -319,7 +449,7 @@ class _ChatAppBarState extends ConsumerState<ChatAppBar> {
                       statusText,
                       style: TextStyle(
                         fontSize: 12,
-                        color: isTyping ? Colors.green.shade700 : theme.colorScheme.outline,
+                        color: isTyping ? Colors.green.shade700 : theme.colorScheme.onSurfaceVariant,
                         fontWeight: isTyping ? FontWeight.w600 : FontWeight.normal,
                       ),
                       maxLines: 1,
@@ -345,8 +475,18 @@ class _ChatAppBarState extends ConsumerState<ChatAppBar> {
 
   Widget _buildLoadingAppBar(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     return AppBar(
+      elevation: 0,
+      backgroundColor: isDark ? AppColors.darkAppBarSurface : AppColors.lightAppBarSurface,
+      flexibleSpace: ClipRect(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 16.0, sigmaY: 16.0),
+          child: Container(color: Colors.transparent),
+        ),
+      ),
       titleSpacing: 0,
+      leading: const CampusBackButton(),
       title: Row(
         children: [
           CircleAvatar(
@@ -383,7 +523,17 @@ class _ChatAppBarState extends ConsumerState<ChatAppBar> {
   }
 
   Widget _buildErrorAppBar(BuildContext context, Object error) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return AppBar(
+      elevation: 0,
+      backgroundColor: isDark ? AppColors.darkAppBarSurface : AppColors.lightAppBarSurface,
+      flexibleSpace: ClipRect(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 16.0, sigmaY: 16.0),
+          child: Container(color: Colors.transparent),
+        ),
+      ),
+      leading: const CampusBackButton(),
       title: const Text('Conversation'),
       actions: [
         IconButton(

@@ -7,6 +7,10 @@ import '../../../../core/services/media_upload_service.dart';
 import '../providers/chat_provider.dart';
 import '../../domain/chat_models.dart';
 import '../../data/chat_repository.dart';
+import '../../../../core/widgets/campus_app_bar.dart';
+import '../../../../core/widgets/campus_back_button.dart';
+import '../../../../core/widgets/campus_avatar.dart';
+import '../../../../core/widgets/atmospheric_background.dart';
 
 class CreateGroupView extends ConsumerStatefulWidget {
   const CreateGroupView({super.key});
@@ -152,102 +156,107 @@ class _CreateGroupViewState extends ConsumerState<CreateGroupView> {
     final theme = Theme.of(context);
     final usersAsync = ref.watch(campusUsersProvider(_searchQuery));
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_currentStep == 0 ? 'Select Group Members' : 'Create Group'),
-      ),
-      floatingActionButton: _currentStep == 0
-          ? FloatingActionButton.extended(
-              heroTag: null,
-              onPressed: () => setState(() => _currentStep = 1),
-              icon: const Icon(Icons.arrow_forward),
-              label: Text(_selectedUsers.isEmpty ? 'Skip & Configure' : 'Next (${_selectedUsers.length})'),
-            )
-          : null,
-      body: _currentStep == 0
-          ? Column(
-              children: [
-                // Search Bar
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: TextField(
-                    controller: _searchController,
-                    decoration: InputDecoration(
-                      hintText: 'Search members...',
-                      prefixIcon: const Icon(Icons.search),
-                      filled: true,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
+    return AtmosphericBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: CampusAppBar(
+          leading: CampusBackButton(
+            onPressed: _currentStep == 1 ? () => setState(() => _currentStep = 0) : null,
+          ),
+          title: _currentStep == 0 ? 'Select Group Members' : 'Create Group',
+        ),
+        floatingActionButton: _currentStep == 0
+            ? FloatingActionButton.extended(
+                heroTag: null,
+                onPressed: () => setState(() => _currentStep = 1),
+                icon: const Icon(Icons.arrow_forward),
+                label: Text(_selectedUsers.isEmpty ? 'Skip & Configure' : 'Next (${_selectedUsers.length})'),
+              )
+            : null,
+        body: _currentStep == 0
+            ? Column(
+                children: [
+                  // Search Bar
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: TextField(
+                      controller: _searchController,
+                      decoration: InputDecoration(
+                        hintText: 'Search members...',
+                        prefixIcon: const Icon(Icons.search),
+                        filled: true,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
                       ),
-                    ),
-                    onChanged: (val) => setState(() => _searchQuery = val.trim()),
-                  ),
-                ),
-
-                // Selected members chip bar
-                if (_selectedUsers.isNotEmpty)
-                  SizedBox(
-                    height: 50,
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: _selectedUsers.length,
-                      itemBuilder: (context, index) {
-                        final user = _selectedUsers[index];
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 8.0),
-                          child: Chip(
-                            avatar: CircleAvatar(
-                              child: Text(user.firstName.isNotEmpty ? user.firstName[0].toUpperCase() : 'U'),
-                            ),
-                            label: Text(user.fullName),
-                            onDeleted: () => _toggleSelectUser(user),
-                          ),
-                        );
-                      },
+                      onChanged: (val) => setState(() => _searchQuery = val.trim()),
                     ),
                   ),
 
-                const Divider(height: 1),
-
-                Expanded(
-                  child: usersAsync.when(
-                    data: (users) {
-                      if (users.isEmpty) {
-                        return const Center(child: Text('No contacts found'));
-                      }
-
-                      return ListView.separated(
-                        itemCount: users.length,
-                        separatorBuilder: (_, __) => const Divider(height: 1, indent: 64),
+                  // Selected members chip bar
+                  if (_selectedUsers.isNotEmpty)
+                    SizedBox(
+                      height: 50,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        itemCount: _selectedUsers.length,
                         itemBuilder: (context, index) {
-                          final user = users[index];
-                          final isSelected = _selectedUsers.any((u) => u.id == user.id);
-
-                          return ListTile(
-                            onTap: () => _toggleSelectUser(user),
-                            leading: CircleAvatar(
-                              backgroundColor: theme.colorScheme.primaryContainer,
-                              child: Text(
-                                user.firstName.isNotEmpty ? user.firstName[0].toUpperCase() : 'U',
-                                style: const TextStyle(fontWeight: FontWeight.bold),
+                          final user = _selectedUsers[index];
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 8.0),
+                            child: Chip(
+                              avatar: CampusAvatar(
+                                imageUrl: user.avatarUrl,
+                                name: user.fullName,
+                                radius: 12,
                               ),
-                            ),
-                            title: Text(user.fullName, style: const TextStyle(fontWeight: FontWeight.bold)),
-                            subtitle: Text(
-                              user.displayUsername,
-                              style: TextStyle(color: theme.colorScheme.primary, fontSize: 12.5),
-                            ),
-                            trailing: Checkbox(
-                              value: isSelected,
-                              onChanged: (_) => _toggleSelectUser(user),
+                              label: Text(user.fullName),
+                              onDeleted: () => _toggleSelectUser(user),
                             ),
                           );
                         },
-                      );
-                    },
+                      ),
+                    ),
+
+                  const Divider(height: 1),
+
+                  Expanded(
+                    child: usersAsync.when(
+                      data: (users) {
+                        if (users.isEmpty) {
+                          return const Center(child: Text('No contacts found'));
+                        }
+
+                        return ListView.separated(
+                          itemCount: users.length,
+                          separatorBuilder: (_, __) => const Divider(height: 1, indent: 64),
+                          itemBuilder: (context, index) {
+                            final user = users[index];
+                            final isSelected = _selectedUsers.any((u) => u.id == user.id);
+
+                            return ListTile(
+                              onTap: () => _toggleSelectUser(user),
+                              leading: CampusAvatar(
+                                imageUrl: user.avatarUrl,
+                                name: user.fullName,
+                                radius: 20,
+                              ),
+                              title: Text(user.fullName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                              subtitle: Text(
+                                user.displayUsername,
+                                style: TextStyle(color: theme.colorScheme.primary, fontSize: 12.5),
+                              ),
+                              trailing: Checkbox(
+                                value: isSelected,
+                                onChanged: (_) => _toggleSelectUser(user),
+                              ),
+                            );
+                          },
+                        );
+                      },
                     loading: () => const Center(child: CircularProgressIndicator()),
                     error: (err, stack) => Center(child: Text('Error loading contacts: $err')),
                   ),
@@ -411,6 +420,7 @@ class _CreateGroupViewState extends ConsumerState<CreateGroupView> {
                 ],
               ),
             ),
+      ),
     );
   }
 }

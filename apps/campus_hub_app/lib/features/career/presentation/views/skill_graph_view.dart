@@ -4,6 +4,8 @@ import '../../domain/career_models.dart';
 import '../providers/career_provider.dart';
 import '../theme/career_theme.dart';
 import '../widgets/career_shared_widgets.dart';
+import '../../../../core/widgets/campus_back_button.dart';
+import '../../../../core/widgets/campus_app_bar.dart';
 import 'skill_detail_view.dart';
 
 class SkillGraphView extends ConsumerStatefulWidget {
@@ -35,21 +37,9 @@ class _SkillGraphViewState extends ConsumerState<SkillGraphView> {
 
     return Scaffold(
       backgroundColor: CareerTheme.background,
-      appBar: AppBar(
-        backgroundColor: CareerTheme.background,
-        elevation: 0,
-        leading: BackButton(
-          color: Colors.white,
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: const Text(
-          'Skill Graph',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-            color: Colors.white,
-          ),
-        ),
+      appBar: CampusAppBar(
+        title: 'Skill Graph',
+        leading: const CampusBackButton(),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 16.0),

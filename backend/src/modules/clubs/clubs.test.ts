@@ -107,7 +107,7 @@ describe('ClubsService', () => {
 
       clubsRepository.findOrCreateClubChatRoom.mockResolvedValue({ id: 'room-123' } as never);
 
-      const result = await clubsService.verifyClub(mockClubId, mockCollegeId, mockAdminId, Role.COLLEGE_ADMIN, {
+      const result = await clubsService.verifyClub(mockClubId, mockCollegeId, mockAdminId, Role.ADMIN, {
         status: ClubStatus.APPROVED,
       });
 
@@ -196,12 +196,12 @@ describe('ClubsService', () => {
       expect(res.title).toBe('Notes');
     });
 
-    it('should allow COLLEGE_ADMIN to upload resource', async () => {
+    it('should allow ADMIN to upload resource', async () => {
       clubsRepository.findClubById.mockResolvedValue({ id: mockClubId, college_id: mockCollegeId } as never);
       clubsRepository.findMember.mockResolvedValue(null);
       clubsRepository.createClubResource.mockResolvedValue({ id: 'res-2', title: 'Admin Doc' } as never);
 
-      const res = await clubsService.createClubResource(mockClubId, mockAdminId, mockCollegeId, Role.COLLEGE_ADMIN, {
+      const res = await clubsService.createClubResource(mockClubId, mockAdminId, mockCollegeId, Role.ADMIN, {
         title: 'Admin Doc',
         file_url: 'https://file.pdf',
         file_name: 'doc.pdf',

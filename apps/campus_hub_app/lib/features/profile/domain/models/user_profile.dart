@@ -116,6 +116,10 @@ class UserProfile {
   final int followingCount;
   final int postsCount;
   final bool isFollowing;
+  final String status;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+  final DateTime? lastSeen;
   final List<SkillItem> skills;
   final List<ProjectItem> projects;
   final List<UserClubItem> clubs;
@@ -140,6 +144,10 @@ class UserProfile {
     this.followingCount = 0,
     this.postsCount = 0,
     this.isFollowing = false,
+    this.status = 'ACTIVE',
+    this.createdAt,
+    this.updatedAt,
+    this.lastSeen,
     this.skills = const [],
     this.projects = const [],
     this.clubs = const [],
@@ -181,6 +189,10 @@ class UserProfile {
       followingCount: json['followingCount'] as int? ?? json['following_count'] as int? ?? 0,
       postsCount: json['postsCount'] as int? ?? json['posts_count'] as int? ?? 0,
       isFollowing: json['isFollowing'] as bool? ?? json['is_following'] as bool? ?? false,
+      status: json['status'] as String? ?? 'ACTIVE',
+      createdAt: json['createdAt'] != null ? DateTime.tryParse(json['createdAt'].toString()) : (json['created_at'] != null ? DateTime.tryParse(json['created_at'].toString()) : null),
+      updatedAt: json['updatedAt'] != null ? DateTime.tryParse(json['updatedAt'].toString()) : (json['updated_at'] != null ? DateTime.tryParse(json['updated_at'].toString()) : null),
+      lastSeen: json['lastSeen'] != null ? DateTime.tryParse(json['lastSeen'].toString()) : (json['last_seen'] != null ? DateTime.tryParse(json['last_seen'].toString()) : null),
       skills: rawSkills.map((s) => SkillItem.fromJson(s as Map<String, dynamic>)).toList(),
       projects: rawProjects.map((p) => ProjectItem.fromJson(p as Map<String, dynamic>)).toList(),
       clubs: rawClubs.map((c) => UserClubItem.fromJson(c as Map<String, dynamic>)).toList(),
@@ -207,6 +219,10 @@ class UserProfile {
     int? followingCount,
     int? postsCount,
     bool? isFollowing,
+    String? status,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    DateTime? lastSeen,
     List<SkillItem>? skills,
     List<ProjectItem>? projects,
     List<UserClubItem>? clubs,
@@ -231,6 +247,10 @@ class UserProfile {
       followingCount: followingCount ?? this.followingCount,
       postsCount: postsCount ?? this.postsCount,
       isFollowing: isFollowing ?? this.isFollowing,
+      status: status ?? this.status,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      lastSeen: lastSeen ?? this.lastSeen,
       skills: skills ?? this.skills,
       projects: projects ?? this.projects,
       clubs: clubs ?? this.clubs,

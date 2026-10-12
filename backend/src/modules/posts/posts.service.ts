@@ -89,6 +89,40 @@ export class PostsService {
     }
   }
 
+  async getPostById(postId: string, userId?: string): Promise<PostResponseDTO | null> {
+    const p = await this.postsRepo.getPostDetailsById(postId, userId);
+    if (!p) return null;
+    return {
+      id: p.id,
+      title: p.title,
+      content: p.content,
+      type: p.type,
+      isPinned: p.is_pinned,
+      createdAt: p.created_at,
+      author: {
+        id: p.author.id,
+        name: `${p.author.first_name} ${p.author.last_name}`.trim(),
+        avatarUrl: p.author.avatar_url,
+        role: p.author.role,
+      },
+      clubId: (p as any).club_id || (p as any).club?.id || null,
+      clubName: (p as any).club?.name || null,
+      clubLogoUrl: (p as any).club?.logo_url || null,
+      clubCategory: (p as any).club?.category || null,
+      club: (p as any).club || null,
+      attachments: p.attachments.map((a) => ({
+        id: a.id,
+        fileName: a.file_name,
+        fileUrl: a.file_url,
+        fileType: a.file_type,
+      })),
+      likesCount: p._count.likes,
+      commentsCount: p._count.comments,
+      isLiked: (p.likes || []).length > 0,
+      isSaved: (p.saves || []).length > 0,
+    };
+  }
+
   async createPost(
     userId: string,
     collegeId: string,

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../../../core/widgets/campus_back_button.dart';
+import '../../../../core/widgets/campus_app_bar.dart';
 import '../theme/career_theme.dart';
 import '../widgets/career_shared_widgets.dart';
 
@@ -53,21 +55,10 @@ class QuizResultView extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: CareerTheme.background,
-      appBar: AppBar(
-        backgroundColor: CareerTheme.background,
-        elevation: 0,
-        leading: BackButton(
-          color: Colors.white,
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: const Text(
-          'Quiz Result',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-            color: Colors.white,
-          ),
-        ),
+      appBar: CampusAppBar(
+        title: 'Quiz Result',
+        subtitle: topic,
+        leading: const CampusBackButton(),
       ),
       body: SafeArea(
         child: SingleChildScrollView(

@@ -10,6 +10,10 @@ import 'career_roadmap_view.dart';
 import 'skill_graph_view.dart';
 import 'projects_evidence_view.dart';
 import 'job_readiness_view.dart';
+import '../../../../core/widgets/campus_back_button.dart';
+import '../../../../core/widgets/campus_app_bar.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../auth/presentation/controllers/auth_controller.dart';
 import 'interview_prep_view.dart';
 import 'user_roadmaps_list_view.dart';
 
@@ -25,43 +29,27 @@ class _CareerHubHomeViewState extends ConsumerState<CareerHubHomeView> {
   Widget build(BuildContext context) {
     final activeRoadmapAsync = ref.watch(activeUserRoadmapProvider);
     final userRoadmapsAsync = ref.watch(userRoadmapsProvider);
+    final authUser = ref.watch(authControllerProvider).asData?.value;
+    final firstName = authUser?.firstName.trim().isNotEmpty == true
+        ? authUser!.firstName.trim()
+        : 'Student';
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryTextColor = isDark ? Colors.white : AppColors.primaryText;
+    final secondaryTextColor = isDark ? AppColors.darkSecondaryText : AppColors.secondaryText;
 
     return Scaffold(
-      backgroundColor: CareerTheme.background,
-      appBar: AppBar(
-        backgroundColor: CareerTheme.background,
-        elevation: 0,
-        titleSpacing: 20,
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: CareerTheme.accentIndigo.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: CareerTheme.accentIndigo.withValues(alpha: 0.4)),
-              ),
-              child: const Icon(Icons.school_rounded, color: CareerTheme.primaryCyan, size: 20),
-            ),
-            const SizedBox(width: 10),
-            const Text(
-              'CampusHub',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                color: Colors.white,
-                letterSpacing: -0.3,
-              ),
-            ),
-          ],
-        ),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      appBar: CampusAppBar(
+        title: 'CampusHub',
+        subtitle: 'Career Hub',
+        leading: const CampusBackButton(),
         actions: [
           IconButton(
-            icon: const Icon(Icons.search_rounded, color: Colors.white70, size: 22),
+            icon: Icon(Icons.search_rounded, size: 22, color: primaryTextColor),
             onPressed: () => CreateRoadmapView.open(context),
           ),
           IconButton(
-            icon: const Icon(Icons.psychology_alt_rounded, color: CareerTheme.primaryCyan, size: 22),
+            icon: Icon(Icons.psychology_alt_rounded, color: primaryTextColor, size: 22),
             tooltip: 'AI Pathfinder',
             onPressed: () => CareerPathfinderView.open(context),
           ),
@@ -69,8 +57,8 @@ class _CareerHubHomeViewState extends ConsumerState<CareerHubHomeView> {
         ],
       ),
       body: RefreshIndicator(
-        color: CareerTheme.primaryCyan,
-        backgroundColor: CareerTheme.surfaceSecondary,
+        color: isDark ? Colors.white : AppColors.pureBlack,
+        backgroundColor: isDark ? AppColors.darkElevatedSurface : Colors.white,
         onRefresh: () async {
           ref.invalidate(activeUserRoadmapProvider);
           ref.invalidate(userRoadmapsProvider);
@@ -84,19 +72,19 @@ class _CareerHubHomeViewState extends ConsumerState<CareerHubHomeView> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // 1. GREETING HEADER
-              const Text(
-                'Hi, Alex 👋',
+              Text(
+                'Hi, $firstName 👋',
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.w800,
-                  color: Colors.white,
+                  color: primaryTextColor,
                   letterSpacing: -0.4,
                 ),
               ),
               const SizedBox(height: 3),
-              const Text(
+              Text(
                 "Let's build your future.",
-                style: TextStyle(fontSize: 13, color: CareerTheme.textMuted),
+                style: TextStyle(fontSize: 13, color: secondaryTextColor),
               ),
               const SizedBox(height: 20),
 
@@ -109,9 +97,13 @@ class _CareerHubHomeViewState extends ConsumerState<CareerHubHomeView> {
               const SizedBox(height: 24),
 
               // 4. QUICK ACTIONS
-              const Text(
+              Text(
                 'Quick Actions',
-                style: CareerTheme.sectionHeader,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: primaryTextColor,
+                ),
               ),
               const SizedBox(height: 12),
               _buildQuickActionsGrid(context, activeRoadmapAsync),
@@ -131,29 +123,25 @@ class _CareerHubHomeViewState extends ConsumerState<CareerHubHomeView> {
   // HERO CARD (SCREEN 1)
   // ==========================================
   Widget _buildHeroAiCard(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryTextColor = isDark ? Colors.white : AppColors.primaryText;
+    final secondaryTextColor = isDark ? AppColors.darkSecondaryText : AppColors.secondaryText;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [
-            Color(0xFF1E1B4B), // Deep Indigo
-            Color(0xFF2E1065), // Rich Violet
-            Color(0xFF0F172A), // Slate Dark
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: isDark ? AppColors.darkElevatedSurface : Colors.white,
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
-          color: CareerTheme.accentLavender.withValues(alpha: 0.35),
+          color: isDark ? AppColors.darkBorder : AppColors.border,
           width: 1.2,
         ),
         boxShadow: [
           BoxShadow(
-            color: CareerTheme.accentIndigo.withValues(alpha: 0.25),
-            blurRadius: 24,
-            offset: const Offset(0, 8),
+            color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.05),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -166,21 +154,21 @@ class _CareerHubHomeViewState extends ConsumerState<CareerHubHomeView> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text(
+                Text(
                   'AI Roadmap Generator',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
-                    color: Colors.white,
+                    color: primaryTextColor,
                     letterSpacing: -0.3,
                   ),
                 ),
                 const SizedBox(height: 6),
-                const Text(
+                Text(
                   'Personalized, Practical. Powered by AI.',
                   style: TextStyle(
                     fontSize: 12,
-                    color: CareerTheme.textSecondary,
+                    color: secondaryTextColor,
                     height: 1.35,
                   ),
                 ),
@@ -190,17 +178,17 @@ class _CareerHubHomeViewState extends ConsumerState<CareerHubHomeView> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                     decoration: BoxDecoration(
-                      gradient: CareerTheme.primaryGradient,
+                      color: isDark ? Colors.white : AppColors.pureBlack,
                       borderRadius: BorderRadius.circular(CareerTheme.radiusPill),
                       boxShadow: [
                         BoxShadow(
-                          color: CareerTheme.primaryCyan.withValues(alpha: 0.35),
-                          blurRadius: 12,
-                          offset: const Offset(0, 3),
+                          color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.15),
+                          blurRadius: 10,
+                          offset: const Offset(0, 2),
                         ),
                       ],
                     ),
-                    child: const Row(
+                    child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
@@ -208,11 +196,15 @@ class _CareerHubHomeViewState extends ConsumerState<CareerHubHomeView> {
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
-                            color: Colors.white,
+                            color: isDark ? Colors.black : Colors.white,
                           ),
                         ),
-                        SizedBox(width: 6),
-                        Icon(Icons.arrow_forward_rounded, size: 14, color: Colors.white),
+                        const SizedBox(width: 6),
+                        Icon(
+                          Icons.arrow_forward_rounded,
+                          size: 14,
+                          color: isDark ? Colors.black : Colors.white,
+                        ),
                       ],
                     ),
                   ),
@@ -222,7 +214,7 @@ class _CareerHubHomeViewState extends ConsumerState<CareerHubHomeView> {
           ),
           const SizedBox(width: 12),
 
-          // Right Glowing AI Orb
+          // Right AI Orb
           const CareerAIOrb(
             size: 76,
             showText: true,
@@ -241,6 +233,9 @@ class _CareerHubHomeViewState extends ConsumerState<CareerHubHomeView> {
     AsyncValue<ActiveRoadmapState?> activeAsync,
     AsyncValue<List<UserRoadmapItemModel>> roadmapsAsync,
   ) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryTextColor = isDark ? Colors.white : AppColors.primaryText;
+    final secondaryTextColor = isDark ? AppColors.darkSecondaryText : AppColors.secondaryText;
     final roadmaps = roadmapsAsync.valueOrNull ?? [];
     final roadmapsCount = roadmaps.length;
 
@@ -250,7 +245,14 @@ class _CareerHubHomeViewState extends ConsumerState<CareerHubHomeView> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text('Active Roadmaps', style: CareerTheme.sectionHeader),
+            Text(
+              'Active Roadmaps',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: primaryTextColor,
+              ),
+            ),
             GestureDetector(
               onTap: () {
                 UserRoadmapsListView.open(context);
@@ -258,26 +260,34 @@ class _CareerHubHomeViewState extends ConsumerState<CareerHubHomeView> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text(
+                  Text(
                     'See all',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: CareerTheme.primaryCyan),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: primaryTextColor,
+                    ),
                   ),
                   if (roadmapsCount > 0) ...[
                     const SizedBox(width: 5),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
                       decoration: BoxDecoration(
-                        color: CareerTheme.primaryCyan.withValues(alpha: 0.15),
+                        color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
                         '$roadmapsCount',
-                        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: CareerTheme.primaryCyan),
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: primaryTextColor,
+                        ),
                       ),
                     ),
                   ],
                   const SizedBox(width: 3),
-                  const Icon(Icons.arrow_forward_ios_rounded, size: 10, color: CareerTheme.primaryCyan),
+                  Icon(Icons.arrow_forward_ios_rounded, size: 10, color: primaryTextColor),
                 ],
               ),
             ),
@@ -303,13 +313,13 @@ class _CareerHubHomeViewState extends ConsumerState<CareerHubHomeView> {
                       width: 44,
                       height: 44,
                       decoration: BoxDecoration(
-                        color: CareerTheme.primaryCyan.withValues(alpha: 0.15),
+                        color: isDark ? AppColors.darkSecondary : const Color(0xFFF1F5F9),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: CareerTheme.primaryCyan.withValues(alpha: 0.3)),
+                        border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.border),
                       ),
                       child: Icon(
                         hasSavedRoadmaps ? Icons.alt_route_rounded : Icons.add_road_rounded,
-                        color: CareerTheme.primaryCyan,
+                        color: primaryTextColor,
                         size: 22,
                       ),
                     ),
@@ -320,19 +330,23 @@ class _CareerHubHomeViewState extends ConsumerState<CareerHubHomeView> {
                         children: [
                           Text(
                             hasSavedRoadmaps ? 'Saved Roadmaps Available' : 'No active roadmap yet',
-                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white),
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: primaryTextColor,
+                            ),
                           ),
                           const SizedBox(height: 3),
                           Text(
                             hasSavedRoadmaps
                                 ? 'Tap to view all roadmaps and select your active focus track'
                                 : 'Tap to generate your personalized learning roadmap',
-                            style: const TextStyle(fontSize: 11, color: CareerTheme.textMuted),
+                            style: TextStyle(fontSize: 11, color: secondaryTextColor),
                           ),
                         ],
                       ),
                     ),
-                    const Icon(Icons.arrow_forward_rounded, color: CareerTheme.primaryCyan, size: 20),
+                    Icon(Icons.arrow_forward_rounded, color: primaryTextColor, size: 20),
                   ],
                 ),
               );
@@ -352,11 +366,11 @@ class _CareerHubHomeViewState extends ConsumerState<CareerHubHomeView> {
                     width: 44,
                     height: 44,
                     decoration: BoxDecoration(
-                      color: CareerTheme.accentIndigo.withValues(alpha: 0.2),
+                      color: isDark ? AppColors.darkSecondary : const Color(0xFFF1F5F9),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: CareerTheme.accentIndigo.withValues(alpha: 0.3)),
+                      border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.border),
                     ),
-                    child: const Icon(Icons.code_rounded, color: CareerTheme.primaryCyan, size: 22),
+                    child: Icon(Icons.code_rounded, color: primaryTextColor, size: 22),
                   ),
                   const SizedBox(width: 14),
 
@@ -367,7 +381,11 @@ class _CareerHubHomeViewState extends ConsumerState<CareerHubHomeView> {
                       children: [
                         Text(
                           role,
-                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white),
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: primaryTextColor,
+                          ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -376,7 +394,11 @@ class _CareerHubHomeViewState extends ConsumerState<CareerHubHomeView> {
                           children: [
                             Text(
                               'In Progress • $progress%',
-                              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: CareerTheme.primaryCyan),
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: primaryTextColor,
+                              ),
                             ),
                           ],
                         ),
@@ -386,8 +408,10 @@ class _CareerHubHomeViewState extends ConsumerState<CareerHubHomeView> {
                           child: LinearProgressIndicator(
                             value: progress / 100.0,
                             minHeight: 5,
-                            backgroundColor: CareerTheme.surfaceElevated,
-                            valueColor: const AlwaysStoppedAnimation<Color>(CareerTheme.primaryCyan),
+                            backgroundColor: isDark ? AppColors.darkElevatedSurface : const Color(0xFFE2E8F0),
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              isDark ? Colors.white : AppColors.pureBlack,
+                            ),
                           ),
                         ),
                       ],
@@ -396,7 +420,7 @@ class _CareerHubHomeViewState extends ConsumerState<CareerHubHomeView> {
                   const SizedBox(width: 12),
 
                   // Trailing Chevron
-                  const Icon(Icons.chevron_right_rounded, color: CareerTheme.textSubtle, size: 22),
+                  Icon(Icons.chevron_right_rounded, color: secondaryTextColor, size: 22),
                 ],
               ),
             );
@@ -404,16 +428,23 @@ class _CareerHubHomeViewState extends ConsumerState<CareerHubHomeView> {
           loading: () => Container(
             height: 76,
             decoration: BoxDecoration(
-              color: CareerTheme.surface,
+              color: isDark ? AppColors.darkElevatedSurface : Colors.white,
               borderRadius: BorderRadius.circular(CareerTheme.radiusLarge),
+              border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.border),
             ),
-            child: const Center(
-              child: CircularProgressIndicator(strokeWidth: 2, color: CareerTheme.primaryCyan),
+            child: Center(
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: isDark ? Colors.white : AppColors.pureBlack,
+              ),
             ),
           ),
           error: (_, __) => CareerGlassCard(
             padding: const EdgeInsets.all(16),
-            child: const Text('Connect to create your first roadmap.', style: TextStyle(color: CareerTheme.textMuted)),
+            child: Text(
+              'Connect to create your first roadmap.',
+              style: TextStyle(color: secondaryTextColor),
+            ),
           ),
         ),
       ],
@@ -427,6 +458,8 @@ class _CareerHubHomeViewState extends ConsumerState<CareerHubHomeView> {
     BuildContext context,
     AsyncValue<ActiveRoadmapState?> activeAsync,
   ) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryTextColor = isDark ? Colors.white : AppColors.primaryText;
     final roadmapId = activeAsync.valueOrNull?.roadmapId ?? '';
     final targetRole = activeAsync.valueOrNull?.targetRole ?? 'Software Engineer';
 
@@ -434,25 +467,25 @@ class _CareerHubHomeViewState extends ConsumerState<CareerHubHomeView> {
       _QuickActionItem(
         label: 'Explore\nTracks',
         icon: Icons.explore_rounded,
-        color: const Color(0xFF8B5CF6), // Purple
+        color: primaryTextColor,
         onTap: () => CareerPathfinderView.open(context),
       ),
       _QuickActionItem(
         label: 'Skills',
         icon: Icons.bolt_rounded,
-        color: const Color(0xFF10B981), // Mint
+        color: primaryTextColor,
         onTap: () => SkillGraphView.open(context, roadmapId: roadmapId),
       ),
       _QuickActionItem(
         label: 'Projects',
         icon: Icons.folder_rounded,
-        color: const Color(0xFF0EA5E9), // Cyan
+        color: primaryTextColor,
         onTap: () => ProjectsEvidenceView.open(context),
       ),
       _QuickActionItem(
         label: 'Interview\nPrep',
         icon: Icons.mic_rounded,
-        color: const Color(0xFFF59E0B), // Orange
+        color: primaryTextColor,
         onTap: () => InterviewPrepView.open(context, targetRole: targetRole, roadmapId: roadmapId),
       ),
     ];
@@ -466,36 +499,52 @@ class _CareerHubHomeViewState extends ConsumerState<CareerHubHomeView> {
             child: GestureDetector(
               onTap: item.onTap,
               child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 14),
+                height: 108,
+                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
                 decoration: BoxDecoration(
-                  color: CareerTheme.surface,
+                  color: isDark ? AppColors.darkElevatedSurface : Colors.white,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: CareerTheme.glassBorder),
+                  border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.border),
+                  boxShadow: isDark
+                      ? null
+                      : [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.04),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                 ),
                 child: Column(
-                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Container(
-                      width: 42,
-                      height: 42,
+                      width: 40,
+                      height: 40,
                       decoration: BoxDecoration(
-                        color: item.color.withValues(alpha: 0.15),
+                        color: isDark ? AppColors.darkSecondary : const Color(0xFFF1F5F9),
                         shape: BoxShape.circle,
+                        border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.border),
                       ),
-                      child: Icon(item.icon, color: item.color, size: 20),
+                      child: Icon(item.icon, color: primaryTextColor, size: 20),
                     ),
                     const SizedBox(height: 8),
-                    Text(
-                      item.label,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                        height: 1.2,
+                    SizedBox(
+                      height: 28,
+                      child: Center(
+                        child: Text(
+                          item.label,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: primaryTextColor,
+                            height: 1.15,
+                          ),
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
-                      textAlign: TextAlign.center,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
@@ -511,6 +560,8 @@ class _CareerHubHomeViewState extends ConsumerState<CareerHubHomeView> {
   // POPULAR CAMPUS TRACKS (SCREEN 1)
   // ==========================================
   Widget _buildPopularTracksSection(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryTextColor = isDark ? Colors.white : AppColors.primaryText;
     final tracks = [
       _TrackCardData(
         title: 'Campus\nPlacement',
@@ -544,12 +595,23 @@ class _CareerHubHomeViewState extends ConsumerState<CareerHubHomeView> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text('Popular Campus Tracks', style: CareerTheme.sectionHeader),
+            Text(
+              'Popular Campus Tracks',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: primaryTextColor,
+              ),
+            ),
             GestureDetector(
               onTap: () => _showPopularTracksExplorer(context),
-              child: const Text(
+              child: Text(
                 'See all',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: CareerTheme.primaryCyan),
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: primaryTextColor,
+                ),
               ),
             ),
           ],

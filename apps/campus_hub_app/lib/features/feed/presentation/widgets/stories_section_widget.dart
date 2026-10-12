@@ -1,6 +1,6 @@
+import '../../../../core/widgets/campus_avatar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/constants/api_endpoints.dart';
 import '../../../../features/auth/presentation/controllers/auth_controller.dart';
 import '../../../stories/presentation/providers/stories_provider.dart';
 import '../../../stories/presentation/views/story_viewer_screen.dart';
@@ -34,6 +34,10 @@ class StoriesSectionWidget extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authControllerProvider).asData?.value;
     final storiesAsync = ref.watch(storiesProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final unseenRingColor = isDark ? Colors.white : Colors.black;
+    final seenRingColor = isDark ? const Color(0xFF2F3336) : const Color(0xFFEFF3F4);
+    final ringBgColor = isDark ? Colors.black : Colors.white;
 
     return Container(
       height: 98,
@@ -79,41 +83,23 @@ class StoriesSectionWidget extends ConsumerWidget {
                               padding: const EdgeInsets.all(2.5),
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                gradient: hasUserStory && (userStoryGroup?.hasUnseenStories ?? false)
-                                    ? const LinearGradient(
-                                        colors: [Colors.purple, Colors.pink, Colors.orange],
-                                        begin: Alignment.topLeft,
-                                        end: Alignment.bottomRight,
-                                      )
-                                    : null,
-                                border: hasUserStory && !(userStoryGroup?.hasUnseenStories ?? true)
-                                    ? Border.all(color: Colors.grey.shade400, width: 1.5)
-                                    : (!hasUserStory ? Border.all(color: Colors.grey.shade300, width: 1.5) : null),
+                                border: Border.all(
+                                  color: hasUserStory && (userStoryGroup?.hasUnseenStories ?? false)
+                                      ? unseenRingColor
+                                      : seenRingColor,
+                                  width: 2.0,
+                                ),
                               ),
                               child: Container(
                                 padding: const EdgeInsets.all(1.5),
-                                decoration: const BoxDecoration(
-                                  color: Colors.white,
+                                decoration: BoxDecoration(
+                                  color: ringBgColor,
                                   shape: BoxShape.circle,
                                 ),
-                                child: CircleAvatar(
+                                child: CampusAvatar(
+                                  imageUrl: user?.avatarUrl,
+                                  name: user?.firstName ?? 'U',
                                   radius: 26,
-                                  backgroundColor: Colors.teal.shade100,
-                                  backgroundImage: user?.avatarUrl != null && user!.avatarUrl!.isNotEmpty
-                                      ? NetworkImage(ApiEndpoints.resolveUrl(user.avatarUrl!))
-                                      : null,
-                                  child: user?.avatarUrl == null || user!.avatarUrl!.isEmpty
-                                      ? Text(
-                                          user != null && user.firstName.isNotEmpty
-                                              ? user.firstName[0].toUpperCase()
-                                              : 'U',
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 18,
-                                            color: Colors.teal,
-                                          ),
-                                        )
-                                      : null,
                                 ),
                               ),
                             ),
@@ -127,9 +113,9 @@ class StoriesSectionWidget extends ConsumerWidget {
                                   width: 22,
                                   height: 22,
                                   decoration: BoxDecoration(
-                                    color: Colors.blue.shade600,
+                                    color: isDark ? Colors.white : Colors.black,
                                     shape: BoxShape.circle,
-                                    border: Border.all(color: Colors.white, width: 2),
+                                    border: Border.all(color: ringBgColor, width: 2),
                                     boxShadow: [
                                       BoxShadow(
                                         color: Colors.black.withValues(alpha: 0.2),
@@ -137,7 +123,11 @@ class StoriesSectionWidget extends ConsumerWidget {
                                       ),
                                     ],
                                   ),
-                                  child: const Icon(Icons.add, color: Colors.white, size: 14),
+                                  child: Icon(
+                                    Icons.add,
+                                    color: isDark ? Colors.black : Colors.white,
+                                    size: 14,
+                                  ),
                                 ),
                               ),
                             ),
@@ -170,39 +160,21 @@ class StoriesSectionWidget extends ConsumerWidget {
                         padding: const EdgeInsets.all(2.5),
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          gradient: group.hasUnseenStories
-                              ? const LinearGradient(
-                                  colors: [Colors.purple, Colors.pink, Colors.orange],
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                )
-                              : null,
-                          border: !group.hasUnseenStories
-                              ? Border.all(color: Colors.grey.shade400, width: 1.5)
-                              : null,
+                          border: Border.all(
+                            color: group.hasUnseenStories ? unseenRingColor : seenRingColor,
+                            width: 2.0,
+                          ),
                         ),
                         child: Container(
                           padding: const EdgeInsets.all(1.5),
-                          decoration: const BoxDecoration(
-                            color: Colors.white,
+                          decoration: BoxDecoration(
+                            color: ringBgColor,
                             shape: BoxShape.circle,
                           ),
-                          child: CircleAvatar(
+                          child: CampusAvatar(
+                            imageUrl: group.userAvatar,
+                            name: group.userName,
                             radius: 26,
-                            backgroundColor: Colors.indigo.shade100,
-                            backgroundImage: group.userAvatar != null && group.userAvatar!.isNotEmpty
-                                ? NetworkImage(ApiEndpoints.resolveUrl(group.userAvatar!))
-                                : null,
-                            child: group.userAvatar == null || group.userAvatar!.isEmpty
-                                ? Text(
-                                    group.userName.isNotEmpty ? group.userName[0].toUpperCase() : 'C',
-                                    style: const TextStyle(
-                                      color: Colors.indigo,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                    ),
-                                  )
-                                : null,
                           ),
                         ),
                       ),

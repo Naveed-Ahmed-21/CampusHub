@@ -1,11 +1,13 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../../../../core/constants/api_endpoints.dart';
+import '../../../../core/services/campus_download_service.dart';
 import '../../../../shared/widgets/campus_network_image.dart';
-import '../../../../shared/widgets/campus_video_player.dart';
 import '../../../../shared/widgets/full_screen_image_viewer.dart';
+import '../../../../shared/widgets/full_screen_video_viewer.dart';
 import '../../domain/models/post_item.dart';
 
-class PostAttachmentRenderer extends StatelessWidget {
+class PostAttachmentRenderer extends StatefulWidget {
   final List<PostAttachmentItem> attachments;
   final String? postAuthorName;
 
@@ -14,6 +16,20 @@ class PostAttachmentRenderer extends StatelessWidget {
     required this.attachments,
     this.postAuthorName,
   });
+
+  @override
+  State<PostAttachmentRenderer> createState() => _PostAttachmentRendererState();
+}
+
+class _PostAttachmentRendererState extends State<PostAttachmentRenderer> {
+  int _currentCarouselIndex = 0;
+  final PageController _pageController = PageController();
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
 
   bool _isImage(PostAttachmentItem attachment) {
     final type = attachment.fileType.toLowerCase();
@@ -53,7 +69,7 @@ class PostAttachmentRenderer extends StatelessWidget {
         imageUrl: att.fileUrl,
         heroTag: 'post_img_${att.id.isNotEmpty ? att.id : idx}_${att.fileUrl.hashCode}',
         title: att.fileName.isNotEmpty ? att.fileName : 'Post Photo ${idx + 1}',
-        subtitle: postAuthorName != null ? 'Posted by $postAuthorName' : null,
+        subtitle: widget.postAuthorName != null ? 'Posted by ${widget.postAuthorName}' : null,
       );
     }).toList();
 
@@ -64,41 +80,12 @@ class PostAttachmentRenderer extends StatelessWidget {
     );
   }
 
-  void _showVideoPlayerModal(BuildContext context, String videoUrl, String fileName) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        contentPadding: const EdgeInsets.all(12),
-        title: Row(
-          children: [
-            const Icon(Icons.videocam, color: Colors.red),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                fileName.isNotEmpty ? fileName : 'Campus Video',
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CampusVideoPlayer(
-              videoUrl: videoUrl,
-              autoPlay: true,
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
+  void _openVideoViewer(BuildContext context, String videoUrl, String fileName) {
+    FullScreenVideoViewer.open(
+      context,
+      videoUrl: videoUrl,
+      title: fileName,
+      authorName: widget.postAuthorName,
     );
   }
 
@@ -164,18 +151,18 @@ class PostAttachmentRenderer extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          OutlinedButton.icon(
+          FilledButton.tonalIcon(
             onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Opening $fileName ($resolvedUrl)'),
-                  backgroundColor: theme.colorScheme.primary,
-                ),
+              CampusDownloadService.downloadResource(
+                context: context,
+                fileUrl: resolvedUrl,
+                fileName: fileName,
+                subFolder: 'Documents',
               );
             },
-            icon: const Icon(Icons.download, size: 16),
-            label: const Text('Open', style: TextStyle(fontSize: 12)),
-            style: OutlinedButton.styleFrom(
+            icon: const Icon(Icons.download_rounded, size: 16),
+            label: const Text('Download', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            style: FilledButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               minimumSize: const Size(60, 32),
               visualDensity: VisualDensity.compact,
@@ -186,144 +173,243 @@ class PostAttachmentRenderer extends StatelessWidget {
     );
   }
 
-  Widget _buildImagesGrid(BuildContext context, List<PostAttachmentItem> images) {
-    if (images.isEmpty) return const SizedBox.shrink();
-
-    if (images.length == 1) {
-      final img = images.first;
-      final heroTag = 'post_img_${img.id.isNotEmpty ? img.id : 0}_${img.fileUrl.hashCode}';
-      return Padding(
-        padding: const EdgeInsets.only(top: 8.0),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: GestureDetector(
-            onTap: () => _openImageViewer(context, images, 0),
-            child: Hero(
-              tag: heroTag,
-              child: CampusNetworkImage(
-                imageUrl: img.fileUrl,
-                height: 250,
-                width: double.infinity,
-                fit: BoxFit.cover,
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
-    if (images.length == 2) {
-      return Padding(
-        padding: const EdgeInsets.only(top: 8.0),
-        child: SizedBox(
-          height: 180,
-          child: Row(
-            children: [
-              Expanded(
-                child: ClipRRect(
-                  borderRadius: const BorderRadius.horizontal(left: Radius.circular(12)),
-                  child: GestureDetector(
-                    onTap: () => _openImageViewer(context, images, 0),
-                    child: CampusNetworkImage(
-                      imageUrl: images[0].fileUrl,
-                      height: 180,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 4),
-              Expanded(
-                child: ClipRRect(
-                  borderRadius: const BorderRadius.horizontal(right: Radius.circular(12)),
-                  child: GestureDetector(
-                    onTap: () => _openImageViewer(context, images, 1),
-                    child: CampusNetworkImage(
-                      imageUrl: images[1].fileUrl,
-                      height: 180,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    // 3 or more images: Grid format
+  Widget _buildSingleImage(BuildContext context, PostAttachmentItem img) {
+    final heroTag = 'post_img_${img.id.isNotEmpty ? img.id : 0}_${img.fileUrl.hashCode}';
     return Padding(
       padding: const EdgeInsets.only(top: 8.0),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
-        child: SizedBox(
-          height: 220,
-          child: Row(
+        child: GestureDetector(
+          onTap: () => _openImageViewer(context, [img], 0),
+          child: Hero(
+            tag: heroTag,
+            child: CampusNetworkImage(
+              imageUrl: img.fileUrl,
+              height: 260,
+              width: double.infinity,
+              fit: BoxFit.cover,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSingleVideo(BuildContext context, PostAttachmentItem video) {
+    final resolvedUrl = ApiEndpoints.resolveUrl(video.fileUrl);
+    return Padding(
+      padding: const EdgeInsets.only(top: 8.0),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: GestureDetector(
+          onTap: () => _openVideoViewer(context, resolvedUrl, video.fileName),
+          child: AspectRatio(
+            aspectRatio: 16 / 9,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                CampusNetworkImage(
+                  imageUrl: resolvedUrl,
+                  width: double.infinity,
+                  height: double.infinity,
+                  fit: BoxFit.cover,
+                  errorWidget: Container(
+                    color: Colors.black87,
+                    child: const Center(
+                      child: Icon(Icons.videocam_rounded, size: 48, color: Colors.white54),
+                    ),
+                  ),
+                ),
+                Container(
+                  color: Colors.black.withValues(alpha: 0.25),
+                ),
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.65),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white24, width: 1.5),
+                  ),
+                  child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 36),
+                ),
+                Positioned(
+                  bottom: 10,
+                  right: 10,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: Colors.black87,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.videocam, color: Colors.white, size: 12),
+                        SizedBox(width: 4),
+                        Text(
+                          'VIDEO',
+                          style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMixedMediaCarousel(BuildContext context, List<PostAttachmentItem> visualMedia) {
+    final total = visualMedia.length;
+    final imagesOnly = visualMedia.where(_isImage).toList();
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 8.0),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          height: 280,
+          color: Colors.black87,
+          child: Stack(
             children: [
-              Expanded(
-                flex: 3,
-                child: GestureDetector(
-                  onTap: () => _openImageViewer(context, images, 0),
-                  child: CampusNetworkImage(
-                    imageUrl: images[0].fileUrl,
-                    height: double.infinity,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
+              PageView.builder(
+                controller: _pageController,
+                itemCount: total,
+                onPageChanged: (idx) {
+                  setState(() {
+                    _currentCarouselIndex = idx;
+                  });
+                },
+                itemBuilder: (ctx, index) {
+                  final item = visualMedia[index];
+                  final isVid = _isVideo(item);
+
+                  if (isVid) {
+                    final resolvedUrl = ApiEndpoints.resolveUrl(item.fileUrl);
+                    return GestureDetector(
+                      onTap: () => _openVideoViewer(context, resolvedUrl, item.fileName),
+                      child: Stack(
+                        fit: StackFit.expand,
+                        alignment: Alignment.center,
+                        children: [
+                          CampusNetworkImage(
+                            imageUrl: resolvedUrl,
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                            height: double.infinity,
+                            errorWidget: Container(
+                              color: Colors.black87,
+                              child: const Center(
+                                child: Icon(Icons.videocam_rounded, size: 48, color: Colors.white54),
+                              ),
+                            ),
+                          ),
+                          Container(color: Colors.black.withValues(alpha: 0.3)),
+                          Center(
+                            child: Container(
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.65),
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.white24, width: 1.5),
+                              ),
+                              child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 36),
+                            ),
+                          ),
+                          Positioned(
+                            bottom: 12,
+                            left: 12,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: Colors.black87,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.videocam, color: Colors.white, size: 12),
+                                  SizedBox(width: 4),
+                                  Text(
+                                    'VIDEO',
+                                    style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  } else {
+                    final imageIdx = imagesOnly.indexOf(item);
+                    return GestureDetector(
+                      onTap: () => _openImageViewer(
+                        context,
+                        imagesOnly,
+                        imageIdx >= 0 ? imageIdx : 0,
+                      ),
+                      child: CampusNetworkImage(
+                        imageUrl: item.fileUrl,
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        height: double.infinity,
+                      ),
+                    );
+                  }
+                },
+              ),
+
+              // Page indicator counter pill in top-right
+              Positioned(
+                top: 10,
+                right: 10,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                      color: Colors.black.withValues(alpha: 0.55),
+                      child: Text(
+                        '${_currentCarouselIndex + 1} / $total',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ),
-              const SizedBox(width: 4),
-              Expanded(
-                flex: 2,
-                child: Column(
-                  children: [
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () => _openImageViewer(context, images, 1),
-                        child: CampusNetworkImage(
-                          imageUrl: images[1].fileUrl,
-                          height: double.infinity,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
+
+              // Bottom dot indicators
+              if (total > 1)
+                Positioned(
+                  bottom: 8,
+                  left: 0,
+                  right: 0,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(total, (i) {
+                      final isSelected = i == _currentCarouselIndex;
+                      return AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        margin: const EdgeInsets.symmetric(horizontal: 2.5),
+                        height: 5,
+                        width: isSelected ? 16 : 5,
+                        decoration: BoxDecoration(
+                          color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.4),
+                          borderRadius: BorderRadius.circular(3),
                         ),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () => _openImageViewer(context, images, 2),
-                        child: Stack(
-                          fit: StackFit.expand,
-                          children: [
-                            CampusNetworkImage(
-                              imageUrl: images[2].fileUrl,
-                              height: double.infinity,
-                              width: double.infinity,
-                              fit: BoxFit.cover,
-                            ),
-                            if (images.length > 3)
-                              Container(
-                                color: Colors.black54,
-                                alignment: Alignment.center,
-                                child: Text(
-                                  '+${images.length - 3}',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
+                      );
+                    }),
+                  ),
                 ),
-              ),
             ],
           ),
         ),
@@ -333,83 +419,25 @@ class PostAttachmentRenderer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (attachments.isEmpty) return const SizedBox.shrink();
+    if (widget.attachments.isEmpty) return const SizedBox.shrink();
 
-    final images = attachments.where(_isImage).toList();
-    final videos = attachments.where(_isVideo).toList();
-    final documents = attachments.where((a) => !_isImage(a) && !_isVideo(a)).toList();
+    final visualMedia = widget.attachments.where((a) => _isImage(a) || _isVideo(a)).toList();
+    final documents = widget.attachments.where((a) => !_isImage(a) && !_isVideo(a)).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // 1. Direct Image Attachments Grid
-        _buildImagesGrid(context, images),
+        // Visual Media (Single or Slidable Carousel)
+        if (visualMedia.length == 1) ...[
+          if (_isImage(visualMedia.first))
+            _buildSingleImage(context, visualMedia.first)
+          else
+            _buildSingleVideo(context, visualMedia.first),
+        ] else if (visualMedia.length > 1) ...[
+          _buildMixedMediaCarousel(context, visualMedia),
+        ],
 
-        // 2. Direct Video Attachments
-        if (videos.isNotEmpty)
-          ...videos.map(
-            (v) => Padding(
-              padding: const EdgeInsets.only(top: 8.0),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: GestureDetector(
-                  onTap: () => _showVideoPlayerModal(
-                    context,
-                    ApiEndpoints.resolveUrl(v.fileUrl),
-                    v.fileName,
-                  ),
-                  child: AspectRatio(
-                    aspectRatio: 16 / 9,
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        CampusNetworkImage(
-                          imageUrl: ApiEndpoints.resolveUrl(v.fileUrl),
-                          width: double.infinity,
-                          height: double.infinity,
-                          fit: BoxFit.cover,
-                          errorWidget: Container(
-                            color: Colors.black87,
-                            child: const Center(
-                              child: Icon(Icons.video_library, size: 48, color: Colors.white54),
-                            ),
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.6),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(Icons.play_arrow, color: Colors.white, size: 36),
-                        ),
-                        Positioned(
-                          bottom: 8,
-                          right: 8,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: Colors.black87,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: const Row(
-                              children: [
-                                Icon(Icons.videocam, color: Colors.white, size: 12),
-                                SizedBox(width: 4),
-                                Text('VIDEO', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-
-        // 3. Document / PDF Attachments
+        // Document / PDF / Archive Attachments
         if (documents.isNotEmpty)
           ...documents.map((doc) => _buildDocumentCard(context, doc)),
       ],

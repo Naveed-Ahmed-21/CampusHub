@@ -23,7 +23,7 @@ class ApiException implements Exception {
         final msg = data is Map ? data['message'] ?? 'Server error' : 'Server error ($code)';
         return ApiException(message: msg, statusCode: code, errorData: data);
       case DioExceptionType.connectionError:
-        return const ApiException(message: 'No internet connection available.');
+        return const ApiException(message: 'Unable to reach backend server. Please check your connection or server settings.');
       case DioExceptionType.cancel:
         return const ApiException(message: 'Request was cancelled.');
       default:

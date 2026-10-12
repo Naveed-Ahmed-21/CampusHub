@@ -163,7 +163,8 @@ class ChatMessagesNotifier extends FamilyAsyncNotifier<List<ChatMessageModel>, S
         final current = state.value ?? [];
         // Deduplicate message by ID
         if (!current.any((m) => m.id == msg.id)) {
-          state = AsyncValue.data([...current, msg]);
+          final updated = [...current, msg]..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+          state = AsyncValue.data(updated);
         }
         if (msg.senderId != currentUserId) {
           repo.markRead(roomId, [msg.id]).then((_) {
@@ -235,6 +236,7 @@ class ChatMessagesNotifier extends FamilyAsyncNotifier<List<ChatMessageModel>, S
       }
     }
 
+    messages.sort((a, b) => a.createdAt.compareTo(b.createdAt));
     return messages;
   }
 
@@ -262,8 +264,12 @@ class ChatMessagesNotifier extends FamilyAsyncNotifier<List<ChatMessageModel>, S
     final current = state.value ?? [];
     // Deduplicate in case socket event arrived before HTTP response
     if (!current.any((m) => m.id == newMsg.id)) {
-      state = AsyncValue.data([...current, newMsg]);
+      final updated = [...current, newMsg]..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+      state = AsyncValue.data(updated);
     }
+    try {
+      ref.read(userChatRoomsProvider.notifier).refresh();
+    } catch (_) {}
   }
 
   Future<void> toggleReaction(String messageId, String emoji) async {
@@ -400,3 +406,220 @@ final publicGroupsProvider = FutureProvider.autoDispose.family<List<ChatRoomMode
   final repo = ref.watch(chatRepositoryProvider);
   return repo.getPublicGroups(query: query);
 });
+
+// ==========================================
+// Student Chat Settings Provider
+// ==========================================
+class StudentChatSettingsNotifier extends AsyncNotifier<StudentChatSettingsModel> {
+  @override
+  Future<StudentChatSettingsModel> build() async {
+    final user = ref.watch(authControllerProvider).asData?.value;
+    if (user == null || user.role != 'STUDENT') {
+      return StudentChatSettingsModel(requireStudentConversationApproval: false, isEligible: false);
+    }
+    final repo = ref.watch(chatRepositoryProvider);
+    return repo.getChatSettings();
+  }
+
+  Future<void> updateApprovalSetting(bool requireApproval) async {
+    final prev = state.value;
+    state = AsyncValue.data(StudentChatSettingsModel(
+      requireStudentConversationApproval: requireApproval,
+      isEligible: true,
+    ));
+
+    try {
+      final repo = ref.read(chatRepositoryProvider);
+      final updated = await repo.updateChatSettings(requireApproval);
+      state = AsyncValue.data(updated);
+    } catch (e, st) {
+      if (prev != null) {
+        state = AsyncValue.data(prev);
+      } else {
+        state = AsyncValue.error(e, st);
+      }
+      rethrow;
+    }
+  }
+}
+
+final studentChatSettingsProvider =
+    AsyncNotifierProvider<StudentChatSettingsNotifier, StudentChatSettingsModel>(
+  StudentChatSettingsNotifier.new,
+);
+
+// ==========================================
+// Incoming Chat Requests Provider
+// ==========================================
+class IncomingChatRequestsNotifier extends AutoDisposeAsyncNotifier<List<ChatRequestModel>> {
+  StreamSubscription? _createdSub;
+  StreamSubscription? _declinedSub;
+  StreamSubscription? _acceptedSub;
+  StreamSubscription? _cancelledSub;
+
+  @override
+  Future<List<ChatRequestModel>> build() async {
+    final repo = ref.watch(chatRepositoryProvider);
+    final socket = ref.watch(socketChatServiceProvider);
+
+    _createdSub?.cancel();
+    _declinedSub?.cancel();
+    _acceptedSub?.cancel();
+    _cancelledSub?.cancel();
+
+    _createdSub = socket.onChatRequestCreated.listen((req) {
+      final current = state.value ?? [];
+      if (!current.any((r) => r.id == req.id)) {
+        state = AsyncValue.data([req, ...current]);
+      }
+    });
+
+    _declinedSub = socket.onChatRequestDeclined.listen((data) {
+      final reqId = data['requestId'] as String?;
+      if (reqId != null) {
+        final current = state.value ?? [];
+        state = AsyncValue.data(current.where((r) => r.id != reqId).toList());
+      }
+    });
+
+    _acceptedSub = socket.onChatRequestAccepted.listen((data) {
+      final reqId = data['requestId'] as String?;
+      if (reqId != null) {
+        final current = state.value ?? [];
+        state = AsyncValue.data(current.where((r) => r.id != reqId).toList());
+      }
+    });
+
+    _cancelledSub = socket.onChatRequestCancelled.listen((data) {
+      final reqId = data['requestId'] as String?;
+      if (reqId != null) {
+        final current = state.value ?? [];
+        state = AsyncValue.data(current.where((r) => r.id != reqId).toList());
+      }
+    });
+
+    ref.onDispose(() {
+      _createdSub?.cancel();
+      _declinedSub?.cancel();
+      _acceptedSub?.cancel();
+      _cancelledSub?.cancel();
+    });
+
+    return repo.getIncomingChatRequests();
+  }
+
+  Future<void> refresh() async {
+    try {
+      final repo = ref.read(chatRepositoryProvider);
+      final list = await repo.getIncomingChatRequests();
+      state = AsyncValue.data(list);
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
+    }
+  }
+
+  Future<Map<String, dynamic>> acceptRequest(String requestId) async {
+    final repo = ref.read(chatRepositoryProvider);
+    final result = await repo.acceptChatRequest(requestId);
+
+    final current = state.value ?? [];
+    state = AsyncValue.data(current.where((r) => r.id != requestId).toList());
+
+    ref.invalidate(userChatRoomsProvider);
+
+    return result;
+  }
+
+  Future<void> declineRequest(String requestId) async {
+    final repo = ref.read(chatRepositoryProvider);
+    await repo.declineChatRequest(requestId);
+
+    final current = state.value ?? [];
+    state = AsyncValue.data(current.where((r) => r.id != requestId).toList());
+  }
+}
+
+final incomingChatRequestsProvider =
+    AutoDisposeAsyncNotifierProvider<IncomingChatRequestsNotifier, List<ChatRequestModel>>(
+  IncomingChatRequestsNotifier.new,
+);
+
+// ==========================================
+// Sent Chat Requests Provider
+// ==========================================
+class SentChatRequestsNotifier extends AutoDisposeAsyncNotifier<List<ChatRequestModel>> {
+  @override
+  Future<List<ChatRequestModel>> build() async {
+    final repo = ref.watch(chatRepositoryProvider);
+    return repo.getSentChatRequests();
+  }
+
+  Future<void> refresh() async {
+    try {
+      final repo = ref.read(chatRepositoryProvider);
+      final list = await repo.getSentChatRequests();
+      state = AsyncValue.data(list);
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
+    }
+  }
+
+  Future<void> cancelRequest(String requestId) async {
+    final repo = ref.read(chatRepositoryProvider);
+    await repo.cancelChatRequest(requestId);
+
+    final current = state.value ?? [];
+    state = AsyncValue.data(current.map((r) {
+      if (r.id == requestId) {
+        return ChatRequestModel(
+          id: r.id,
+          senderId: r.senderId,
+          recipientId: r.recipientId,
+          introductoryMessage: r.introductoryMessage,
+          status: ChatRequestStatus.cancelled,
+          conversationId: r.conversationId,
+          createdAt: r.createdAt,
+          respondedAt: DateTime.now(),
+          sender: r.sender,
+          recipient: r.recipient,
+        );
+      }
+      return r;
+    }).toList());
+  }
+}
+
+final sentChatRequestsProvider =
+    AutoDisposeAsyncNotifierProvider<SentChatRequestsNotifier, List<ChatRequestModel>>(
+  SentChatRequestsNotifier.new,
+);
+
+// ==========================================
+// Pending Requests Count Provider
+// ==========================================
+final pendingRequestsCountProvider = Provider.autoDispose<int>((ref) {
+  final requestsAsync = ref.watch(incomingChatRequestsProvider);
+  return requestsAsync.maybeWhen(
+    data: (requests) => requests.where((r) => r.status == ChatRequestStatus.pending).length,
+    orElse: () => 0,
+  );
+});
+
+// ==========================================
+// Chat Permission Provider
+// ==========================================
+final chatPermissionProvider =
+    FutureProvider.autoDispose.family<ChatPermissionResult, String>((ref, targetUserId) async {
+  final repo = ref.watch(chatRepositoryProvider);
+  return repo.checkChatPermission(targetUserId);
+});
+
+// ==========================================
+// Blocked Users Provider
+// ==========================================
+final blockedUsersProvider =
+    FutureProvider.autoDispose<List<BlockedUserModel>>((ref) async {
+  final repo = ref.watch(chatRepositoryProvider);
+  return repo.getBlockedUsers();
+});
+

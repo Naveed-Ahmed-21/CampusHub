@@ -7,6 +7,7 @@ import 'add_subject_dialog.dart';
 import 'add_announcement_dialog.dart';
 import 'qr_attendance_scanner_dialog.dart';
 import 'add_edit_schedule_slot_dialog.dart';
+import '../../../../core/theme/app_colors.dart';
 
 class FacultyQuickActionsBar extends ConsumerWidget {
   const FacultyQuickActionsBar({super.key});
@@ -284,24 +285,22 @@ class _ActionChip extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           decoration: BoxDecoration(
-            color: color.withValues(alpha: isDark ? 0.15 : 0.1),
+            color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: color.withValues(alpha: 0.3),
+              color: isDark ? AppColors.darkBorder : AppColors.border,
               width: 1,
             ),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 18, color: color),
+              Icon(icon, size: 18, color: AppColors.primaryBlue),
               const SizedBox(width: 8),
               Text(
                 label,
                 style: TextStyle(
-                  color: isDark
-                      ? color.withValues(alpha: 0.9)
-                      : color.withValues(alpha: 0.9),
+                  color: isDark ? AppColors.darkText : AppColors.primaryText,
                   fontWeight: FontWeight.w600,
                   fontSize: 13,
                 ),

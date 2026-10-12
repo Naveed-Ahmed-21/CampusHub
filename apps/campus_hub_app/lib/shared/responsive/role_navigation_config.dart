@@ -33,12 +33,43 @@ class RoleNavigationConfig {
   static const int eventsBranchIndex = 12;
   static const int careerBranchIndex = 13;
   static const int notificationsBranchIndex = 14;
+  static const int deptAdminHomeBranchIndex = 15;
+  static const int deptAdminStudentsBranchIndex = 16;
+  static const int deptAdminAcademicsBranchIndex = 17;
+  static const int deptAdminPlacementBranchIndex = 18;
+  static const int deptAdminProfileBranchIndex = 19;
+  static const int placementOpportunitiesBranchIndex = 20;
+  static const int placementStudentsBranchIndex = 21;
+  static const int placementAnalyticsBranchIndex = 22;
+  static const int placementProfileBranchIndex = 23;
+
+  static String getHomeRouteForUser(AuthUser? user) {
+    if (user == null) {
+      return '/feed';
+    }
+    if (user.isDeptAdmin) {
+      return '/dept-admin';
+    }
+    if (user.isMainAdmin) {
+      return '/admin';
+    }
+    if (user.isPlacementOfficer) {
+      return '/placement';
+    }
+    if (user.isFaculty) {
+      return '/faculty';
+    }
+    return '/feed';
+  }
 
   static List<NavigationItemConfig> getNavigationItemsForUser(AuthUser? user) {
     if (user == null) {
       return _studentItems;
     }
-    if (user.isAdmin) {
+    if (user.isDeptAdmin) {
+      return _deptAdminItems;
+    }
+    if (user.isMainAdmin) {
       return _adminItems;
     }
     if (user.isPlacementOfficer) {
@@ -128,25 +159,63 @@ class RoleNavigationConfig {
 
   static const List<NavigationItemConfig> _placementItems = [
     NavigationItemConfig(
-      label: 'Placement',
+      label: 'Hub',
       icon: Icon(Icons.work_outline),
       selectedIcon: Icon(Icons.work),
       route: '/placement',
       branchIndex: placementBranchIndex,
     ),
     NavigationItemConfig(
-      label: 'Stream',
-      icon: Icon(Icons.home_outlined),
-      selectedIcon: Icon(Icons.home),
+      label: 'Drives',
+      icon: Icon(Icons.business_center_outlined),
+      selectedIcon: Icon(Icons.business_center),
+      route: '/placement/opportunities',
+      branchIndex: placementOpportunitiesBranchIndex,
+    ),
+    NavigationItemConfig(
+      label: 'Students',
+      icon: Icon(Icons.people_alt_outlined),
+      selectedIcon: Icon(Icons.people_alt),
+      route: '/placement/students',
+      branchIndex: placementStudentsBranchIndex,
+    ),
+    NavigationItemConfig(
+      label: 'Chats',
+      icon: Icon(Icons.chat_bubble_outline),
+      selectedIcon: Icon(Icons.chat_bubble),
+      route: '/chat',
+      branchIndex: chatBranchIndex,
+    ),
+    NavigationItemConfig(
+      label: 'Profile',
+      icon: Icon(Icons.person_outline),
+      selectedIcon: Icon(Icons.person),
+      route: '/placement/profile',
+      branchIndex: placementProfileBranchIndex,
+    ),
+  ];
+
+  static const List<NavigationItemConfig> _adminItems = [
+    NavigationItemConfig(
+      label: 'Admin',
+      icon: Icon(Icons.admin_panel_settings_outlined),
+      selectedIcon: Icon(Icons.admin_panel_settings),
+      route: '/admin',
+      branchIndex: adminBranchIndex,
+    ),
+    NavigationItemConfig(
+      label: 'Feed',
+      icon: Icon(Icons.dynamic_feed_outlined),
+      selectedIcon: Icon(Icons.dynamic_feed),
       route: '/feed',
       branchIndex: feedBranchIndex,
     ),
     NavigationItemConfig(
-      label: 'Search',
-      icon: Icon(Icons.search_outlined),
-      selectedIcon: Icon(Icons.search),
-      route: '/search',
-      branchIndex: searchBranchIndex,
+      label: 'Clubs',
+      icon: Icon(Icons.groups_outlined),
+      selectedIcon: Icon(Icons.groups),
+      route: '/clubs',
+      branchIndex: clubsBranchIndex,
     ),
     NavigationItemConfig(
       label: 'Chats',
@@ -164,41 +233,41 @@ class RoleNavigationConfig {
     ),
   ];
 
-  static const List<NavigationItemConfig> _adminItems = [
+  static const List<NavigationItemConfig> _deptAdminItems = [
     NavigationItemConfig(
-      label: 'Admin',
-      icon: Icon(Icons.admin_panel_settings_outlined),
-      selectedIcon: Icon(Icons.admin_panel_settings),
-      route: '/admin',
-      branchIndex: adminBranchIndex,
-    ),
-    NavigationItemConfig(
-      label: 'Stream',
+      label: 'Home',
       icon: Icon(Icons.home_outlined),
       selectedIcon: Icon(Icons.home),
-      route: '/feed',
-      branchIndex: feedBranchIndex,
+      route: '/dept-admin',
+      branchIndex: deptAdminHomeBranchIndex,
     ),
     NavigationItemConfig(
-      label: 'Clubs',
-      icon: Icon(Icons.fact_check_outlined),
-      selectedIcon: Icon(Icons.fact_check),
-      route: '/clubs/pending',
-      branchIndex: clubsPendingBranchIndex,
+      label: 'Students',
+      icon: Icon(Icons.people_alt_outlined),
+      selectedIcon: Icon(Icons.people_alt),
+      route: '/dept-admin/students',
+      branchIndex: deptAdminStudentsBranchIndex,
     ),
     NavigationItemConfig(
-      label: 'Chats',
-      icon: Icon(Icons.chat_bubble_outline),
-      selectedIcon: Icon(Icons.chat_bubble),
-      route: '/chat',
-      branchIndex: chatBranchIndex,
+      label: 'Academics',
+      icon: Icon(Icons.school_outlined),
+      selectedIcon: Icon(Icons.school),
+      route: '/dept-admin/academics',
+      branchIndex: deptAdminAcademicsBranchIndex,
+    ),
+    NavigationItemConfig(
+      label: 'Placement',
+      icon: Icon(Icons.work_outline),
+      selectedIcon: Icon(Icons.work),
+      route: '/dept-admin/placement',
+      branchIndex: deptAdminPlacementBranchIndex,
     ),
     NavigationItemConfig(
       label: 'Profile',
       icon: Icon(Icons.person_outline),
       selectedIcon: Icon(Icons.person),
-      route: '/profile',
-      branchIndex: profileBranchIndex,
+      route: '/dept-admin/profile',
+      branchIndex: deptAdminProfileBranchIndex,
     ),
   ];
 }

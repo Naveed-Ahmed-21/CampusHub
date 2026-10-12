@@ -2,8 +2,10 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/models/post_item.dart';
 import '../../data/repositories/feed_repository_impl.dart';
+import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../profile/presentation/views/user_posts_view.dart';
 import '../../../clubs/presentation/providers/club_provider.dart';
+import '../../../../core/storage/secure_storage_service.dart';
 
 class ActiveFeedType extends Notifier<String> {
   @override
@@ -24,6 +26,12 @@ class FeedController extends AsyncNotifier<List<PostItem>> {
 
   @override
   FutureOr<List<PostItem>> build() async {
+    final userId = ref.watch(authControllerProvider.select((s) => s.asData?.value?.id));
+    if (userId == null) {
+      _currentPage = 1;
+      _hasMore = false;
+      return [];
+    }
     _currentPage = 1;
     _hasMore = true;
     return _fetchFeed(page: 1);
@@ -32,6 +40,7 @@ class FeedController extends AsyncNotifier<List<PostItem>> {
   Future<List<PostItem>> _fetchFeed({required int page}) async {
     final repository = ref.watch(feedRepositoryProvider);
     final activeType = ref.watch(activeFeedTypeProvider);
+    final storage = ref.watch(secureStorageServiceProvider);
 
     final result = await repository.getFeed(
       feedType: activeType,
@@ -39,15 +48,28 @@ class FeedController extends AsyncNotifier<List<PostItem>> {
       limit: 20,
     );
 
-    return result.when(
-      success: (posts) {
+    return await result.when(
+      success: (posts) async {
         if (posts.length < 20) {
           _hasMore = false;
         }
-        return posts;
+        try {
+          final seenIds = await storage.getSeenPostIds();
+          final unseen = posts.where((p) => !seenIds.contains(p.id)).toList();
+          final seen = posts.where((p) => seenIds.contains(p.id)).toList();
+          return [...unseen, ...seen];
+        } catch (_) {
+          return posts;
+        }
       },
       failure: (error) => throw error,
     );
+  }
+
+  Future<void> markPostsAsSeen(List<String> postIds) async {
+    if (postIds.isEmpty) return;
+    final storage = ref.read(secureStorageServiceProvider);
+    await storage.markPostsAsSeen(postIds);
   }
 
   Future<void> refreshFeed() async {

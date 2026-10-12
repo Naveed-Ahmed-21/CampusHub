@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/widgets/campus_back_button.dart';
+import '../../../../core/widgets/campus_app_bar.dart';
+import '../../../../core/widgets/atmospheric_background.dart';
 
 class HelpSupportView extends ConsumerStatefulWidget {
   const HelpSupportView({super.key});
@@ -316,14 +319,13 @@ class _HelpSupportViewState extends ConsumerState<HelpSupportView> {
       };
     }).where((cat) => (cat['items'] as List).isNotEmpty).toList();
 
-    return Scaffold(
-      backgroundColor: theme.colorScheme.surface,
-      appBar: AppBar(
-        title: const Text('Help & Support'),
-        backgroundColor: theme.colorScheme.surface,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-      ),
+    return AtmosphericBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: const CampusAppBar(
+          leading: CampusBackButton(),
+          title: 'Help & Support',
+        ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -520,6 +522,7 @@ class _HelpSupportViewState extends ConsumerState<HelpSupportView> {
           const SizedBox(height: 24),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 }

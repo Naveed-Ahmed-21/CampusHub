@@ -5,6 +5,8 @@ import '../../data/career_repository.dart';
 import '../providers/career_provider.dart';
 import '../theme/career_theme.dart';
 import '../widgets/career_shared_widgets.dart';
+import '../../../../core/widgets/campus_back_button.dart';
+import '../../../../core/widgets/campus_app_bar.dart';
 import 'eva_interview_room_view.dart';
 
 class InterviewPrepView extends ConsumerStatefulWidget {
@@ -188,27 +190,10 @@ class _InterviewPrepViewState extends ConsumerState<InterviewPrepView> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: CareerTheme.background,
-      appBar: AppBar(
-        backgroundColor: CareerTheme.background,
-        elevation: 0,
-        leading: BackButton(
-          color: Colors.white,
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'AI Interview Practice',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: -0.3),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              widget.targetRole,
-              style: const TextStyle(fontSize: 11, color: CareerTheme.textMuted),
-            ),
-          ],
-        ),
+      appBar: CampusAppBar(
+        title: 'AI Interview Practice',
+        subtitle: widget.targetRole,
+        leading: const CampusBackButton(),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 14),

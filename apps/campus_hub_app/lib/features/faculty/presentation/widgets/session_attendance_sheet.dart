@@ -1,9 +1,9 @@
+import '../../../../core/widgets/campus_avatar.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/models/faculty_models.dart';
 import '../controllers/faculty_controller.dart';
-import '../../../../core/constants/api_endpoints.dart';
 
 enum SaveState { idle, saving, saved, error }
 
@@ -437,23 +437,32 @@ class _SessionAttendanceSheetState
                       .withValues(alpha: 0.3),
                   child: Column(
                     children: [
-                      Row(
-                        children: [
-                          _buildMetricBadge('Total', total, Colors.blueGrey),
-                          const SizedBox(width: 8),
-                          _buildMetricBadge(
-                              'Present', livePresent, Colors.green),
-                          const SizedBox(width: 8),
-                          _buildMetricBadge('Absent', liveAbsent, Colors.red),
-                          const SizedBox(width: 8),
-                          _buildMetricBadge('Late', liveLate, Colors.orange),
-                          const SizedBox(width: 8),
-                          _buildMetricBadge(
-                              'Excused', liveExcused, Colors.purple),
-                          const SizedBox(width: 8),
-                          _buildMetricBadge(
-                              'Unmarked', liveUnmarked, Colors.grey),
-                        ],
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          final isCompact = constraints.maxWidth < 430;
+                          final badges = [
+                            _buildMetricBadge('Total', total, Colors.blueGrey, expand: !isCompact),
+                            const SizedBox(width: 6),
+                            _buildMetricBadge('Present', livePresent, Colors.green, expand: !isCompact),
+                            const SizedBox(width: 6),
+                            _buildMetricBadge('Absent', liveAbsent, Colors.red, expand: !isCompact),
+                            const SizedBox(width: 6),
+                            _buildMetricBadge('Late', liveLate, Colors.orange, expand: !isCompact),
+                            const SizedBox(width: 6),
+                            _buildMetricBadge('Excused', liveExcused, Colors.purple, expand: !isCompact),
+                            const SizedBox(width: 6),
+                            _buildMetricBadge('Unmarked', liveUnmarked, Colors.grey, expand: !isCompact),
+                          ];
+
+                          if (isCompact) {
+                            return SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              physics: const BouncingScrollPhysics(),
+                              child: Row(children: badges),
+                            );
+                          }
+                          return Row(children: badges);
+                        },
                       ),
                       const SizedBox(height: 10),
 
@@ -550,29 +559,10 @@ class _SessionAttendanceSheetState
                                 crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
                                   // Avatar
-                                  CircleAvatar(
+                                  CampusAvatar(
+                                    imageUrl: student.avatarUrl,
+                                    name: student.name,
                                     radius: 20,
-                                    backgroundColor:
-                                        Colors.blue.withValues(alpha: 0.12),
-                                    backgroundImage: student.avatarUrl !=
-                                                null &&
-                                            student.avatarUrl!.isNotEmpty
-                                        ? NetworkImage(ApiEndpoints.resolveUrl(
-                                            student.avatarUrl!))
-                                        : null,
-                                    child: student.avatarUrl == null ||
-                                            student.avatarUrl!.isEmpty
-                                        ? Text(
-                                            student.name.isNotEmpty
-                                                ? student.name[0].toUpperCase()
-                                                : 'S',
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.blue,
-                                              fontSize: 13,
-                                            ),
-                                          )
-                                        : null,
                                   ),
                                   const SizedBox(width: 12),
 
@@ -688,61 +678,63 @@ class _SessionAttendanceSheetState
     );
   }
 
-  Widget _buildMetricBadge(String label, int count, Color color) {
+  Widget _buildMetricBadge(String label, int count, Color color, {bool expand = true}) {
     final isSelected = _statusFilter == label.toUpperCase();
 
-    return Expanded(
-      child: InkWell(
-        onTap: () {
-          setState(() {
-            if (_statusFilter == label.toUpperCase()) {
-              _statusFilter = null;
-            } else if (label.toUpperCase() != 'TOTAL') {
-              _statusFilter = label.toUpperCase();
-            } else {
-              _statusFilter = null;
-            }
-          });
-        },
-        borderRadius: BorderRadius.circular(8),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 6),
-          decoration: BoxDecoration(
-            color: isSelected
-                ? color.withValues(alpha: 0.2)
-                : color.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: isSelected ? color : color.withValues(alpha: 0.25),
-              width: isSelected ? 1.5 : 1,
+    final badge = InkWell(
+      onTap: () {
+        setState(() {
+          if (_statusFilter == label.toUpperCase()) {
+            _statusFilter = null;
+          } else if (label.toUpperCase() != 'TOTAL') {
+            _statusFilter = label.toUpperCase();
+          } else {
+            _statusFilter = null;
+          }
+        });
+      },
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        constraints: const BoxConstraints(minWidth: 54),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? color.withValues(alpha: 0.2)
+              : color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isSelected ? color : color.withValues(alpha: 0.25),
+            width: isSelected ? 1.5 : 1,
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              '$count',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+                color: color is MaterialColor ? color.shade800 : color,
+              ),
             ),
-          ),
-          child: Column(
-            children: [
-              Text(
-                '$count',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                  color: color is MaterialColor ? color.shade800 : color,
-                ),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: color is MaterialColor ? color.shade800 : color,
               ),
-              const SizedBox(height: 2),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                  color: color is MaterialColor ? color.shade800 : color,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
         ),
       ),
     );
+
+    return expand ? Expanded(child: badge) : badge;
   }
 
   Widget _buildStatusButton({

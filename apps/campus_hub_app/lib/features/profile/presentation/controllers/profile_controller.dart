@@ -13,6 +13,17 @@ import '../../../search/data/search_repository.dart';
 class ProfileController extends AsyncNotifier<UserProfile> {
   @override
   FutureOr<UserProfile> build() async {
+    // Watch authenticated user id so whenever the logged-in user changes (login, switch account, logout),
+    // this controller automatically rebuilds and refetches the correct profile.
+    final authUserId = ref.watch(authControllerProvider.select((s) => s.asData?.value?.id));
+    if (authUserId == null || authUserId.isEmpty) {
+      return const UserProfile(
+        id: '',
+        firstName: '',
+        lastName: '',
+        email: '',
+      );
+    }
     return _fetchProfile();
   }
 
@@ -113,6 +124,35 @@ class ProfileController extends AsyncNotifier<UserProfile> {
         ref.invalidate(userPostsProvider(data.id));
         ref.invalidate(userFollowersProvider(data.id));
         ref.invalidate(userFollowingProvider(data.id));
+        ref.invalidate(feedControllerProvider);
+        ref.invalidate(userChatRoomsProvider);
+      },
+      failure: (_) {},
+    );
+  }
+
+  Future<void> removeAvatar() async {
+    final repository = ref.read(profileRepositoryProvider);
+    final current = state.asData?.value;
+    if (current != null) {
+      state = AsyncValue.data(current.copyWith(avatarUrl: ''));
+    }
+    final result = await repository.uploadAvatar('');
+    result.when(
+      success: (data) {
+        state = AsyncValue.data(data);
+        final authUser = ref.read(authControllerProvider).asData?.value;
+        if (authUser != null) {
+          ref.read(authControllerProvider.notifier).updateUser(
+            authUser.copyWith(avatarUrl: ''),
+          );
+        }
+        try {
+          PaintingBinding.instance.imageCache.clear();
+          PaintingBinding.instance.imageCache.clearLiveImages();
+        } catch (_) {}
+        ref.invalidate(userProfileProvider(data.id));
+        ref.invalidate(userPostsProvider(data.id));
         ref.invalidate(feedControllerProvider);
         ref.invalidate(userChatRoomsProvider);
       },

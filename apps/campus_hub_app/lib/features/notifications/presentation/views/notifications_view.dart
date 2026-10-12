@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/notifications_provider.dart';
 import '../../domain/notification_models.dart';
+import '../../../../core/widgets/campus_back_button.dart';
+import '../../../../core/widgets/campus_app_bar.dart';
+import '../../../../core/utils/app_date_formatter.dart';
 
 class NotificationsView extends ConsumerStatefulWidget {
   const NotificationsView({super.key});
@@ -32,7 +35,11 @@ class _NotificationsViewState extends ConsumerState<NotificationsView> with Sing
     }
 
     if (mounted && notification.deepLink != null && notification.deepLink!.isNotEmpty) {
-      context.go(notification.deepLink!);
+      try {
+        context.push(notification.deepLink!);
+      } catch (_) {
+        context.go(notification.deepLink!);
+      }
     }
   }
 
@@ -53,32 +60,67 @@ class _NotificationsViewState extends ConsumerState<NotificationsView> with Sing
     final notificationsAsync = ref.watch(notificationsListProvider);
     final theme = Theme.of(context);
 
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Notifications'),
+      appBar: CampusAppBar(
+        leading: const CampusBackButton(),
+        title: 'Notifications',
         actions: [
           TextButton.icon(
             onPressed: _markAllRead,
-            icon: const Icon(Icons.done_all, size: 18),
-            label: const Text('Mark all read'),
+            icon: const Icon(Icons.done_all, size: 16),
+            label: const Text('Mark all read', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
           ),
+          const SizedBox(width: 4),
         ],
-        bottom: TabBar(
-          controller: _tabController,
-          isScrollable: true,
-          labelColor: theme.colorScheme.primary,
-          unselectedLabelColor: Colors.grey,
-          tabs: const [
-            Tab(text: 'All'),
-            Tab(text: 'Placements'),
-            Tab(text: 'Events'),
-            Tab(text: 'Chat'),
-            Tab(text: 'Activity'),
-            Tab(text: 'Announcements'),
-          ],
-        ),
       ),
-      body: notificationsAsync.when(
+      body: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.fromLTRB(14, 8, 14, 6),
+            child: Container(
+              height: 38,
+              decoration: BoxDecoration(
+                color: isDark
+                    ? theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.35)
+                    : const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: theme.colorScheme.outlineVariant.withValues(alpha: isDark ? 0.2 : 0.4),
+                ),
+              ),
+              child: TabBar(
+                controller: _tabController,
+                isScrollable: true,
+                dividerColor: Colors.transparent,
+                indicatorSize: TabBarIndicatorSize.tab,
+                labelColor: Colors.white,
+                unselectedLabelColor: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
+                labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+                unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 12),
+                indicator: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                  gradient: LinearGradient(
+                    colors: [
+                      theme.colorScheme.primary,
+                      theme.colorScheme.primary.withValues(alpha: 0.85),
+                    ],
+                  ),
+                ),
+                tabs: const [
+                  Tab(text: 'All'),
+                  Tab(text: 'Placements'),
+                  Tab(text: 'Events'),
+                  Tab(text: 'Chat'),
+                  Tab(text: 'Activity'),
+                  Tab(text: 'Announcements'),
+                ],
+              ),
+            ),
+          ),
+          Expanded(
+            child: notificationsAsync.when(
         data: (data) {
           final List<NotificationModel> allNotifications =
               (data['notifications'] as List<dynamic>?)?.cast<NotificationModel>() ?? [];
@@ -115,6 +157,9 @@ class _NotificationsViewState extends ConsumerState<NotificationsView> with Sing
             ),
           ),
         ),
+      ),
+          ),
+        ],
       ),
     );
   }
@@ -171,7 +216,7 @@ class _NotificationsViewState extends ConsumerState<NotificationsView> with Sing
               Text(item.body),
               const SizedBox(height: 4),
               Text(
-                '${item.createdAt.hour}:${item.createdAt.minute.toString().padLeft(2, '0')} • ${item.createdAt.day}/${item.createdAt.month}',
+                '${AppDateFormatter.formatTime(item.createdAt)} • ${AppDateFormatter.formatDate(item.createdAt)}',
                 style: const TextStyle(fontSize: 11, color: Colors.grey),
               ),
             ],

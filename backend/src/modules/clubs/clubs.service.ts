@@ -37,7 +37,7 @@ export class ClubsService {
     }
 
     // Admins create auto-approved clubs; Students/Faculty create PENDING clubs
-    const isAdmin = userRole === Role.COLLEGE_ADMIN || userRole === Role.SUPER_ADMIN;
+    const isAdmin = userRole === Role.ADMIN || (userRole as string) === 'ADMIN';
     const initialStatus = isAdmin ? ClubStatus.APPROVED : ClubStatus.PENDING;
 
     const club = await this.clubsRepository.createClub(collegeId, userId, dto, initialStatus);
@@ -79,7 +79,7 @@ export class ClubsService {
   }
 
   async getPendingClubs(collegeId: string, userRole: Role, page: number = 1, limit: number = 10) {
-    const adminRoles = [Role.ADMIN, Role.COLLEGE_ADMIN, Role.SUPER_ADMIN, Role.DEPT_ADMIN, 'ADMIN'];
+    const adminRoles = [Role.ADMIN, 'ADMIN'];
     if (!adminRoles.includes(userRole as any)) {
       throw new ForbiddenError('Only admins can view pending club verifications');
     }
@@ -118,9 +118,9 @@ export class ClubsService {
   }
 
   async verifyClub(clubId: string, collegeId: string, verifierId: string, userRole: Role, dto: VerifyClubDto) {
-    const adminRoles = [Role.ADMIN, Role.COLLEGE_ADMIN, Role.SUPER_ADMIN, Role.DEPT_ADMIN, 'ADMIN'];
+    const adminRoles = [Role.ADMIN, 'ADMIN'];
     if (!adminRoles.includes(userRole as any)) {
-      throw new ForbiddenError('Only admins can verify or approve clubs');
+      throw new ForbiddenError('Only institutional ADMIN can verify or approve clubs');
     }
 
     let clubName = 'Campus Club';
@@ -185,7 +185,7 @@ export class ClubsService {
   async deleteClub(clubId: string, userId: string, userRole: Role) {
     try {
       const club = await this.clubsRepository.findClubById(clubId);
-      const isAdmin = [Role.ADMIN, Role.COLLEGE_ADMIN, Role.SUPER_ADMIN, Role.DEPT_ADMIN, 'ADMIN'].includes(userRole as any);
+      const isAdmin = userRole === Role.ADMIN || (userRole as string) === 'ADMIN';
       if (club && club.created_by_id && club.created_by_id !== userId && !isAdmin) {
         throw new ForbiddenError('You can only withdraw or delete your own proposed clubs');
       }
@@ -266,7 +266,7 @@ export class ClubsService {
     }
 
     const requesterMember = await this.clubsRepository.findMember(clubId, requesterId);
-    const isAdmin = userRole === Role.COLLEGE_ADMIN || userRole === Role.SUPER_ADMIN || userRole === Role.ADMIN;
+    const isAdmin = userRole === Role.ADMIN || (userRole as string) === 'ADMIN';
     const isLead =
       requesterMember?.role === ClubRole.LEAD ||
       requesterMember?.role === ClubRole.ASSISTANT_ADMIN ||
@@ -293,7 +293,7 @@ export class ClubsService {
     }
 
     const requesterMember = await this.clubsRepository.findMember(clubId, requesterId);
-    const isCollegeAdmin = userRole === Role.ADMIN || userRole === Role.COLLEGE_ADMIN || userRole === Role.SUPER_ADMIN;
+    const isCollegeAdmin = userRole === Role.ADMIN || (userRole as string) === 'ADMIN';
     const isClubLead = requesterMember?.role === ClubRole.LEAD || requesterMember?.role === ClubRole.FACULTY_ADVISOR || club.created_by_id === requesterId;
 
     if (!isCollegeAdmin && !isClubLead) {
@@ -371,7 +371,7 @@ export class ClubsService {
     }
 
     const member = await this.clubsRepository.findMember(clubId, authorId);
-    const isAdmin = userRole === Role.COLLEGE_ADMIN || userRole === Role.SUPER_ADMIN;
+    const isAdmin = userRole === Role.ADMIN || (userRole as string) === 'ADMIN';
     if (!member && !isAdmin) {
       throw new ForbiddenError('Only club members can post in the club feed');
     }
@@ -401,7 +401,7 @@ export class ClubsService {
     }
 
     const member = await this.clubsRepository.findMember(clubId, organizerId);
-    const isAdmin = userRole === Role.COLLEGE_ADMIN || userRole === Role.SUPER_ADMIN || userRole === Role.ADMIN;
+    const isAdmin = userRole === Role.ADMIN || (userRole as string) === 'ADMIN';
     const isLeader =
       member?.role === ClubRole.LEAD ||
       member?.role === ClubRole.ASSISTANT_ADMIN ||
@@ -438,7 +438,7 @@ export class ClubsService {
     }
 
     const member = await this.clubsRepository.findMember(clubId, uploaderId);
-    const isAdmin = userRole === Role.COLLEGE_ADMIN || userRole === Role.SUPER_ADMIN || userRole === Role.ADMIN;
+    const isAdmin = userRole === Role.ADMIN || (userRole as string) === 'ADMIN';
     const isLead =
       member?.role === ClubRole.LEAD ||
       member?.role === ClubRole.ASSISTANT_ADMIN ||
@@ -466,7 +466,7 @@ export class ClubsService {
     }
 
     const member = await this.clubsRepository.findMember(clubId, requesterId);
-    const isAdmin = userRole === Role.COLLEGE_ADMIN || userRole === Role.SUPER_ADMIN || userRole === Role.ADMIN;
+    const isAdmin = userRole === Role.ADMIN || (userRole as string) === 'ADMIN';
     const isLeader =
       member?.role === ClubRole.LEAD ||
       member?.role === ClubRole.ASSISTANT_ADMIN ||
@@ -489,7 +489,7 @@ export class ClubsService {
     }
 
     const member = await this.clubsRepository.findMember(clubId, userId);
-    const isAdmin = userRole === Role.COLLEGE_ADMIN || userRole === Role.SUPER_ADMIN;
+    const isAdmin = userRole === Role.ADMIN || (userRole as string) === 'ADMIN';
 
     if (!member && !isAdmin) {
       throw new ForbiddenError('Only club members can access club chat');

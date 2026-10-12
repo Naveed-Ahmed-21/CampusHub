@@ -8,6 +8,7 @@ import '../../../../core/services/media_picker_service.dart';
 import '../../../../core/services/media_upload_service.dart';
 import '../../../../core/services/media_storage_service.dart';
 import '../../../../core/services/file_open_service.dart';
+import '../../../../core/services/url_launcher_service.dart';
 import '../../../../shared/responsive/responsive_layout.dart';
 import '../../../../shared/widgets/async_value_widget.dart';
 import '../../../../shared/widgets/custom_text_field.dart';
@@ -22,30 +23,67 @@ import 'user_events_view.dart';
 import 'user_follows_view.dart';
 import '../../../clubs/presentation/views/club_detail_view.dart';
 import '../../../../shared/widgets/full_screen_image_viewer.dart';
+import '../widgets/request_change_dialog.dart';
+import '../providers/student_profile_provider.dart';
+import '../../../../core/widgets/campus_bottom_nav.dart';
+import '../../../admin/presentation/views/admin_profile_view.dart';
+import '../../../dept_admin/presentation/views/dept_admin_profile_view.dart';
+import '../../../faculty/presentation/views/faculty_profile_view.dart';
+import '../../../placement/presentation/views/placement_profile_view.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/atmospheric_background.dart';
+import '../../../../core/widgets/campus_app_bar.dart';
+
+import '../widgets/profile_story_avatar.dart';
 
 class ProfileView extends ConsumerWidget {
   const ProfileView({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(authControllerProvider).asData?.value;
     final profileAsync = ref.watch(profileControllerProvider);
     final theme = Theme.of(context);
 
-    return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: theme.scaffoldBackgroundColor,
-        surfaceTintColor: Colors.transparent,
-        title: const Text('My Profile',
-            style: TextStyle(fontWeight: FontWeight.bold)),
-        actions: [
+    // Prioritize authenticated user role so switching accounts updates immediately
+    final effectiveRole = user?.role ?? profileAsync.value?.role;
+    final isDeptAdmin = user?.isDeptAdmin == true || effectiveRole == 'DEPT_ADMIN';
+    final isPlacement = user?.isPlacementOfficer == true ||
+        effectiveRole == 'PLACEMENT' ||
+        effectiveRole == 'PLACEMENT_OFFICER';
+    final isFaculty = user?.isFaculty == true || effectiveRole == 'FACULTY';
+    final isAdmin = user?.isAdmin == true ||
+        effectiveRole == 'ADMIN' ||
+        effectiveRole == 'SUPER_ADMIN';
+
+    if (isDeptAdmin) {
+      return const DeptAdminProfileView();
+    }
+    if (isPlacement) {
+      return const PlacementProfileView();
+    }
+    if (isAdmin) {
+      return const AdminProfileView();
+    }
+    if (isFaculty) {
+      return const FacultyProfileView();
+    }
+
+    return AtmosphericBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: CampusAppBar(
+          title: 'My Profile',
+          automaticallyImplyLeading: false,
+          actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
             tooltip: 'Refresh Profile',
             onPressed: () {
               ref.read(profileControllerProvider.notifier).refreshProfile();
               ref.invalidate(myProposedClubsProvider);
+              ref.invalidate(studentDetailedProfileProvider);
+              ref.invalidate(studentChangeRequestsProvider);
             },
           ),
           IconButton(
@@ -93,9 +131,11 @@ class ProfileView extends ConsumerWidget {
           desktop: _ProfileDesktopLayout(profile: profile),
         ),
       ),
-    );
+    ),
+  );
   }
 }
+
 
 class _ProfileMobileLayout extends ConsumerStatefulWidget {
   final UserProfile profile;
@@ -109,11 +149,12 @@ class _ProfileMobileLayout extends ConsumerStatefulWidget {
 class _ProfileMobileLayoutState extends ConsumerState<_ProfileMobileLayout>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  bool get _isAdmin => widget.profile.role == 'ADMIN';
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: _isAdmin ? 3 : 4, vsync: this);
   }
 
   @override
@@ -153,20 +194,26 @@ class _ProfileMobileLayoutState extends ConsumerState<_ProfileMobileLayout>
                 labelColor: theme.colorScheme.primary,
                 unselectedLabelColor: theme.colorScheme.outline,
                 labelStyle:
-                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                tabs: const [
-                  Tab(
+                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                tabs: [
+                  if (!_isAdmin)
+                    const Tab(
+                        icon: Icon(Icons.verified_user_outlined, size: 20),
+                        text: 'Official Record'),
+                  const Tab(
                       icon: Icon(Icons.person_outline, size: 20),
                       text: 'Overview'),
-                  Tab(
+                  const Tab(
                       icon: Icon(Icons.groups_outlined, size: 20),
                       text: 'My Clubs'),
-                  Tab(
+                  const Tab(
                       icon: Icon(Icons.bookmark_outline, size: 20),
                       text: 'Activity'),
                 ],
               ),
-              color: theme.scaffoldBackgroundColor,
+              color: theme.brightness == Brightness.dark
+                  ? AppColors.darkBase
+                  : AppColors.lightBackground,
             ),
           ),
         ];
@@ -174,7 +221,17 @@ class _ProfileMobileLayoutState extends ConsumerState<_ProfileMobileLayout>
       body: TabBarView(
         controller: _tabController,
         children: [
-          // Tab 1: Overview (Bio, Resume, Clubs, Projects, Skills, Socials)
+          // Tab 1: Official Record (Students only, locked & approval required)
+          if (!_isAdmin)
+            ListView(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              children: [
+                _OfficialRecordSection(profile: profile),
+                const CampusBottomNavSpacer(),
+              ],
+            ),
+
+          // Tab 2: Overview (Bio, Resume, Clubs, Projects, Skills, Socials)
           ListView(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             children: [
@@ -189,25 +246,25 @@ class _ProfileMobileLayoutState extends ConsumerState<_ProfileMobileLayout>
               _SkillsSection(profile: profile),
               const SizedBox(height: 16),
               _SocialLinksSection(profile: profile),
-              const SizedBox(height: 32),
+              const CampusBottomNavSpacer(),
             ],
           ),
 
-          // Tab 2: My Clubs
+          // Tab 3: My Clubs
           ListView(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             children: const [
               _MyProposedClubsSection(),
-              SizedBox(height: 32),
+              CampusBottomNavSpacer(),
             ],
           ),
 
-          // Tab 3: Activity & Saved
+          // Tab 4: Activity & Saved
           ListView(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             children: const [
               _QuickActivityStatsSection(),
-              SizedBox(height: 32),
+              CampusBottomNavSpacer(),
             ],
           ),
         ],
@@ -248,6 +305,10 @@ class _ProfileDesktopLayoutState extends ConsumerState<_ProfileDesktopLayout> {
                     flex: 5,
                     child: Column(
                       children: [
+                        if (profile.role != 'ADMIN') ...[
+                          _OfficialRecordSection(profile: profile),
+                          const SizedBox(height: 16),
+                        ],
                         _BioSection(profile: profile),
                         const SizedBox(height: 16),
                         _SkillsSection(profile: profile),
@@ -288,48 +349,155 @@ class _ProfileHeroCard extends ConsumerWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    Future<void> pickAndUploadAvatar() async {
-      final file = await MediaPickerService.showMediaPickerSheet(
-        context,
-        title: 'Update Profile Picture',
-        enableCamera: true,
-        enableGallery: true,
-        enableVideoCamera: false,
-        enableVideoGallery: false,
-        enableDocuments: false,
-      );
+    Future<void> uploadFile(SelectedMediaFile file) async {
+      try {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Uploading profile picture...')),
+        );
 
-      if (file != null && context.mounted) {
-        try {
+        final uploadService = ref.read(mediaUploadServiceProvider);
+        final result = await uploadService.uploadSelectedFile(file);
+
+        await ref
+            .read(profileControllerProvider.notifier)
+            .uploadAvatar(result.url);
+
+        if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Uploading profile picture...')),
+            const SnackBar(
+              content: Text('Profile picture updated successfully!'),
+              backgroundColor: Colors.green,
+            ),
           );
-
-          final uploadService = ref.read(mediaUploadServiceProvider);
-          final result = await uploadService.uploadSelectedFile(file);
-
-          await ref
-              .read(profileControllerProvider.notifier)
-              .uploadAvatar(result.url);
-
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Profile picture updated successfully!'),
-                backgroundColor: Colors.green,
-              ),
-            );
-          }
-        } catch (e) {
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                  content: Text('Failed to update avatar: $e'),
-                  backgroundColor: Colors.red),
-            );
-          }
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content: Text('Failed to update avatar: $e'),
+                backgroundColor: Colors.red),
+          );
         }
       }
+    }
+
+    Future<void> pickAndUploadAvatar() async {
+      final hasAvatar = profile.avatarUrl != null && profile.avatarUrl!.isNotEmpty;
+      final resolvedAvatarUrl = hasAvatar ? ApiEndpoints.resolveUrl(profile.avatarUrl!.trim()) : null;
+      showModalBottomSheet(
+        context: context,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        builder: (sheetCtx) => SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 36,
+                height: 4,
+                margin: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade400,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+                child: Text(
+                  'Profile Photo',
+                  style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                ),
+              ),
+              if (hasAvatar && resolvedAvatarUrl != null)
+                ListTile(
+                  leading: const Icon(Icons.fullscreen_rounded),
+                  title: const Text('View Profile Photo'),
+                  onTap: () {
+                    Navigator.pop(sheetCtx);
+                    FullScreenImageViewer.openSingle(
+                      context,
+                      imageUrl: resolvedAvatarUrl,
+                      heroTag: 'profile_avatar_self_${profile.id}',
+                      title: profile.fullName,
+                      subtitle: profile.bio ?? profile.role,
+                    );
+                  },
+                ),
+              ListTile(
+                leading: const Icon(Icons.camera_alt_outlined),
+                title: const Text('Take Photo with Camera'),
+                onTap: () async {
+                  Navigator.pop(sheetCtx);
+                  final file = await MediaPickerService.pickImageFromCamera();
+                  if (file != null && context.mounted) {
+                    await uploadFile(file);
+                  }
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library_outlined),
+                title: const Text('Choose from Gallery'),
+                onTap: () async {
+                  Navigator.pop(sheetCtx);
+                  final file = await MediaPickerService.pickImageFromGallery();
+                  if (file != null && context.mounted) {
+                    await uploadFile(file);
+                  }
+                },
+              ),
+              if (hasAvatar)
+                ListTile(
+                  leading: const Icon(Icons.delete_outline, color: Colors.red),
+                  title: const Text('Remove Current Photo', style: TextStyle(color: Colors.red)),
+                  onTap: () async {
+                    Navigator.pop(sheetCtx);
+                    final confirm = await showDialog<bool>(
+                      context: context,
+                      builder: (c) => AlertDialog(
+                        title: const Text('Remove Profile Photo?'),
+                        content: const Text(
+                          'Are you sure you want to remove your profile photo? Your initials will be displayed instead.',
+                        ),
+                        actions: [
+                          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
+                          FilledButton(
+                            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+                            onPressed: () => Navigator.pop(c, true),
+                            child: const Text('Remove'),
+                          ),
+                        ],
+                      ),
+                    );
+
+                    if (confirm == true && context.mounted) {
+                      try {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Removing profile photo...')),
+                        );
+                        await ref.read(profileControllerProvider.notifier).removeAvatar();
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Profile photo removed successfully!'),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Failed to remove photo: $e'), backgroundColor: Colors.red),
+                          );
+                        }
+                      }
+                    }
+                  },
+                ),
+            ],
+          ),
+        ),
+      );
     }
 
     return Container(
@@ -354,178 +522,223 @@ class _ProfileHeroCard extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Avatar with camera action
-              Stack(
-                children: [
-                  Container(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: theme.colorScheme.primary.withValues(alpha: 0.3),
-                        width: 3,
-                      ),
-                    ),
-                    child: GestureDetector(
-                      onTap: () {
-                        if (profile.avatarUrl != null &&
-                            profile.avatarUrl!.isNotEmpty) {
-                          FullScreenImageViewer.openSingle(
-                            context,
-                            imageUrl: profile.avatarUrl!,
-                            heroTag: 'profile_avatar_self_${profile.id}',
-                            title: profile.fullName,
-                            subtitle: profile.bio ?? profile.role,
-                          );
-                        }
-                      },
-                      child: Hero(
-                        tag: 'profile_avatar_self_${profile.id}',
-                        child: CircleAvatar(
-                          radius: 42,
-                          backgroundColor: theme.colorScheme.primaryContainer,
-                          backgroundImage: profile.avatarUrl != null &&
-                                  profile.avatarUrl!.isNotEmpty
-                              ? NetworkImage(
-                                  ApiEndpoints.resolveUrl(profile.avatarUrl!))
-                              : null,
-                          child: profile.avatarUrl == null ||
-                                  profile.avatarUrl!.isEmpty
-                              ? Text(
-                                  profile.firstName.isNotEmpty
-                                      ? profile.firstName[0].toUpperCase()
-                                      : 'U',
-                                  style:
-                                      theme.textTheme.headlineLarge?.copyWith(
-                                    color: theme.colorScheme.onPrimaryContainer,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                )
-                              : null,
-                        ),
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    bottom: 0,
-                    right: 0,
-                    child: Material(
-                      color: theme.colorScheme.primary,
-                      shape: const CircleBorder(),
-                      elevation: 2,
-                      child: InkWell(
-                        customBorder: const CircleBorder(),
-                        onTap: pickAndUploadAvatar,
-                        child: Padding(
-                          padding: const EdgeInsets.all(6),
-                          child: Icon(
-                            Icons.camera_alt,
-                            size: 15,
-                            color: theme.colorScheme.onPrimary,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(width: 16),
+              Builder(
+                builder: (context) {
+                  final resolvedAvatarUrl = (profile.avatarUrl != null && profile.avatarUrl!.trim().isNotEmpty)
+                      ? ApiEndpoints.resolveUrl(profile.avatarUrl!.trim())
+                      : null;
+
+                  return ProfileStoryAvatar(
+                    userId: profile.id,
+                    avatarUrl: profile.avatarUrl,
+                    name: profile.fullName,
+                    radius: 42,
+                    heroTag: 'profile_avatar_self_${profile.id}',
+                    showCameraBadge: true,
+                    onCameraTap: pickAndUploadAvatar,
+                    fallbackOnTap: () {
+                      if (resolvedAvatarUrl != null) {
+                        FullScreenImageViewer.openSingle(
+                          context,
+                          imageUrl: resolvedAvatarUrl,
+                          heroTag: 'profile_avatar_self_${profile.id}',
+                          title: profile.fullName,
+                          subtitle: profile.bio ?? profile.role,
+                        );
+                      } else {
+                        pickAndUploadAvatar();
+                      }
+                    },
+                  );
+
+            },
+          ),
+          const SizedBox(width: 16),
 
               // User Info details
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Flexible(
-                          child: Text(
-                            profile.fullName,
-                            style: const TextStyle(
-                              fontSize: 19,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: -0.2,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.primary
-                                .withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Text(
-                            profile.role,
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              color: theme.colorScheme.primary,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
+                child: Builder(
+                  builder: (context) {
+                    final detailed = ref.watch(studentDetailedProfileProvider).value;
+                    final authUser = ref.watch(authControllerProvider).value;
 
-                    // Username chip
-                    InkWell(
-                      borderRadius: BorderRadius.circular(6),
-                      onTap: () {
-                        Clipboard.setData(
-                            ClipboardData(text: profile.displayUsername));
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Username copied to clipboard!'),
-                            duration: Duration(seconds: 1),
+                    final resolvedName = detailed?.overview.fullName.isNotEmpty == true
+                        ? detailed!.overview.fullName
+                        : (profile.fullName.isNotEmpty
+                            ? profile.fullName
+                            : (authUser != null ? '${authUser.firstName} ${authUser.lastName}'.trim() : ''));
+                    final displayName = resolvedName.isNotEmpty ? resolvedName : 'Student';
+
+                    final dept = detailed?.officialIdentity.departmentName ??
+                        (profile.department != null && profile.department!.isNotEmpty
+                            ? profile.department!
+                            : (authUser?.departmentId != null ? 'Information Technology' : ''));
+
+                    final rawBatch = detailed?.officialIdentity.batchName ??
+                        (detailed?.officialIdentity.admissionYear != null
+                            ? '${detailed!.officialIdentity.admissionYear}'
+                            : '');
+                    final batchText = rawBatch.isNotEmpty
+                        ? (rawBatch.toLowerCase().contains('batch') ? rawBatch : '$rawBatch batch')
+                        : '';
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // 1. Full Student Name without truncation
+                        Text(
+                          displayName,
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: -0.3,
+                            height: 1.2,
                           ),
-                        );
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 2),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
+                        ),
+                        if (dept.isNotEmpty) ...[
+                          const SizedBox(height: 5),
+                          // 2. Full Department Name on its own line
+                          Text(
+                            dept,
+                            style: TextStyle(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w600,
+                              color: theme.colorScheme.onSurface,
+                              height: 1.25,
+                            ),
+                          ),
+                        ],
+                        if (batchText.isNotEmpty) ...[
+                          const SizedBox(height: 3),
+                          // 3. Batch on its own line (e.g. "2024 batch")
+                          Text(
+                            batchText,
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w500,
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 4),
+
+                        // 4. Roll Number (if available)
+                        if (profile.rollNumber != null &&
+                            profile.rollNumber!.isNotEmpty) ...[
+                          Text(
+                            'Roll No: ${profile.rollNumber}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                        ],
+
+                        // 5. Username Chip
+                        InkWell(
+                          borderRadius: BorderRadius.circular(6),
+                          onTap: () {
+                            Clipboard.setData(
+                                ClipboardData(text: profile.displayUsername));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Username copied to clipboard!'),
+                                duration: Duration(seconds: 1),
+                              ),
+                            );
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 2),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  profile.displayUsername,
+                                  style: TextStyle(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: theme.colorScheme.primary,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                Icon(Icons.copy,
+                                    size: 12, color: theme.colorScheme.primary),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+
+                        // 6. Email
+                        Text(
+                          profile.email,
+                          style: TextStyle(
+                              fontSize: 12, color: theme.colorScheme.outline),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 10),
+
+                        // 7. Role & Status Badges at bottom at last
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 4,
+                          crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
-                            Text(
-                              profile.displayUsername,
-                              style: TextStyle(
-                                fontSize: 13.5,
-                                fontWeight: FontWeight.w600,
-                                color: theme.colorScheme.primary,
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 3.5),
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.primary
+                                    .withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: theme.colorScheme.primary
+                                      .withValues(alpha: 0.3),
+                                ),
+                              ),
+                              child: Text(
+                                profile.role,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: theme.colorScheme.primary,
+                                ),
                               ),
                             ),
-                            const SizedBox(width: 4),
-                            Icon(Icons.copy,
-                                size: 12, color: theme.colorScheme.primary),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 3.5),
+                              decoration: BoxDecoration(
+                                color: Colors.green.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                    color: Colors.green.withValues(alpha: 0.3)),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.check_circle_rounded,
+                                      size: 12, color: Colors.green),
+                                  SizedBox(width: 4),
+                                  Text(
+                                    'ACTIVE',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.green,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ],
                         ),
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-
-                    // Email & Roll Number
-                    Text(
-                      profile.email,
-                      style: TextStyle(
-                          fontSize: 12.5, color: theme.colorScheme.outline),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    if (profile.rollNumber != null &&
-                        profile.rollNumber!.isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        'Roll No: ${profile.rollNumber}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ],
+                      ],
+                    );
+                  },
                 ),
               ),
             ],
@@ -702,6 +915,563 @@ class _ProfileStatsBar extends StatelessWidget {
                 fontWeight: FontWeight.w500,
                 color: theme.colorScheme.outline,
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _OfficialRecordSection extends ConsumerWidget {
+  final UserProfile profile;
+  const _OfficialRecordSection({required this.profile});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (profile.role == 'ADMIN') {
+      return const SizedBox.shrink();
+    }
+    final theme = Theme.of(context);
+    final detailedAsync = ref.watch(studentDetailedProfileProvider);
+
+    return detailedAsync.when(
+      loading: () => const Center(
+        child: Padding(
+          padding: EdgeInsets.all(28.0),
+          child: CircularProgressIndicator(),
+        ),
+      ),
+      error: (e, _) => Card(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              Text('Unable to load institutional official record: $e'),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: () => ref.invalidate(studentDetailedProfileProvider),
+                icon: const Icon(Icons.refresh),
+                label: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      ),
+      data: (detailed) {
+        final id = detailed.officialIdentity;
+        final p = detailed.personal;
+        final f = detailed.family;
+        final addr = detailed.address;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // B. Official Information (Locked 🔒)
+            Card(
+              elevation: 0.5,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5)),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.lock, color: Colors.blue, size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Official Information (Locked)',
+                            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Text(
+                            'LOCKED',
+                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.blue),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Official institutional data. To update, submit a request.',
+                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                    ),
+                    const Divider(height: 20),
+                    _buildLockedFieldItem(
+                      theme,
+                      context,
+                      ref,
+                      label: 'Full Name',
+                      value: detailed.overview.fullName,
+                      fieldName: 'full_name',
+                      category: 'ACADEMIC_IDENTITY_CHANGE',
+                    ),
+                    const SizedBox(height: 8),
+                    _buildLockedFieldItem(
+                      theme,
+                      context,
+                      ref,
+                      label: 'Registration Number',
+                      value: id.registrationNumber ?? 'Pending Registration',
+                      fieldName: 'registration_number',
+                      category: 'ACADEMIC_IDENTITY_CHANGE',
+                    ),
+                    const SizedBox(height: 8),
+                    _buildLockedFieldItem(
+                      theme,
+                      context,
+                      ref,
+                      label: 'Roll Number',
+                      value: id.rollNumber ?? profile.rollNumber ?? 'Not Assigned',
+                      fieldName: 'roll_number',
+                      category: 'ACADEMIC_IDENTITY_CHANGE',
+                    ),
+                    const SizedBox(height: 8),
+                    _buildLockedFieldItem(
+                      theme,
+                      context,
+                      ref,
+                      label: 'Department',
+                      value: id.departmentName ?? (profile.department != null && profile.department!.isNotEmpty ? profile.department! : 'Assigned by Department'),
+                      fieldName: 'department',
+                      category: 'ACADEMIC_IDENTITY_CHANGE',
+                    ),
+                    const SizedBox(height: 8),
+                    _buildLockedFieldItem(
+                      theme,
+                      context,
+                      ref,
+                      label: 'Batch',
+                      value: id.batchName ?? (id.admissionYear != null ? '${id.admissionYear} Cohort' : 'Official Record'),
+                      fieldName: 'batch_name',
+                      category: 'ACADEMIC_IDENTITY_CHANGE',
+                    ),
+                    const SizedBox(height: 8),
+                    _buildLockedFieldItem(
+                      theme,
+                      context,
+                      ref,
+                      label: 'Section',
+                      value: id.section != null && id.section!.isNotEmpty ? 'Section ${id.section}' : 'Not Assigned',
+                      fieldName: 'section',
+                      category: 'ACADEMIC_IDENTITY_CHANGE',
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // C. Personal Information (Approval Required ⚠️)
+            Card(
+              elevation: 0.5,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5)),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.warning_amber_rounded, color: Colors.orange.shade800, size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Personal Information (Approval Required)',
+                            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            'REQUIRES APPROVAL',
+                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.orange.shade900),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Editing creates a profile change request submitted to college administration.',
+                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                    ),
+                    const Divider(height: 20),
+                    _buildApprovalFieldItem(
+                      theme,
+                      context,
+                      ref,
+                      label: 'Date of Birth',
+                      value: p.dob ?? 'Not set',
+                      subtitle: p.age != null ? 'Age: ${p.age} years' : null,
+                      fieldName: 'dob',
+                      category: 'PERSONAL_CHANGE',
+                    ),
+                    const SizedBox(height: 8),
+                    _buildApprovalFieldItem(
+                      theme,
+                      context,
+                      ref,
+                      label: 'Personal Email',
+                      value: detailed.overview.email.isNotEmpty ? detailed.overview.email : profile.email,
+                      fieldName: 'email',
+                      category: 'PERSONAL_CHANGE',
+                    ),
+                    const SizedBox(height: 8),
+                    _buildApprovalFieldItem(
+                      theme,
+                      context,
+                      ref,
+                      label: 'Mobile Number',
+                      value: p.phone ?? profile.phone ?? 'Not set',
+                      fieldName: 'phone',
+                      category: 'PERSONAL_CHANGE',
+                    ),
+                    const SizedBox(height: 8),
+                    _buildApprovalFieldItem(
+                      theme,
+                      context,
+                      ref,
+                      label: 'Father Name',
+                      value: f.fatherName ?? 'Not set',
+                      fieldName: 'father_name',
+                      category: 'PERSONAL_CHANGE',
+                    ),
+                    const SizedBox(height: 8),
+                    _buildApprovalFieldItem(
+                      theme,
+                      context,
+                      ref,
+                      label: 'Father Phone',
+                      value: f.fatherPhone ?? 'Not set',
+                      fieldName: 'father_phone',
+                      category: 'PERSONAL_CHANGE',
+                    ),
+                    const SizedBox(height: 8),
+                    _buildApprovalFieldItem(
+                      theme,
+                      context,
+                      ref,
+                      label: 'Mother Name',
+                      value: f.motherName ?? 'Not set',
+                      fieldName: 'mother_name',
+                      category: 'PERSONAL_CHANGE',
+                    ),
+                    const SizedBox(height: 8),
+                    _buildApprovalFieldItem(
+                      theme,
+                      context,
+                      ref,
+                      label: 'Mother Phone',
+                      value: f.motherPhone ?? 'Not set',
+                      fieldName: 'mother_phone',
+                      category: 'PERSONAL_CHANGE',
+                    ),
+                    const SizedBox(height: 8),
+                    _buildApprovalFieldItem(
+                      theme,
+                      context,
+                      ref,
+                      label: 'Permanent Address',
+                      value: addr.fullPermanentAddress.isEmpty ? 'Not set' : addr.fullPermanentAddress,
+                      fieldName: 'permanent_address',
+                      category: 'PERSONAL_CHANGE',
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Section 10: Change Requests Tracking
+            _buildChangeRequestsTracker(theme, ref),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildLockedFieldItem(
+    ThemeData theme,
+    BuildContext context,
+    WidgetRef ref, {
+    required String label,
+    required String value,
+    required String fieldName,
+    required String category,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.lock, size: 16, color: Colors.grey),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+              ],
+            ),
+          ),
+          OutlinedButton(
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+              minimumSize: const Size(0, 30),
+              visualDensity: VisualDensity.compact,
+            ),
+            onPressed: () => RequestChangeDialog.show(
+              context,
+              fieldName: fieldName,
+              fieldDisplayName: label,
+              category: category,
+              currentValue: value,
+              onSuccess: () {
+                ref.invalidate(studentChangeRequestsProvider);
+                ref.invalidate(studentDetailedProfileProvider);
+              },
+            ),
+            child: const Text('Request Change', style: TextStyle(fontSize: 11)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildApprovalFieldItem(
+    ThemeData theme,
+    BuildContext context,
+    WidgetRef ref, {
+    required String label,
+    required String value,
+    required String fieldName,
+    required String category,
+    String? subtitle,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.edit_note, size: 18, color: Colors.orange.shade700),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                if (subtitle != null) ...[
+                  const SizedBox(height: 2),
+                  Text(subtitle, style: const TextStyle(fontSize: 10, color: Colors.green, fontWeight: FontWeight.bold)),
+                ],
+              ],
+            ),
+          ),
+          OutlinedButton(
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+              minimumSize: const Size(0, 30),
+              visualDensity: VisualDensity.compact,
+            ),
+            onPressed: () => RequestChangeDialog.show(
+              context,
+              fieldName: fieldName,
+              fieldDisplayName: label,
+              category: category,
+              currentValue: value,
+              onSuccess: () {
+                ref.invalidate(studentChangeRequestsProvider);
+                ref.invalidate(studentDetailedProfileProvider);
+              },
+            ),
+            child: const Text('Request Change', style: TextStyle(fontSize: 11)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildChangeRequestsTracker(ThemeData theme, WidgetRef ref) {
+    final requestsAsync = ref.watch(studentChangeRequestsProvider);
+
+    return Card(
+      elevation: 0.5,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.history_outlined, size: 20, color: Colors.indigo),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Change Request Tracking',
+                    style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.refresh, size: 18),
+                  tooltip: 'Refresh Requests',
+                  onPressed: () => ref.invalidate(studentChangeRequestsProvider),
+                ),
+              ],
+            ),
+            const Divider(height: 16),
+            requestsAsync.when(
+              loading: () => const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(12),
+                  child: CircularProgressIndicator(),
+                ),
+              ),
+              error: (err, _) => Text(
+                'Could not load change requests: $err',
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+              data: (requests) {
+                if (requests.isEmpty) {
+                  return const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    child: Text(
+                      'No profile change requests submitted yet.',
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                  );
+                }
+
+                return ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: requests.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  itemBuilder: (context, idx) {
+                    final req = requests[idx];
+                    Color statusColor;
+                    IconData statusIcon;
+
+                    if (req.isApproved) {
+                      statusColor = Colors.green;
+                      statusIcon = Icons.check_circle;
+                    } else if (req.isRejected) {
+                      statusColor = Colors.red;
+                      statusIcon = Icons.cancel;
+                    } else if (req.isCancelled) {
+                      statusColor = Colors.grey;
+                      statusIcon = Icons.remove_circle;
+                    } else {
+                      statusColor = Colors.amber.shade800;
+                      statusIcon = Icons.pending;
+                    }
+
+                    return Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surface,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: statusColor.withValues(alpha: 0.3)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(statusIcon, color: statusColor, size: 16),
+                              const SizedBox(width: 6),
+                              Text(
+                                req.field.replaceAll('_', ' ').toUpperCase(),
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                              ),
+                              const Spacer(),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: statusColor.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  req.status,
+                                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: statusColor),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Requested: "${req.requestedValue}" (Current: "${req.currentValue.isEmpty ? 'Not set' : req.currentValue}")',
+                            style: const TextStyle(fontSize: 11),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Reason: ${req.reason}',
+                            style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                          ),
+                          if (req.reviewComment != null && req.reviewComment!.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              'Admin note: ${req.reviewComment}',
+                              style: TextStyle(fontSize: 11, color: statusColor, fontStyle: FontStyle.italic),
+                            ),
+                          ],
+                          if (req.isPending) ...[
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: TextButton.icon(
+                                icon: const Icon(Icons.close, size: 14, color: Colors.red),
+                                label: const Text('Cancel Request', style: TextStyle(fontSize: 11, color: Colors.red)),
+                                onPressed: () async {
+                                  final ok = await ref
+                                      .read(studentCareerProfileProvider.notifier)
+                                      .cancelChangeRequest(req.id);
+                                  if (ok && context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('Request cancelled.')),
+                                    );
+                                  }
+                                },
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    );
+                  },
+                );
+              },
             ),
           ],
         ),
@@ -958,30 +1728,16 @@ class _ProjectsSection extends ConsumerWidget {
                               avatar: const Icon(Icons.code, size: 14),
                               label: const Text('Repository',
                                   style: TextStyle(fontSize: 11.5)),
-                              onPressed: () {
-                                Clipboard.setData(
-                                    ClipboardData(text: proj.repoUrl!));
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                      content: Text('Repository link copied!'),
-                                      duration: Duration(seconds: 1)),
-                                );
-                              },
+                              onPressed: () =>
+                                  UrlLauncherService.openUrl(context, proj.repoUrl!),
                             ),
                           if (hasDemo)
                             ActionChip(
                               avatar: const Icon(Icons.open_in_new, size: 14),
                               label: const Text('Live Demo',
                                   style: TextStyle(fontSize: 11.5)),
-                              onPressed: () {
-                                Clipboard.setData(
-                                    ClipboardData(text: proj.projectUrl!));
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                      content: Text('Demo link copied!'),
-                                      duration: Duration(seconds: 1)),
-                                );
-                              },
+                              onPressed: () =>
+                                  UrlLauncherService.openUrl(context, proj.projectUrl!),
                             ),
                         ],
                       ),
@@ -1062,55 +1818,68 @@ class _SocialLinksSection extends StatelessWidget {
     final theme = Theme.of(context);
     final hasUrl = url != null && url.isNotEmpty;
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerLow,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: hasUrl ? () => UrlLauncherService.openUrl(context, url) : null,
         borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          Icon(icon,
-              size: 20,
-              color: hasUrl
-                  ? theme.colorScheme.primary
-                  : theme.colorScheme.outline),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(label,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold, fontSize: 13)),
-                Text(
-                  hasUrl ? url : 'Not connected',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: hasUrl
-                        ? theme.colorScheme.onSurfaceVariant
-                        : theme.colorScheme.outline,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surfaceContainerLow,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              Icon(icon,
+                  size: 20,
+                  color: hasUrl
+                      ? theme.colorScheme.primary
+                      : theme.colorScheme.outline),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(label,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 13)),
+                    Text(
+                      hasUrl ? url : 'Not connected',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: hasUrl
+                            ? theme.colorScheme.onSurfaceVariant
+                            : theme.colorScheme.outline,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              if (hasUrl) ...[
+                IconButton(
+                  icon: const Icon(Icons.open_in_new, size: 16),
+                  tooltip: 'Open $label',
+                  onPressed: () => UrlLauncherService.openUrl(context, url),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.copy, size: 16),
+                  tooltip: 'Copy Link',
+                  onPressed: () {
+                    Clipboard.setData(ClipboardData(text: url));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                          content: Text('$label link copied!'),
+                          duration: const Duration(seconds: 1)),
+                    );
+                  },
                 ),
               ],
-            ),
+            ],
           ),
-          if (hasUrl)
-            IconButton(
-              icon: const Icon(Icons.copy, size: 16),
-              tooltip: 'Copy Link',
-              onPressed: () {
-                Clipboard.setData(ClipboardData(text: url));
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                      content: Text('$label link copied!'),
-                      duration: const Duration(seconds: 1)),
-                );
-              },
-            ),
-        ],
+        ),
       ),
     );
   }
@@ -1650,8 +2419,11 @@ class _MyProposedClubsSection extends ConsumerWidget {
                                     ),
                                     icon:
                                         const Icon(Icons.open_in_new, size: 15),
-                                    label: const Text('View Club Page',
-                                        style: TextStyle(fontSize: 12)),
+                                    label: Text(
+                                        club.status == 'APPROVED'
+                                            ? 'View Club Page'
+                                            : 'Preview Proposal',
+                                        style: const TextStyle(fontSize: 12)),
                                     onPressed: () =>
                                         context.push('/clubs/${club.id}'),
                                   ),
@@ -1867,7 +2639,7 @@ class _SliverTabBarDelegate extends SliverPersistentHeaderDelegate {
 
   @override
   bool shouldRebuild(_SliverTabBarDelegate oldDelegate) {
-    return false;
+    return true;
   }
 }
 

@@ -2,10 +2,12 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/widgets/campus_avatar.dart';
 import '../../../../core/constants/api_endpoints.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../chat/data/chat_repository.dart';
 import '../../../chat/domain/chat_models.dart';
+import '../../../chat/presentation/providers/chat_provider.dart';
 import '../../../clubs/domain/club_models.dart';
 import '../../../clubs/presentation/providers/club_provider.dart';
 import '../../domain/models/post_item.dart';
@@ -130,10 +132,13 @@ class _SharePostSheetState extends ConsumerState<SharePostSheet> {
             fileName: widget.post.title,
             mediaUrl: widget.post.attachments.isNotEmpty ? widget.post.attachments.first.fileUrl : null,
           );
+          ref.invalidate(chatRoomMessagesProvider(targetRoomId));
           successCount++;
         }
       } catch (_) {}
     }
+
+    ref.invalidate(userChatRoomsProvider);
 
     if (mounted) {
       setState(() => _isSharing = false);
@@ -345,23 +350,10 @@ class _SharePostSheetState extends ConsumerState<SharePostSheet> {
                                   }
                                 });
                               },
-                              secondary: CircleAvatar(
+                              secondary: CampusAvatar(
+                                imageUrl: dest.avatarUrl,
+                                name: dest.name,
                                 radius: 20,
-                                backgroundColor: dest.isGroup
-                                    ? theme.colorScheme.secondaryContainer
-                                    : theme.colorScheme.primaryContainer,
-                                backgroundImage: dest.avatarUrl != null && dest.avatarUrl!.isNotEmpty
-                                    ? NetworkImage(ApiEndpoints.resolveUrl(dest.avatarUrl!))
-                                    : null,
-                                child: dest.avatarUrl == null || dest.avatarUrl!.isEmpty
-                                    ? Icon(
-                                        dest.isGroup ? Icons.groups : Icons.person,
-                                        size: 20,
-                                        color: dest.isGroup
-                                            ? theme.colorScheme.onSecondaryContainer
-                                            : theme.colorScheme.onPrimaryContainer,
-                                      )
-                                    : null,
                               ),
                               title: Text(
                                 dest.name,

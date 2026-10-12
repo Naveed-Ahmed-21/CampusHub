@@ -29,24 +29,38 @@ class CareerGlassCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = backgroundColor ??
+        (gradient == null ? (isDark ? CareerTheme.surface : Colors.white) : null);
+    final cardBorder = borderColor ??
+        (isDark ? CareerTheme.glassBorder : const Color(0xFFEFF3F4));
+
     Widget content = Container(
       margin: margin,
       padding: padding,
       decoration: BoxDecoration(
-        color: backgroundColor ?? (gradient == null ? CareerTheme.surface : null),
+        color: cardBg,
         gradient: gradient,
         borderRadius: BorderRadius.circular(borderRadius),
         border: Border.all(
-          color: borderColor ?? CareerTheme.glassBorder,
+          color: cardBorder,
           width: 1.0,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.25),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        boxShadow: isDark
+            ? [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.25),
+                  blurRadius: 16,
+                  offset: const Offset(0, 4),
+                ),
+              ]
+            : [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
       ),
       child: Material(
         type: MaterialType.transparency,
@@ -394,12 +408,13 @@ class CareerSegmentedControl extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: CareerTheme.surfaceMuted,
+        color: isDark ? CareerTheme.surfaceMuted : const Color(0xFFF1F5F9),
         borderRadius: BorderRadius.circular(CareerTheme.radiusPill),
-        border: Border.all(color: CareerTheme.glassBorder),
+        border: Border.all(color: isDark ? CareerTheme.glassBorder : const Color(0xFFE2E8F0)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -415,13 +430,15 @@ class CareerSegmentedControl extends StatelessWidget {
               curve: Curves.easeInOut,
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
               decoration: BoxDecoration(
-                color: isSelected ? CareerTheme.primaryCyan : Colors.transparent,
+                color: isSelected
+                    ? (isDark ? Colors.white : const Color(0xFF0F1419))
+                    : Colors.transparent,
                 borderRadius: BorderRadius.circular(CareerTheme.radiusPill),
                 boxShadow: isSelected
                     ? [
                         BoxShadow(
-                          color: CareerTheme.primaryCyan.withValues(alpha: 0.3),
-                          blurRadius: 10,
+                          color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.18),
+                          blurRadius: 8,
                           offset: const Offset(0, 2),
                         )
                       ]
@@ -432,7 +449,9 @@ class CareerSegmentedControl extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
-                  color: isSelected ? const Color(0xFF0F172A) : CareerTheme.textMuted,
+                  color: isSelected
+                      ? (isDark ? const Color(0xFF0F172A) : Colors.white)
+                      : (isDark ? const Color(0xFF71767B) : const Color(0xFF64748B)),
                 ),
               ),
             ),
@@ -460,6 +479,7 @@ class CareerPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
@@ -467,18 +487,20 @@ class CareerPill extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
         decoration: BoxDecoration(
           color: isSelected
-              ? CareerTheme.primaryCyan.withValues(alpha: 0.2)
-              : CareerTheme.surface,
+              ? (isDark ? Colors.white : const Color(0xFF0F1419))
+              : (isDark ? CareerTheme.surface : Colors.white),
           borderRadius: BorderRadius.circular(CareerTheme.radiusMedium),
           border: Border.all(
-            color: isSelected ? CareerTheme.primaryCyan : CareerTheme.glassBorder,
+            color: isSelected
+                ? (isDark ? Colors.white : const Color(0xFF0F1419))
+                : (isDark ? CareerTheme.glassBorder : const Color(0xFFE2E8F0)),
             width: isSelected ? 1.5 : 1.0,
           ),
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: CareerTheme.primaryCyan.withValues(alpha: 0.2),
-                    blurRadius: 10,
+                    color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.15),
+                    blurRadius: 8,
                   )
                 ]
               : null,
@@ -488,7 +510,9 @@ class CareerPill extends StatelessWidget {
           style: TextStyle(
             fontSize: 13,
             fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-            color: isSelected ? CareerTheme.primaryCyan : CareerTheme.textSecondary,
+            color: isSelected
+                ? (isDark ? Colors.black : Colors.white)
+                : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569)),
           ),
         ),
       ),
@@ -524,6 +548,10 @@ class _CareerPrimaryButtonState extends State<CareerPrimaryButton> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final btnBg = isDark ? Colors.white : const Color(0xFF0F1419);
+    final btnFg = isDark ? Colors.black : Colors.white;
+
     return GestureDetector(
       onTapDown: (_) => setState(() => _isPressed = true),
       onTapUp: (_) => setState(() => _isPressed = false),
@@ -536,24 +564,24 @@ class _CareerPrimaryButtonState extends State<CareerPrimaryButton> {
           width: widget.width ?? double.infinity,
           height: 48,
           decoration: BoxDecoration(
-            gradient: CareerTheme.primaryGradient,
+            color: btnBg,
             borderRadius: BorderRadius.circular(CareerTheme.radiusLarge),
             boxShadow: [
               BoxShadow(
-                color: CareerTheme.primaryCyan.withValues(alpha: 0.3),
-                blurRadius: 16,
-                offset: const Offset(0, 4),
+                color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.15),
+                blurRadius: 12,
+                offset: const Offset(0, 3),
               ),
             ],
           ),
           child: Center(
             child: widget.isLoading
-                ? const SizedBox(
+                ? SizedBox(
                     width: 20,
                     height: 20,
                     child: CircularProgressIndicator(
                       strokeWidth: 2.2,
-                      color: Colors.white,
+                      color: btnFg,
                     ),
                   )
                 : Row(
@@ -563,10 +591,10 @@ class _CareerPrimaryButtonState extends State<CareerPrimaryButton> {
                       Flexible(
                         child: Text(
                           widget.label,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w700,
-                            color: Colors.white,
+                            color: btnFg,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -574,7 +602,7 @@ class _CareerPrimaryButtonState extends State<CareerPrimaryButton> {
                       ),
                       if (widget.icon != null) ...[
                         const SizedBox(width: 8),
-                        Icon(widget.icon, size: 16, color: Colors.white),
+                        Icon(widget.icon, size: 16, color: btnFg),
                       ],
                     ],
                   ),
@@ -604,6 +632,7 @@ class CareerSectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -613,7 +642,11 @@ class CareerSectionHeader extends StatelessWidget {
             Expanded(
               child: Text(
                 title,
-                style: CareerTheme.sectionHeader,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: isDark ? Colors.white : const Color(0xFF0F1419),
+                ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -623,10 +656,10 @@ class CareerSectionHeader extends StatelessWidget {
                 onTap: onActionTap,
                 child: Text(
                   actionLabel!,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: CareerTheme.primaryCyan,
+                    color: isDark ? Colors.white : const Color(0xFF0F1419),
                   ),
                 ),
               ),
@@ -634,7 +667,14 @@ class CareerSectionHeader extends StatelessWidget {
         ),
         if (subtitle != null) ...[
           const SizedBox(height: 3),
-          Text(subtitle!, style: CareerTheme.caption),
+          Text(
+            subtitle!,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: isDark ? const Color(0xFF71767B) : const Color(0xFF64748B),
+            ),
+          ),
         ],
       ],
     );

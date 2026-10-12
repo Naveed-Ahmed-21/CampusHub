@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/clubs_repository.dart';
 import '../../domain/club_models.dart';
+import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../chat/domain/chat_models.dart';
 import '../../../chat/data/chat_repository.dart';
 import '../../../feed/domain/models/post_item.dart';
@@ -61,6 +62,8 @@ final myProposedClubsProvider = FutureProvider.autoDispose<List<Club>>((ref) asy
 });
 
 final myClubsProvider = FutureProvider<List<Club>>((ref) async {
+  final authUserId = ref.watch(authControllerProvider.select((s) => s.asData?.value?.id));
+  if (authUserId == null || authUserId.isEmpty) return [];
   final repository = ref.watch(clubsRepositoryProvider);
   final allClubs = await repository.getClubs();
   return allClubs.where((c) => c.isMember).toList();

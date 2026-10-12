@@ -20,7 +20,7 @@ void main() {
       );
 
       // Back button exists
-      expect(find.byIcon(Icons.arrow_back), findsOneWidget);
+      expect(find.byIcon(Icons.arrow_back_ios_new_rounded), findsOneWidget);
       // For single image, counter pill is hidden
       expect(find.text('1 / 1'), findsNothing);
       // Copy link option is removed
@@ -92,7 +92,7 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      expect(find.byIcon(Icons.arrow_back), findsOneWidget);
+      expect(find.byIcon(Icons.arrow_back_ios_new_rounded), findsOneWidget);
 
       // Drag downward by 200px
       await tester.drag(find.byType(PageView), const Offset(0, 200));

@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import '../../../../core/constants/api_endpoints.dart';
+import 'package:go_router/go_router.dart';
+import '../../../../core/widgets/campus_avatar.dart';
 import '../../../../shared/widgets/campus_network_image.dart';
-import '../../../feed/presentation/widgets/comments_sheet.dart';
 import '../../domain/chat_models.dart';
 
 class ChatPostAttachmentWidget extends StatelessWidget {
@@ -28,16 +28,30 @@ class ChatPostAttachmentWidget extends StatelessWidget {
     String postId = '';
 
     try {
-      if (message.message.startsWith('{') && message.message.endsWith('}')) {
-        final data = jsonDecode(message.message) as Map<String, dynamic>;
-        postId = data['postId'] ?? data['id'] ?? '';
-        title = data['title'] ?? title;
-        content = data['content'] ?? content;
-        authorName = data['authorName'] ?? authorName;
-        authorAvatar = data['authorAvatar'];
-        mediaUrl = data['mediaUrl'] ?? mediaUrl;
+      final rawMsg = message.message.trim();
+      if (rawMsg.startsWith('{') && rawMsg.endsWith('}')) {
+        final data = jsonDecode(rawMsg) as Map<String, dynamic>;
+        postId = (data['postId'] ?? data['id'] ?? '').toString();
+        title = (data['title'] ?? title).toString();
+        content = (data['content'] ?? content).toString();
+        authorName = (data['authorName'] ?? authorName).toString();
+        authorAvatar = data['authorAvatar']?.toString();
+        mediaUrl = data['mediaUrl']?.toString() ?? mediaUrl;
       }
     } catch (_) {}
+
+    // Fallback regex extraction if raw JSON parsing didn't match
+    if (postId.isEmpty) {
+      final postMatch = RegExp(r'"postId"\s*:\s*"([a-zA-Z0-9\-]+)"').firstMatch(message.message);
+      if (postMatch != null) {
+        postId = postMatch.group(1) ?? '';
+      } else {
+        final idMatch = RegExp(r'"id"\s*:\s*"([a-zA-Z0-9\-]+)"').firstMatch(message.message);
+        if (idMatch != null) {
+          postId = idMatch.group(1) ?? '';
+        }
+      }
+    }
 
     final cardBg = isMe
         ? theme.colorScheme.primaryContainer.withValues(alpha: 0.35)
@@ -47,10 +61,10 @@ class ChatPostAttachmentWidget extends StatelessWidget {
       borderRadius: BorderRadius.circular(12),
       onTap: () {
         if (postId.isNotEmpty) {
-          PostCommentsSheet.show(context, postId);
+          context.push('/posts/$postId');
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(title)),
+            SnackBar(content: Text('Opening post: $title')),
           );
         }
       },
@@ -71,15 +85,10 @@ class ChatPostAttachmentWidget extends StatelessWidget {
             // Header: Post badge & Author
             Row(
               children: [
-                CircleAvatar(
+                CampusAvatar(
+                  imageUrl: authorAvatar,
+                  name: authorName,
                   radius: 12,
-                  backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.15),
-                  backgroundImage: authorAvatar != null && authorAvatar.isNotEmpty
-                      ? NetworkImage(ApiEndpoints.resolveUrl(authorAvatar))
-                      : null,
-                  child: authorAvatar == null || authorAvatar.isEmpty
-                      ? Icon(Icons.person, size: 14, color: theme.colorScheme.primary)
-                      : null,
                 ),
                 const SizedBox(width: 8),
                 Expanded(
@@ -166,7 +175,7 @@ class ChatPostAttachmentWidget extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 Text(
-                  'Tap to view post',
+                  'Tap to view full post',
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,

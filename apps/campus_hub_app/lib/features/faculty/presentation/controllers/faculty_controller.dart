@@ -1,14 +1,19 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/faculty_remote_datasource.dart';
 import '../../domain/models/faculty_models.dart';
+import '../../../auth/presentation/controllers/auth_controller.dart';
 
 final facultyDashboardProvider = FutureProvider<FacultyDashboard>((ref) async {
+  final userId = ref.watch(authControllerProvider.select((s) => s.asData?.value?.id));
+  if (userId == null) return const FacultyDashboard.empty();
   final dataSource = ref.watch(facultyRemoteDataSourceProvider);
   return dataSource.getDashboard();
 });
 
 final facultySubjectsProvider =
     FutureProvider<List<FacultySubject>>((ref) async {
+  final userId = ref.watch(authControllerProvider.select((s) => s.asData?.value?.id));
+  if (userId == null) return const [];
   final dataSource = ref.watch(facultyRemoteDataSourceProvider);
   return dataSource.getSubjects();
 });
@@ -21,16 +26,22 @@ final facultySubjectDetailProvider = FutureProvider.autoDispose
 
 final facultyScheduleProvider =
     FutureProvider<List<ClassScheduleSlot>>((ref) async {
+  final userId = ref.watch(authControllerProvider.select((s) => s.asData?.value?.id));
+  if (userId == null) return const [];
   final dataSource = ref.watch(facultyRemoteDataSourceProvider);
   return dataSource.getTodaySchedule();
 });
 
 final facultyMenteesProvider = FutureProvider<List<MenteeStudent>>((ref) async {
+  final userId = ref.watch(authControllerProvider.select((s) => s.asData?.value?.id));
+  if (userId == null) return const [];
   final dataSource = ref.watch(facultyRemoteDataSourceProvider);
   return dataSource.getMentees();
 });
 
 final facultyProfileProvider = FutureProvider<FacultyProfileModel>((ref) async {
+  final userId = ref.watch(authControllerProvider.select((s) => s.asData?.value?.id));
+  if (userId == null) return const FacultyProfileModel.empty();
   final dataSource = ref.watch(facultyRemoteDataSourceProvider);
   return dataSource.getProfile();
 });
@@ -67,6 +78,8 @@ final facultyAssessmentResultsProvider = FutureProvider.autoDispose
 
 final facultyAcademicContextProvider =
     FutureProvider.autoDispose<FacultyAcademicContext>((ref) async {
+  final userId = ref.watch(authControllerProvider.select((s) => s.asData?.value?.id));
+  if (userId == null) return const FacultyAcademicContext.empty();
   final dataSource = ref.watch(facultyRemoteDataSourceProvider);
   return dataSource.getAcademicContext();
 });

@@ -6,6 +6,8 @@ import '../../domain/career_models.dart';
 import '../providers/career_provider.dart';
 import '../theme/career_theme.dart';
 import '../widgets/career_shared_widgets.dart';
+import '../../../../core/widgets/campus_back_button.dart';
+import '../../../../core/widgets/campus_app_bar.dart';
 import 'quiz_result_view.dart';
 
 class AdaptiveQuizView extends ConsumerStatefulWidget {
@@ -175,17 +177,13 @@ class _AdaptiveQuizViewState extends ConsumerState<AdaptiveQuizView> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return Scaffold(
+      return const Scaffold(
         backgroundColor: CareerTheme.background,
-        appBar: AppBar(
-          backgroundColor: CareerTheme.background,
-          elevation: 0,
-          leading: BackButton(
-            color: Colors.white,
-            onPressed: () => Navigator.of(context).pop(),
-          ),
+        appBar: CampusAppBar(
+          title: 'Adaptive Quiz',
+          leading: CampusBackButton(),
         ),
-        body: const Center(
+        body: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -204,12 +202,9 @@ class _AdaptiveQuizViewState extends ConsumerState<AdaptiveQuizView> {
     if (_errorMessage != null || _quiz == null || _quiz!.questions.isEmpty) {
       return Scaffold(
         backgroundColor: CareerTheme.background,
-        appBar: AppBar(
-          backgroundColor: CareerTheme.background,
-          leading: BackButton(
-            color: Colors.white,
-            onPressed: () => Navigator.of(context).pop(),
-          ),
+        appBar: const CampusAppBar(
+          title: 'Adaptive Quiz',
+          leading: CampusBackButton(),
         ),
         body: Center(
           child: Padding(
@@ -243,34 +238,24 @@ class _AdaptiveQuizViewState extends ConsumerState<AdaptiveQuizView> {
 
     return Scaffold(
       backgroundColor: CareerTheme.background,
-      appBar: AppBar(
-        backgroundColor: CareerTheme.background,
-        elevation: 0,
-        leading: BackButton(
-          color: Colors.white,
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: Text(
-          'Quiz • ${widget.topic}',
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-            color: Colors.white,
-          ),
-        ),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(4),
-          child: LinearProgressIndicator(
-            value: progress,
-            backgroundColor: CareerTheme.surfaceElevated,
-            valueColor: const AlwaysStoppedAnimation<Color>(CareerTheme.primaryCyan),
-          ),
-        ),
+      appBar: CampusAppBar(
+        title: 'Quiz • ${widget.topic}',
+        subtitle: 'Question ${_currentIndex + 1} of ${questions.length}',
+        leading: const CampusBackButton(),
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
-          child: Column(
+        child: Column(
+          children: [
+            LinearProgressIndicator(
+              value: progress,
+              backgroundColor: CareerTheme.surfaceElevated,
+              valueColor: const AlwaysStoppedAnimation<Color>(CareerTheme.primaryCyan),
+              minHeight: 3,
+            ),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
+                child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Question Counter Header (Screen 7)
@@ -434,6 +419,9 @@ class _AdaptiveQuizViewState extends ConsumerState<AdaptiveQuizView> {
           ),
         ),
       ),
+    ],
+  ),
+),
     );
   }
 }

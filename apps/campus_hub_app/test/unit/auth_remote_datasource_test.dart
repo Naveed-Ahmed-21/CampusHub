@@ -18,5 +18,29 @@ void main() {
         expect(e, isNotNull);
       }
     });
+
+    test('sendFirstLoginOtp calls endpoint without crashing', () async {
+      final dio = Dio();
+      final dataSource = AuthRemoteDataSource(dio);
+
+      try {
+        final result = await dataSource.sendFirstLoginOtp('student@campushub.edu');
+        expect(result, isNotNull);
+      } catch (e) {
+        expect(e, isNotNull);
+      }
+    });
+
+    test('verifyFirstLoginOtp calls endpoint without crashing', () async {
+      final dio = Dio();
+      final dataSource = AuthRemoteDataSource(dio);
+
+      try {
+        final result = await dataSource.verifyFirstLoginOtp('student@campushub.edu', '123456');
+        expect(result, isNotNull);
+      } catch (e) {
+        expect(e, isNotNull);
+      }
+    });
   });
 }

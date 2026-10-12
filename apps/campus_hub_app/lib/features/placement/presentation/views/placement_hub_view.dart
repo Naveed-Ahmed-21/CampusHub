@@ -1,9 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import '../../../../core/branding/gcee_logo.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_glass.dart';
+import '../../../../core/theme/app_typography.dart';
+import '../../../../core/widgets/atmospheric_background.dart';
+import '../../../../core/widgets/campus_glass_card.dart';
+import '../../../../core/widgets/campus_stat_card.dart';
+import '../../../../core/widgets/campus_status_badge.dart';
+import '../../../../core/widgets/campus_button.dart';
+import '../../../../core/widgets/campus_empty_state.dart';
+import '../../../../core/widgets/campus_bottom_nav.dart';
+import '../../../../core/constants/api_endpoints.dart';
+import '../../../../core/widgets/campus_avatar.dart';
+import '../../../../features/dept_admin/presentation/views/dept_placement_view.dart';
 import '../providers/placement_provider.dart';
-import '../../data/placement_repository.dart';
-import '../../domain/placement_models.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
+import 'placement_drawer.dart';
 
 class PlacementHubView extends ConsumerStatefulWidget {
   const PlacementHubView({super.key});
@@ -13,512 +27,743 @@ class PlacementHubView extends ConsumerStatefulWidget {
 }
 
 class _PlacementHubViewState extends ConsumerState<PlacementHubView> {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
-  void _showCreateDriveDialog() {
-    final companyCtrl = TextEditingController();
-    final roleCtrl = TextEditingController();
-    final ctcCtrl = TextEditingController();
-    final locationCtrl = TextEditingController();
-    final cgpaCtrl = TextEditingController();
+  @override
+  Widget build(BuildContext context) {
+    final user = ref.watch(authControllerProvider).asData?.value;
+    final isOfficer = user?.isPlacementOfficer == true || user?.isAdmin == true;
+    final isDeptAdmin = user?.isDeptAdmin == true || user?.role == 'DEPT_ADMIN';
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Post New Placement Drive'),
-        content: SingleChildScrollView(
+    return Scaffold(
+      key: _scaffoldKey,
+      drawer: isOfficer ? const PlacementDrawer() : null,
+      body: AtmosphericBackground(
+        child: SafeArea(
           child: Column(
-            mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(
-                controller: companyCtrl,
-                decoration: const InputDecoration(labelText: 'Company Name', border: OutlineInputBorder()),
+              // Header matching blueprint Image 02
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  children: [
+                    if (isOfficer) ...[
+                      IconButton(
+                        icon: const Icon(Icons.menu),
+                        tooltip: 'Open Navigation Drawer',
+                        onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+                      ),
+                      const SizedBox(width: 4),
+                      Builder(
+                        builder: (context) {
+                          final avatarUrl = user?.avatarUrl?.trim();
+                          final hasAvatar = avatarUrl != null && avatarUrl.isNotEmpty;
+                          final resolvedAvatar = hasAvatar ? ApiEndpoints.resolveUrl(avatarUrl) : null;
+                          return CampusAvatar(
+                            imageUrl: resolvedAvatar,
+                            name: user?.fullName.isNotEmpty == true ? user!.fullName : 'P',
+                            radius: 20,
+                          );
+                        },
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    'Placement & Career Drives',
+                                    style: AppTypography.pageTitle.copyWith(
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.w800,
+                                      color: isDark ? AppColors.darkText : AppColors.primaryText,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                const Text('👑', style: TextStyle(fontSize: 13)),
+                              ],
+                            ),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    user?.fullName != null ? 'Officer ${user!.fullName}' : 'GCEE Placement Cell',
+                                    style: AppTypography.micro.copyWith(
+                                      color: isDark ? AppColors.secondaryCyan : AppColors.primaryBlue,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: (isDark ? AppColors.secondaryCyan : AppColors.primaryBlue).withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    'Officer Hub',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                      color: isDark ? AppColors.secondaryCyan : AppColors.primaryBlue,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      IconButton(
+                        icon: const Icon(Icons.notifications_none_outlined),
+                        onPressed: () => context.push('/notifications'),
+                      ),
+                    ] else ...[
+                      const GceeLogo(size: 36),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Career & Placements',
+                              style: AppTypography.pageTitle.copyWith(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                                color: isDark ? AppColors.darkText : AppColors.primaryText,
+                              ),
+                            ),
+                            Text(
+                              'Explore drives & career roadmap',
+                              style: AppTypography.micro.copyWith(
+                                color: isDark ? AppColors.secondaryCyan : AppColors.primaryBlue,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.notifications_none_outlined),
+                        onPressed: () => context.push('/notifications'),
+                      ),
+                    ],
+                  ],
+                ),
               ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: roleCtrl,
-                decoration: const InputDecoration(labelText: 'Role Title (e.g. SDE-1)', border: OutlineInputBorder()),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: ctcCtrl,
-                decoration: const InputDecoration(labelText: 'Package CTC (e.g. 12 LPA)', border: OutlineInputBorder()),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: locationCtrl,
-                decoration: const InputDecoration(labelText: 'Job Location', border: OutlineInputBorder()),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: cgpaCtrl,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'Minimum CGPA Cutoff', border: OutlineInputBorder()),
+
+              // Content based on Role
+              Expanded(
+                child: isOfficer
+                    ? _buildOfficerDashboard(context, isDark)
+                    : (isDeptAdmin ? const DeptPlacementView() : _buildStudentDashboard(context, isDark)),
               ),
             ],
           ),
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () async {
-              if (companyCtrl.text.trim().isEmpty || roleCtrl.text.trim().isEmpty) return;
-              final repo = ref.read(placementRepositoryProvider);
-              await repo.createDrive(
-                companyName: companyCtrl.text.trim(),
-                roleTitle: roleCtrl.text.trim(),
-                packageCtc: ctcCtrl.text.trim(),
-                location: locationCtrl.text.trim(),
-                minCgpa: double.tryParse(cgpaCtrl.text.trim()) ?? 0.0,
-                deadline: DateTime.now().add(const Duration(days: 14)).toIso8601String(),
+      ),
+    );
+  }
+
+
+  // ==========================================
+  // OFFICER DASHBOARD (Image 02)
+  // ==========================================
+  Widget _buildOfficerDashboard(BuildContext context, bool isDark) {
+    final statsAsync = ref.watch(officerDashboardProvider);
+    final drivesAsync = ref.watch(placementDrivesProvider);
+
+    return RefreshIndicator(
+      onRefresh: () async {
+        ref.invalidate(officerDashboardProvider);
+        ref.invalidate(placementDrivesProvider);
+      },
+      child: ListView(
+        padding: EdgeInsets.fromLTRB(16, 8, 16, 16 + CampusBottomNav.getBottomClearance(context)),
+        children: [
+          // KPI Metric Cards (Performant 2-row layout)
+          statsAsync.when(
+            loading: () => const SizedBox(
+              height: 120,
+              child: Center(child: CircularProgressIndicator()),
+            ),
+            error: (_, __) => const SizedBox.shrink(),
+            data: (stats) {
+              final totalDrives = stats['totalDrives'] ?? 0;
+              final activeDrives = stats['activeDrives'] ?? 0;
+              final acceptedOffers = stats['acceptedOffers'] ?? 0;
+
+              return Column(
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: CampusStatCard(
+                          title: 'Active Drives',
+                          value: '$activeDrives',
+                          subtitle: '$totalDrives conducted this season',
+                          icon: Icons.work_outline,
+                          accentColor: isDark ? AppColors.secondaryCyan : AppColors.primaryBlue,
+                          onTap: () => context.push('/placement/opportunities'),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: CampusStatCard(
+                          title: 'Eligible Students',
+                          value: '${stats['eligibleStudentsCount'] ?? stats['totalStudents'] ?? 0}',
+                          subtitle: 'Across departments',
+                          icon: Icons.groups_outlined,
+                          accentColor: isDark ? AppColors.secondaryCyan : AppColors.primaryBlue,
+                          onTap: () => context.push('/placement/students'),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: CampusStatCard(
+                          title: 'Applications',
+                          value: '${stats['totalApplications'] ?? stats['applicationsCount'] ?? 0}',
+                          subtitle: 'Pending review',
+                          icon: Icons.assignment_outlined,
+                          accentColor: isDark ? AppColors.secondaryCyan : AppColors.primaryBlue,
+                          onTap: () => context.push('/placement/applications'),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: CampusStatCard(
+                          title: 'Students Placed',
+                          value: '$acceptedOffers',
+                          subtitle: '${stats['placementRate'] ?? 0}% placement rate',
+                          icon: Icons.verified_outlined,
+                          accentColor: isDark ? AppColors.secondaryCyan : AppColors.primaryBlue,
+                          onTap: () => context.push('/placement/students'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               );
-              ref.invalidate(placementDrivesProvider);
-              ref.invalidate(officerDashboardProvider);
-              if (ctx.mounted) Navigator.of(ctx).pop();
             },
-            child: const Text('Post Drive'),
+          ),
+
+          const SizedBox(height: 16),
+
+          // Quick Action Hub Tiles (Performant 3-col rows)
+          Text(
+            'Quick Operations',
+            style: AppTypography.captionMedium.copyWith(
+              fontWeight: FontWeight.w700,
+              fontSize: 16,
+              color: isDark ? AppColors.darkText : AppColors.primaryText,
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          Column(
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildQuickActionTile(
+                      context,
+                      icon: Icons.add_circle_outline,
+                      label: 'Post Drive',
+                      color: isDark ? AppColors.secondaryCyan : AppColors.primaryBlue,
+                      onTap: () => context.push('/placement/create-drive'),
+                      isDark: isDark,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _buildQuickActionTile(
+                      context,
+                      icon: Icons.business_outlined,
+                      label: 'Companies',
+                      color: const Color(0xFF38BDF8),
+                      onTap: () => context.push('/placement/companies'),
+                      isDark: isDark,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _buildQuickActionTile(
+                      context,
+                      icon: Icons.menu_book_outlined,
+                      label: 'Preparation',
+                      color: const Color(0xFFFBBF24),
+                      onTap: () => context.push('/placement/preparation'),
+                      isDark: isDark,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildQuickActionTile(
+                      context,
+                      icon: Icons.people_outline,
+                      label: 'Students',
+                      color: const Color(0xFF4ADE80),
+                      onTap: () => context.push('/placement/students'),
+                      isDark: isDark,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _buildQuickActionTile(
+                      context,
+                      icon: Icons.checklist_rtl_outlined,
+                      label: 'Shortlist',
+                      color: const Color(0xFFA78BFA),
+                      onTap: () => context.push('/placement/shortlist'),
+                      isDark: isDark,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _buildQuickActionTile(
+                      context,
+                      icon: Icons.bar_chart_outlined,
+                      label: 'Analytics',
+                      color: const Color(0xFFF472B6),
+                      onTap: () => context.push('/placement/analytics'),
+                      isDark: isDark,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 20),
+
+          // Upcoming Placement Drives Section
+          Row(
+            children: [
+              Text(
+                'Upcoming Drives',
+                style: AppTypography.captionMedium.copyWith(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 16,
+                  color: isDark ? AppColors.darkText : AppColors.primaryText,
+                ),
+              ),
+              const Spacer(),
+              TextButton(
+                onPressed: () => context.push('/placement/opportunities'),
+                child: const Text('View All'),
+              ),
+            ],
+          ),
+
+          drivesAsync.when(
+            loading: () => const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator())),
+            error: (_, __) => const Text('Could not load drives.'),
+            data: (drives) {
+              if (drives.isEmpty) {
+                return CampusGlassCard(
+                  intensity: GlassIntensity.medium,
+                  padding: const EdgeInsets.all(20),
+                  child: Center(
+                    child: Column(
+                      children: [
+                        const Icon(Icons.work_off_outlined, size: 36, color: Colors.grey),
+                        const SizedBox(height: 8),
+                        const Text('No upcoming placement drives posted yet.'),
+                        const SizedBox(height: 12),
+                        CampusButton(
+                          label: 'Post First Drive',
+                          type: CampusButtonType.secondary,
+                          onPressed: () => context.push('/placement/create-drive'),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+
+              return Column(
+                children: drives.take(3).map((drive) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: CampusGlassCard(
+                      intensity: GlassIntensity.medium,
+                      onTap: () => context.push('/placement/drives/${drive.id}'),
+                      padding: const EdgeInsets.all(14),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: isDark ? AppColors.darkBorder : AppColors.border,
+                                width: 0.8,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.04),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 1),
+                                ),
+                              ],
+                            ),
+                            clipBehavior: Clip.antiAlias,
+                            child: drive.companyLogo != null && drive.companyLogo!.isNotEmpty
+                                ? Image.network(
+                                    drive.companyLogo!,
+                                    fit: BoxFit.contain,
+                                    errorBuilder: (_, __, ___) => Center(
+                                      child: Text(
+                                        drive.companyName.isNotEmpty ? drive.companyName[0].toUpperCase() : 'C',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w800,
+                                          fontSize: 18,
+                                          color: isDark ? AppColors.secondaryCyan : AppColors.primaryBlue,
+                                        ),
+                                      ),
+                                    ),
+                                  )
+                                : Center(
+                                    child: Text(
+                                      drive.companyName.isNotEmpty ? drive.companyName[0].toUpperCase() : 'C',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 18,
+                                        color: isDark ? AppColors.secondaryCyan : AppColors.primaryBlue,
+                                      ),
+                                    ),
+                                  ),
+                          ),
+
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  drive.companyName,
+                                  style: AppTypography.captionMedium.copyWith(fontWeight: FontWeight.w700),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  '${drive.roleTitle} • ${drive.packageCtc ?? 'Competitive CTC'}',
+                                  style: AppTypography.micro.copyWith(
+                                    color: isDark ? AppColors.darkSecondaryText : AppColors.secondaryText,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          CampusStatusBadge(
+                            label: drive.status,
+                            type: drive.status == 'ONGOING' ? StatusBadgeType.success : StatusBadgeType.info,
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
+              );
+            },
+          ),
+          const SizedBox(height: 20),
+        ],
+      ),
+    );
+  }
+
+  // ==========================================
+  // STUDENT DASHBOARD
+  // ==========================================
+  Widget _buildStudentDashboard(BuildContext context, bool isDark) {
+    final studentAsync = ref.watch(studentDashboardProvider);
+    final drivesAsync = ref.watch(placementDrivesProvider);
+
+    return RefreshIndicator(
+      onRefresh: () async {
+        ref.invalidate(studentDashboardProvider);
+        ref.invalidate(placementDrivesProvider);
+      },
+      child: ListView(
+        padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + CampusBottomNav.getBottomClearance(context)),
+        children: [
+          // Student Readiness Card
+          studentAsync.when(
+            loading: () => const SizedBox(height: 100, child: Center(child: CircularProgressIndicator())),
+            error: (_, __) => const SizedBox.shrink(),
+            data: (data) {
+              final studentProfile = data['studentProfile'] as Map<String, dynamic>? ?? {};
+              final myApps = (data['myApplications'] as List?) ?? [];
+              final myOffers = (data['myOffers'] as List?) ?? [];
+              final eligibleCount = data['eligibleDrivesCount'] ?? 0;
+
+              return Column(
+                children: [
+                  CampusGlassCard(
+                    intensity: GlassIntensity.medium,
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 26,
+                          backgroundColor: (isDark ? AppColors.secondaryCyan : AppColors.primaryBlue).withValues(alpha: 0.2),
+                          child: Icon(Icons.school, color: isDark ? AppColors.secondaryCyan : AppColors.primaryBlue),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Placement Readiness',
+                                style: AppTypography.captionMedium.copyWith(fontWeight: FontWeight.w700, fontSize: 16),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'CGPA: ${studentProfile['cgpa'] ?? 'N/A'} • ${studentProfile['department'] ?? 'Department'}',
+                                style: AppTypography.micro.copyWith(color: isDark ? AppColors.darkSecondaryText : AppColors.secondaryText),
+                              ),
+                            ],
+                          ),
+                        ),
+                        CampusButton(
+                          label: 'Career Hub',
+                          type: CampusButtonType.secondary,
+                          onPressed: () => context.push('/career'),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // Stats Row
+                  Row(
+                    children: [
+                      Expanded(
+                        child: CampusStatCard(
+                          title: 'Eligible Drives',
+                          value: '$eligibleCount',
+                          icon: Icons.verified_outlined,
+                          accentColor: isDark ? AppColors.secondaryCyan : AppColors.primaryBlue,
+                          onTap: () => context.push('/placement/opportunities'),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: CampusStatCard(
+                          title: 'Applied',
+                          value: '${myApps.length}',
+                          icon: Icons.send_outlined,
+                          accentColor: isDark ? AppColors.secondaryCyan : AppColors.primaryBlue,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: CampusStatCard(
+                          title: 'Offers',
+                          value: '${myOffers.length}',
+                          icon: Icons.star_border,
+                          accentColor: isDark ? AppColors.secondaryCyan : AppColors.primaryBlue,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              );
+            },
+          ),
+
+          const SizedBox(height: 16),
+
+          // Shortcuts: Opportunities & Preparation Hub
+          Row(
+            children: [
+              Expanded(
+                child: CampusButton(
+                  label: 'View Placement Drives',
+                  icon: const Icon(Icons.work_outline),
+                  type: CampusButtonType.primary,
+                  onPressed: () => context.push('/placement/opportunities'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: CampusButton(
+                  label: 'Preparation Hub',
+                  icon: const Icon(Icons.menu_book_outlined),
+                  type: CampusButtonType.secondary,
+                  onPressed: () => context.push('/placement/preparation'),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 20),
+
+          // Open Drives List
+          Text(
+            'Open Recruitment Drives',
+            style: AppTypography.captionMedium.copyWith(fontWeight: FontWeight.w700, fontSize: 16),
+          ),
+          const SizedBox(height: 10),
+
+          drivesAsync.when(
+            loading: () => const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator())),
+            error: (_, __) => const Text('Could not load drives.'),
+            data: (drives) {
+              if (drives.isEmpty) {
+                return const CampusEmptyState(
+                  title: 'No Active Drives',
+                  description: 'New campus placement drives will appear here once announced.',
+                  icon: Icons.work_off_outlined,
+                );
+              }
+
+              return Column(
+                children: drives.take(5).map((drive) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: CampusGlassCard(
+                      intensity: GlassIntensity.medium,
+                      onTap: () => context.push('/placement/drives/${drive.id}'),
+                      padding: const EdgeInsets.all(14),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: (isDark ? AppColors.secondaryCyan : AppColors.primaryBlue).withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Center(
+                              child: Text(
+                                drive.companyName.isNotEmpty ? drive.companyName[0].toUpperCase() : 'C',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 18,
+                                  color: isDark ? AppColors.secondaryCyan : AppColors.primaryBlue,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  drive.companyName,
+                                  style: AppTypography.captionMedium.copyWith(fontWeight: FontWeight.w700),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  '${drive.roleTitle} • ${drive.packageCtc ?? 'Competitive CTC'}',
+                                  style: AppTypography.micro.copyWith(
+                                    color: isDark ? AppColors.darkSecondaryText : AppColors.secondaryText,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Text(
+                            'Apply →',
+                            style: AppTypography.captionMedium.copyWith(
+                              color: isDark ? AppColors.secondaryCyan : AppColors.primaryBlue,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
+              );
+            },
           ),
         ],
       ),
     );
   }
 
-  Future<void> _applyForDrive(PlacementDriveModel drive) async {
-    try {
-      final repo = ref.read(placementRepositoryProvider);
-      await repo.applyForDrive(drive.id);
-      ref.invalidate(studentDashboardProvider);
-      ref.invalidate(placementDrivesProvider);
+  Widget _buildQuickActionTile(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+    required bool isDark,
+  }) {
+    final effectiveColor = isDark ? AppColors.secondaryCyan : AppColors.primaryBlue;
+    final surfaceColor = isDark ? AppColors.darkSurface : AppColors.lightSurface;
+    final borderColor = isDark ? AppColors.darkBorder : AppColors.border;
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Successfully applied for ${drive.companyName}!'), backgroundColor: Colors.green),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Application Error: $e'), backgroundColor: Colors.red),
-        );
-      }
-    }
-  }
-
-  Future<void> _respondToOffer(String applicationId, String offerStatus) async {
-    try {
-      final repo = ref.read(placementRepositoryProvider);
-      await repo.respondToOffer(applicationId, offerStatus);
-      ref.invalidate(studentDashboardProvider);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Offer $offerStatus successfully!'),
-            backgroundColor: offerStatus == 'ACCEPTED' ? Colors.green : Colors.orange,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-        );
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final user = ref.watch(authControllerProvider).asData?.value;
-    final isOfficerOrAdmin = user?.role == 'ADMIN' ||
-        user?.role == 'COLLEGE_ADMIN' ||
-        user?.role == 'SUPER_ADMIN' ||
-        user?.role == 'FACULTY' ||
-        user?.role == 'PLACEMENT_OFFICER';
-
-    final tabCount = isOfficerOrAdmin ? 3 : 2;
-
-    return DefaultTabController(
-      length: tabCount,
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Placement & Career Drives'),
-          bottom: TabBar(
-            labelColor: theme.colorScheme.primary,
-            unselectedLabelColor: Colors.grey,
-            tabs: [
-              const Tab(icon: Icon(Icons.business), text: 'Company Drives'),
-              const Tab(icon: Icon(Icons.person), text: 'My Applications'),
-              if (isOfficerOrAdmin)
-                const Tab(icon: Icon(Icons.dashboard), text: 'Officer Hub'),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+          decoration: BoxDecoration(
+            color: surfaceColor,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: borderColor, width: 1),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
             ],
           ),
-        ),
-        body: TabBarView(
-          children: [
-            _buildCompanyDrivesTab(),
-            _buildStudentDashboardTab(),
-            if (isOfficerOrAdmin)
-              _buildOfficerDashboardTab(),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // 1. Company Drives Tab
-  Widget _buildCompanyDrivesTab() {
-    final drivesAsync = ref.watch(placementDrivesProvider);
-    final studentDashAsync = ref.watch(studentDashboardProvider);
-
-    final appliedDriveIds = ((studentDashAsync.valueOrNull?['myApplications'] as List<dynamic>?) ?? [])
-        .map((a) => a['drive_id'] as String? ?? '')
-        .toSet();
-
-    return drivesAsync.when(
-      data: (drives) {
-        if (drives.isEmpty) {
-          return const Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.business_center, size: 64, color: Colors.grey),
-                SizedBox(height: 12),
-                Text('No placement drives posted yet.', style: TextStyle(color: Colors.grey)),
-              ],
-            ),
-          );
-        }
-
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: drives.length,
-          itemBuilder: (ctx, idx) {
-            final drive = drives[idx];
-            final isApplied = appliedDriveIds.contains(drive.id);
-
-            return Card(
-              margin: const EdgeInsets.only(bottom: 16),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              elevation: 2,
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            CircleAvatar(
-                              backgroundColor: Colors.blue.shade100,
-                              child: Text(
-                                drive.companyName.isNotEmpty ? drive.companyName[0] : 'C',
-                                style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(drive.companyName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                                Text(drive.roleTitle, style: TextStyle(color: Colors.grey.shade700, fontSize: 13)),
-                              ],
-                            ),
-                          ],
-                        ),
-                        if (drive.packageCtc != null)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: Colors.green.shade50,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              drive.packageCtc!,
-                              style: TextStyle(color: Colors.green.shade800, fontWeight: FontWeight.bold, fontSize: 12),
-                            ),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        const Icon(Icons.location_on_outlined, size: 16, color: Colors.grey),
-                        const SizedBox(width: 4),
-                        Text(drive.location ?? 'Bangalore / Remote', style: const TextStyle(fontSize: 13)),
-                        const SizedBox(width: 16),
-                        const Icon(Icons.star_outline, size: 16, color: Colors.grey),
-                        const SizedBox(width: 4),
-                        Text('Min CGPA: ${drive.minCgpa}', style: const TextStyle(fontSize: 13)),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Deadline: ${drive.deadline.day}/${drive.deadline.month}/${drive.deadline.year}',
-                          style: const TextStyle(fontSize: 12, color: Colors.grey),
-                        ),
-                        if (isApplied)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: Colors.blue.shade50,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Row(
-                              children: [
-                                Icon(Icons.check_circle, color: Colors.blue, size: 16),
-                                SizedBox(width: 4),
-                                Text('Applied', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold)),
-                              ],
-                            ),
-                          )
-                        else
-                          ElevatedButton(
-                            onPressed: drive.isExpired ? null : () => _applyForDrive(drive),
-                            style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
-                            child: Text(drive.isExpired ? 'Expired' : 'Apply Now'),
-                          ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (err, stack) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.wifi_off, size: 48, color: Colors.orange),
-              const SizedBox(height: 12),
-              const Text('Could not load placement drives', style: TextStyle(fontWeight: FontWeight.bold)),
-              const SizedBox(height: 12),
-              ElevatedButton.icon(
-                onPressed: () => ref.invalidate(placementDrivesProvider),
-                icon: const Icon(Icons.refresh),
-                label: const Text('Retry'),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: effectiveColor.withValues(alpha: isDark ? 0.2 : 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: effectiveColor, size: 22),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                label,
+                style: AppTypography.micro.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? AppColors.darkText : AppColors.primaryText,
+                  fontSize: 12,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  // 2. Student Dashboard & Tracking Tab
-  Widget _buildStudentDashboardTab() {
-    final studentDashAsync = ref.watch(studentDashboardProvider);
-
-    return studentDashAsync.when(
-      data: (data) {
-        final List rawApps = data['myApplications'] ?? [];
-        final applications = rawApps.map((a) => PlacementApplicationModel.fromJson(a)).toList();
-        final List rawOffers = data['myOffers'] ?? [];
-        final offers = rawOffers.map((o) => PlacementApplicationModel.fromJson(o)).toList();
-
-        return ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            // Offers Banner Section
-            if (offers.isNotEmpty) ...[
-              const Text('Job Offers Received 🎉', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 12),
-              ...offers.map((offer) {
-                return Card(
-                  color: Colors.amber.shade50,
-                  margin: const EdgeInsets.only(bottom: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(offer.drive?.companyName ?? 'Company', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                            Text(offer.offerCtc ?? 'Package Offered', style: TextStyle(color: Colors.green.shade800, fontWeight: FontWeight.bold)),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Text('Role: ${offer.drive?.roleTitle ?? 'Engineer'}'),
-                        const SizedBox(height: 12),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            if (offer.offerStatus == 'ACCEPTED')
-                              const Chip(label: Text('Offer Accepted'), backgroundColor: Colors.greenAccent)
-                            else ...[
-                              OutlinedButton(
-                                onPressed: () => _respondToOffer(offer.id, 'DECLINED'),
-                                child: const Text('Decline'),
-                              ),
-                              const SizedBox(width: 8),
-                              ElevatedButton(
-                                onPressed: () => _respondToOffer(offer.id, 'ACCEPTED'),
-                                style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-                                child: const Text('Accept Offer'),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              }),
-              const SizedBox(height: 20),
-            ],
-
-            const Text('Application Tracker', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 12),
-            if (applications.isEmpty)
-              const Center(child: Text('You have not applied for any placement drives yet.'))
-            else
-              ...applications.map((app) {
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  child: ListTile(
-                    title: Text(app.drive?.companyName ?? 'Company', style: const TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Text('Role: ${app.drive?.roleTitle} • Stage: ${app.status}'),
-                    trailing: _buildStatusBadge(app.status),
-                  ),
-                );
-              }),
-          ],
-        );
-      },
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (err, stack) => Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.wifi_off, size: 48, color: Colors.orange),
-            const SizedBox(height: 12),
-            const Text('Could not load student dashboard'),
-            const SizedBox(height: 12),
-            ElevatedButton.icon(
-              onPressed: () => ref.invalidate(studentDashboardProvider),
-              icon: const Icon(Icons.refresh),
-              label: const Text('Retry'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // 3. Officer Dashboard Tab
-  Widget _buildOfficerDashboardTab() {
-    final officerStatsAsync = ref.watch(officerDashboardProvider);
-
-    return Scaffold(
-      floatingActionButton: FloatingActionButton.extended(
-        heroTag: null,
-        onPressed: _showCreateDriveDialog,
-        icon: const Icon(Icons.add),
-        label: const Text('Post Drive'),
-      ),
-      body: officerStatsAsync.when(
-        data: (stats) {
-          return ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              const Text('Placement Officer Overview', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 16),
-              GridView.count(
-                crossAxisCount: 2,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                children: [
-                  _buildStatTile('Total Drives', '${stats['totalDrives'] ?? 0}', Icons.business, Colors.blue),
-                  _buildStatTile('Active Drives', '${stats['activeDrives'] ?? 0}', Icons.work, Colors.green),
-                  _buildStatTile('Applications', '${stats['totalApplications'] ?? 0}', Icons.assignment, Colors.orange),
-                  _buildStatTile('Accepted Offers', '${stats['acceptedOffers'] ?? 0}', Icons.star, Colors.purple),
-                ],
-              ),
-            ],
-          );
-        },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.security, size: 48, color: Colors.indigo),
-                const SizedBox(height: 12),
-                const Text(
-                  'Placement Officer Dashboard',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                ),
-                const SizedBox(height: 6),
-                const Text(
-                  'Access restricted to Placement Officers & Admins or server connection error.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 12, color: Colors.grey),
-                ),
-                const SizedBox(height: 16),
-                ElevatedButton.icon(
-                  onPressed: () => ref.invalidate(officerDashboardProvider),
-                  icon: const Icon(Icons.refresh),
-                  label: const Text('Retry'),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStatTile(String label, String count, IconData icon, Color color) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircleAvatar(backgroundColor: color.withValues(alpha: 0.1), child: Icon(icon, color: color)),
-            const SizedBox(height: 8),
-            Text(count, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: color)),
-            Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStatusBadge(String status) {
-    Color color = Colors.blue;
-    if (status == 'OFFERED') color = Colors.green;
-    if (status == 'REJECTED') color = Colors.red;
-    if (status == 'SHORTLISTED') color = Colors.purple;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(
-        status,
-        style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 11),
       ),
     );
   }

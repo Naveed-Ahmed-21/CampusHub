@@ -41,3 +41,26 @@ export const queryRoomsSchema = z.object({
     limit: z.string().transform((v) => parseInt(v, 10)).optional(),
   }),
 });
+
+export const updateChatSettingsSchema = z.object({
+  body: z.object({
+    requireStudentConversationApproval: z.boolean(),
+  }),
+});
+
+export const createChatRequestSchema = z.object({
+  body: z.object({
+    recipientId: z.string().min(1, 'Recipient user ID is required'),
+    introductoryMessage: z
+      .string()
+      .trim()
+      .min(1, 'Introductory message cannot be empty')
+      .max(300, 'Introductory message cannot exceed 300 characters'),
+  }),
+});
+
+export const blockUserSchema = z.object({
+  body: z.object({
+    targetUserId: z.string().min(1, 'Target user ID is required'),
+  }),
+});

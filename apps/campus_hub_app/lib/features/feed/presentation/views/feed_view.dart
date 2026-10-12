@@ -1,21 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_typography.dart';
+import '../../../../core/widgets/campus_empty_state.dart';
+import '../../../../core/widgets/campus_bottom_nav.dart';
 import '../../../../shared/responsive/responsive_layout.dart';
-import '../../../../shared/widgets/async_value_widget.dart';
-import '../controllers/feed_controller.dart';
-import '../../domain/models/post_item.dart';
-import '../widgets/campus_top_app_bar.dart';
-import '../widgets/student_drawer_widget.dart';
-import '../widgets/stories_section_widget.dart';
-import '../widgets/create_post_bar_widget.dart';
-import '../widgets/feed_filter_tabs_widget.dart';
-import '../widgets/feed_post_card_widget.dart';
-import '../widgets/bottom_search_bar_widget.dart';
-import '../widgets/create_post_sheet.dart';
-import '../widgets/comments_sheet.dart';
+import '../../../auth/domain/models/auth_user.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../faculty/presentation/widgets/faculty_drawer_widget.dart';
+import '../../../admin/presentation/widgets/admin_drawer_widget.dart';
+import '../../domain/models/post_item.dart';
+import '../controllers/feed_controller.dart';
+import '../widgets/bottom_search_bar_widget.dart';
+import '../widgets/campus_top_app_bar.dart';
+import '../widgets/comments_sheet.dart';
+import '../widgets/create_post_bar_widget.dart';
+import '../widgets/create_post_sheet.dart';
+import '../widgets/feed_filter_tabs_widget.dart';
+import '../widgets/feed_post_card_widget.dart';
+import '../widgets/stories_section_widget.dart';
+import '../widgets/student_drawer_widget.dart';
 
 class FeedView extends ConsumerStatefulWidget {
   final bool showAppBar;
@@ -63,6 +68,7 @@ class _FeedViewState extends ConsumerState<FeedView>
   void _openCreatePost(BuildContext context) {
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => const CreatePostSheet(),
@@ -79,29 +85,39 @@ class _FeedViewState extends ConsumerState<FeedView>
 
     return Scaffold(
       key: _scaffoldKey,
+      backgroundColor: Colors.transparent,
       appBar: widget.showAppBar
           ? CampusTopAppBar(
               onOpenDrawer: () => _scaffoldKey.currentState?.openDrawer(),
             )
           : null,
       drawer: widget.showAppBar
-          ? (isFaculty
-              ? const FacultyDrawerWidget()
-              : const StudentDrawerWidget())
+          ? (user?.isAdmin == true
+              ? const AdminDrawerWidget()
+              : (isFaculty
+                  ? const FacultyDrawerWidget()
+                  : const StudentDrawerWidget()))
           : null,
-      body: AsyncValueWidget<List<PostItem>>(
-        value: feedAsync,
-        data: (posts) => RefreshIndicator(
-          onRefresh: () =>
-              ref.read(feedControllerProvider.notifier).refreshFeed(),
-          child: ResponsiveLayout(
-            mobile: _buildFeedLayout(context, posts, activeFeedType,
-                isDesktop: false),
-            desktop: Center(
-              child: Container(
-                constraints: const BoxConstraints(maxWidth: 700),
-                child: _buildFeedLayout(context, posts, activeFeedType,
-                    isDesktop: true),
+      body: RefreshIndicator(
+        onRefresh: () =>
+            ref.read(feedControllerProvider.notifier).refreshFeed(),
+        child: ResponsiveLayout(
+          mobile: _buildFeedLayout(
+            context,
+            feedAsync,
+            activeFeedType,
+            user,
+            isDesktop: false,
+          ),
+          desktop: Center(
+            child: Container(
+              constraints: const BoxConstraints(maxWidth: 780),
+              child: _buildFeedLayout(
+                context,
+                feedAsync,
+                activeFeedType,
+                user,
+                isDesktop: true,
               ),
             ),
           ),
@@ -111,107 +127,100 @@ class _FeedViewState extends ConsumerState<FeedView>
   }
 
   Widget _buildFeedLayout(
-      BuildContext context, List<PostItem> posts, String activeFeedType,
-      {required bool isDesktop}) {
+    BuildContext context,
+    AsyncValue<List<PostItem>> feedAsync,
+    String activeFeedType,
+    AuthUser? user, {
+    required bool isDesktop,
+  }) {
+    final posts = feedAsync.valueOrNull;
+    final isLoading = feedAsync.isLoading;
+    final hasError = feedAsync.hasError && posts == null;
+
     return CustomScrollView(
       key: const PageStorageKey<String>('feed_custom_scroll_view'),
       controller: _scrollController,
       slivers: [
-        // 1. Real Stories Section
+        // 2. Real Stories Section
         const SliverToBoxAdapter(
           child: StoriesSectionWidget(),
         ),
 
-        // 2. Compact Create Post Bar
+        // 3. Compact Create Post Bar
         SliverToBoxAdapter(
           child: CreatePostBarWidget(
             onTap: () => _openCreatePost(context),
           ),
         ),
 
-        // 3. Feed Filter Tabs
+        // 4. Feed Filter Tabs
         SliverToBoxAdapter(
           child: FeedFilterTabsWidget(
-            activeFeedType: activeFeedType,
+            activeFeedType: (user?.isAdmin == true &&
+                    (activeFeedType == 'myDepartment' ||
+                        activeFeedType == 'related'))
+                ? 'forYou'
+                : activeFeedType,
+            isAdmin: user?.isAdmin == true,
             onSelectTab: _onSelectTab,
           ),
         ),
 
-        // 4. Feed Posts List or Empty State
-        if (posts.isEmpty)
+        // Subtle linear loading bar when switching tabs or refreshing
+        if (isLoading && posts != null)
+          const SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+              child: LinearProgressIndicator(minHeight: 2.5),
+            ),
+          ),
+
+        // 5. Feed Posts List, Async Loading, or Empty State
+        if (posts == null && isLoading)
+          const SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.all(48.0),
+              child: Center(child: CircularProgressIndicator()),
+            ),
+          )
+        else if (hasError)
           SliverToBoxAdapter(
             child: Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 24.0, vertical: 48.0),
-              child: Center(
-                child: Builder(
-                  builder: (ctx) {
-                    final isFollowingTab =
-                        activeFeedType.toLowerCase() == 'following';
-                    return Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          isFollowingTab
-                              ? Icons.people_outline
-                              : Icons.dynamic_feed,
-                          size: 64,
-                          color: Colors.grey.shade400,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          isFollowingTab
-                              ? 'You are not following anyone yet.'
-                              : 'No campus posts found in this feed yet.',
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleMedium
-                              ?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: Theme.of(context).colorScheme.onSurface,
-                              ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          isFollowingTab
-                              ? 'Follow people from your campus to see their posts here.'
-                              : 'Be the first to share an update with your campus community!',
-                          textAlign: TextAlign.center,
-                          style:
-                              Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    color: Colors.grey,
-                                  ),
-                        ),
-                        const SizedBox(height: 18),
-                        if (isFollowingTab) ...[
-                          Wrap(
-                            alignment: WrapAlignment.center,
-                            spacing: 10,
-                            runSpacing: 10,
-                            children: [
-                              FilledButton.icon(
-                                onPressed: () => context.push('/search'),
-                                icon: const Icon(Icons.person_search, size: 18),
-                                label: const Text('Discover People to Follow'),
-                              ),
-                              OutlinedButton.icon(
-                                onPressed: () => _onSelectTab('forYou'),
-                                icon: const Icon(Icons.dynamic_feed, size: 18),
-                                label: const Text('Explore For You Feed'),
-                              ),
-                            ],
-                          ),
-                        ] else
-                          ElevatedButton.icon(
-                            onPressed: () => _openCreatePost(context),
-                            icon: const Icon(Icons.add),
-                            label: const Text('Create the first post'),
-                          ),
-                      ],
-                    );
-                  },
-                ),
+              padding: const EdgeInsets.symmetric(vertical: 40.0, horizontal: 24.0),
+              child: CampusEmptyState(
+                icon: Icons.error_outline_rounded,
+                title: 'Unable to Load Feed',
+                description: 'Failed to connect to the campus stream. Please try again.',
+                actionLabel: 'Retry',
+                onAction: () =>
+                    ref.read(feedControllerProvider.notifier).refreshFeed(),
+              ),
+            ),
+          )
+        else if (posts == null || posts.isEmpty)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 32.0),
+              child: CampusEmptyState(
+                icon: activeFeedType.toLowerCase() == 'following'
+                    ? Icons.people_outline_rounded
+                    : Icons.dynamic_feed_rounded,
+                title: activeFeedType.toLowerCase() == 'following'
+                    ? 'No Following Updates'
+                    : 'Campus Feed Is Quiet',
+                description: activeFeedType.toLowerCase() == 'following'
+                    ? 'Follow classmates and professors to see their announcements and posts here.'
+                    : 'Be the first to share an academic or campus update with your GCEE community!',
+                actionLabel: activeFeedType.toLowerCase() == 'following'
+                    ? 'Discover Campus Members'
+                    : 'Create First Post',
+                onAction: () {
+                  if (activeFeedType.toLowerCase() == 'following') {
+                    context.push('/search');
+                  } else {
+                    _openCreatePost(context);
+                  }
+                },
               ),
             ),
           )
@@ -221,6 +230,9 @@ class _FeedViewState extends ConsumerState<FeedView>
               (context, index) {
                 if (index < posts.length) {
                   final post = posts[index];
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    ref.read(feedControllerProvider.notifier).markPostsAsSeen([post.id]);
+                  });
                   return FeedPostCardWidget(
                     post: post,
                     onOpenComments: () =>
@@ -234,12 +246,14 @@ class _FeedViewState extends ConsumerState<FeedView>
                           padding: EdgeInsets.all(24.0),
                           child: Center(child: CircularProgressIndicator()),
                         )
-                      : const Padding(
-                          padding: EdgeInsets.all(24.0),
+                      : Padding(
+                          padding: const EdgeInsets.all(24.0),
                           child: Center(
-                              child: Text(
-                                  'You have reached the end of the feed.',
-                                  style: TextStyle(color: Colors.grey))),
+                            child: Text(
+                              'You have reached the end of the campus stream.',
+                              style: AppTypography.caption.copyWith(color: AppColors.secondaryText),
+                            ),
+                          ),
                         );
                 }
               },
@@ -247,10 +261,13 @@ class _FeedViewState extends ConsumerState<FeedView>
             ),
           ),
 
-        // 5. Global Search Bar above bottom navigation
+        // 6. Global Search Bar above bottom navigation
         const SliverToBoxAdapter(
           child: BottomSearchBarWidget(),
         ),
+
+        // 7. Dynamic Clearance for Floating Glass Bottom Navigation
+        const SliverCampusBottomNavSpacer(),
       ],
     );
   }

@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/portfolio_provider.dart';
 import '../../data/portfolio_repository.dart';
 import '../../domain/portfolio_models.dart';
+import '../../../../core/services/url_launcher_service.dart';
+import '../../../../core/widgets/campus_avatar.dart';
+import '../../../../core/widgets/campus_app_bar.dart';
 import 'public_portfolio_view.dart';
 
 class PortfolioView extends ConsumerStatefulWidget {
@@ -212,13 +215,15 @@ class _PortfolioViewState extends ConsumerState<PortfolioView> {
     final portfolioAsync = ref.watch(userPortfolioProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('My Digital Portfolio'),
+      appBar: CampusAppBar(
+        title: 'My Digital Portfolio',
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
+            tooltip: 'Refresh Portfolio',
             onPressed: () => ref.invalidate(userPortfolioProvider),
           ),
+          const SizedBox(width: 4),
         ],
       ),
       body: portfolioAsync.when(
@@ -235,13 +240,10 @@ class _PortfolioViewState extends ConsumerState<PortfolioView> {
                     padding: const EdgeInsets.all(20.0),
                     child: Column(
                       children: [
-                        CircleAvatar(
+                        CampusAvatar(
+                          imageUrl: portfolio.avatarUrl,
+                          name: portfolio.userName,
                           radius: 40,
-                          backgroundColor: Colors.teal.shade100,
-                          child: Text(
-                            portfolio.userName.isNotEmpty ? portfolio.userName[0].toUpperCase() : 'S',
-                            style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.teal),
-                          ),
                         ),
                         const SizedBox(height: 12),
                         Text(portfolio.userName, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
@@ -298,16 +300,50 @@ class _PortfolioViewState extends ConsumerState<PortfolioView> {
                   ...portfolio.projects.map((p) {
                     return Card(
                       margin: const EdgeInsets.only(bottom: 10),
-                      child: ListTile(
-                        title: Text(p.title, style: const TextStyle(fontWeight: FontWeight.bold)),
-                        subtitle: Text(p.description ?? 'No description'),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.delete, color: Colors.red),
-                          onPressed: () async {
-                            final repo = ref.read(portfolioRepositoryProvider);
-                            await repo.deleteProject(p.id);
-                            ref.invalidate(userPortfolioProvider);
-                          },
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(p.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.delete, color: Colors.red, size: 20),
+                                  onPressed: () async {
+                                    final repo = ref.read(portfolioRepositoryProvider);
+                                    await repo.deleteProject(p.id);
+                                    ref.invalidate(userPortfolioProvider);
+                                  },
+                                ),
+                              ],
+                            ),
+                            if (p.description != null && p.description!.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 8),
+                                child: Text(p.description!, style: const TextStyle(fontSize: 13, color: Colors.black87)),
+                              ),
+                            if ((p.repoUrl != null && p.repoUrl!.isNotEmpty) || (p.projectUrl != null && p.projectUrl!.isNotEmpty))
+                              Wrap(
+                                spacing: 8,
+                                children: [
+                                  if (p.repoUrl != null && p.repoUrl!.isNotEmpty)
+                                    ActionChip(
+                                      avatar: const Icon(Icons.code, size: 14),
+                                      label: const Text('Repository', style: TextStyle(fontSize: 11.5)),
+                                      onPressed: () => UrlLauncherService.openUrl(context, p.repoUrl!),
+                                    ),
+                                  if (p.projectUrl != null && p.projectUrl!.isNotEmpty)
+                                    ActionChip(
+                                      avatar: const Icon(Icons.open_in_new, size: 14),
+                                      label: const Text('Live Demo', style: TextStyle(fontSize: 11.5)),
+                                      onPressed: () => UrlLauncherService.openUrl(context, p.projectUrl!),
+                                    ),
+                                ],
+                              ),
+                          ],
                         ),
                       ),
                     );

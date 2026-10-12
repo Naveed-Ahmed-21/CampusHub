@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/constants/api_endpoints.dart';
+import '../../../../core/widgets/campus_back_button.dart';
+import '../../../../core/widgets/campus_app_bar.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../search/data/search_repository.dart';
 import '../../data/repositories/profile_repository_impl.dart';
 import '../controllers/profile_controller.dart';
+import '../widgets/profile_story_avatar.dart';
 
 class UserFollowsView extends ConsumerStatefulWidget {
   final String userId;
@@ -46,44 +48,91 @@ class _UserFollowsViewState extends ConsumerState<UserFollowsView>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.userName.isNotEmpty ? widget.userName : 'Connections'),
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: theme.colorScheme.primary,
-          labelColor: theme.colorScheme.primary,
-          unselectedLabelColor: theme.colorScheme.outline,
-          tabs: const [
-            Tab(text: 'Followers'),
-            Tab(text: 'Following'),
-          ],
-        ),
+      appBar: CampusAppBar(
+        leading: const CampusBackButton(),
+        title: widget.userName.isNotEmpty ? widget.userName : 'Connections',
       ),
-      body: TabBarView(
-        controller: _tabController,
+      body: Column(
         children: [
-          _FollowersListTab(userId: widget.userId),
-          _FollowingListTab(userId: widget.userId),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
+            child: Container(
+              height: 42,
+              padding: const EdgeInsets.all(3),
+              decoration: BoxDecoration(
+                color: isDark
+                    ? theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4)
+                    : const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: theme.colorScheme.outlineVariant.withValues(alpha: isDark ? 0.2 : 0.4),
+                ),
+              ),
+              child: TabBar(
+                controller: _tabController,
+                dividerColor: Colors.transparent,
+                indicatorSize: TabBarIndicatorSize.tab,
+                labelColor: isDark ? Colors.black : Colors.white,
+                unselectedLabelColor: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
+                labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
+                indicator: BoxDecoration(
+                  borderRadius: BorderRadius.circular(11),
+                  color: isDark ? Colors.white : Colors.black,
+                ),
+                tabs: const [
+                  Tab(text: 'Followers'),
+                  Tab(text: 'Following'),
+                ],
+              ),
+            ),
+          ),
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _FollowersListTab(userId: widget.userId),
+                _FollowingListTab(userId: widget.userId),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
-class _FollowersListTab extends ConsumerWidget {
+class _FollowersListTab extends ConsumerStatefulWidget {
   final String userId;
 
   const _FollowersListTab({required this.userId});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final followersAsync = ref.watch(userFollowersProvider(userId));
+  ConsumerState<_FollowersListTab> createState() => _FollowersListTabState();
+}
+
+class _FollowersListTabState extends ConsumerState<_FollowersListTab> {
+  List<SearchUserItem>? _cachedUsers;
+  final Map<String, bool> _followStatusMap = {};
+
+  @override
+  Widget build(BuildContext context) {
+    final followersAsync = ref.watch(userFollowersProvider(widget.userId));
 
     return followersAsync.when(
       data: (users) {
-        if (users.isEmpty) {
+        if (_cachedUsers == null) {
+          _cachedUsers = List.of(users);
+          for (final u in users) {
+            _followStatusMap[u.id] = u.isFollowing;
+          }
+        }
+
+        final displayList = _cachedUsers!;
+        if (displayList.isEmpty) {
           return const _EmptyFollowsView(
             icon: Icons.people_outline,
             message: 'No followers yet.',
@@ -92,16 +141,31 @@ class _FollowersListTab extends ConsumerWidget {
 
         return RefreshIndicator(
           onRefresh: () async {
-            ref.invalidate(userFollowersProvider(userId));
+            setState(() {
+              _cachedUsers = null;
+              _followStatusMap.clear();
+            });
+            ref.invalidate(userFollowersProvider(widget.userId));
+            await ref.read(userFollowersProvider(widget.userId).future);
           },
+
           child: ListView.separated(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            itemCount: users.length,
+            itemCount: displayList.length,
             separatorBuilder: (_, __) => const SizedBox(height: 8),
             itemBuilder: (ctx, idx) {
+              final user = displayList[idx];
+              final isFollowing = _followStatusMap[user.id] ?? user.isFollowing;
               return _FollowUserItemCard(
-                user: users[idx],
-                targetProfileUserId: userId,
+                key: ValueKey('followers_user_${user.id}'),
+                user: user,
+                targetProfileUserId: widget.userId,
+                isFollowingOverride: isFollowing,
+                onFollowToggled: (newStatus) {
+                  setState(() {
+                    _followStatusMap[user.id] = newStatus;
+                  });
+                },
               );
             },
           ),
@@ -117,7 +181,13 @@ class _FollowersListTab extends ConsumerWidget {
             Text('Failed to load followers: $err'),
             const SizedBox(height: 12),
             ElevatedButton(
-              onPressed: () => ref.invalidate(userFollowersProvider(userId)),
+              onPressed: () {
+                setState(() {
+                  _cachedUsers = null;
+                  _followStatusMap.clear();
+                });
+                ref.invalidate(userFollowersProvider(widget.userId));
+              },
               child: const Text('Retry'),
             ),
           ],
@@ -127,18 +197,34 @@ class _FollowersListTab extends ConsumerWidget {
   }
 }
 
-class _FollowingListTab extends ConsumerWidget {
+class _FollowingListTab extends ConsumerStatefulWidget {
   final String userId;
 
   const _FollowingListTab({required this.userId});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final followingAsync = ref.watch(userFollowingProvider(userId));
+  ConsumerState<_FollowingListTab> createState() => _FollowingListTabState();
+}
+
+class _FollowingListTabState extends ConsumerState<_FollowingListTab> {
+  List<SearchUserItem>? _cachedUsers;
+  final Map<String, bool> _followStatusMap = {};
+
+  @override
+  Widget build(BuildContext context) {
+    final followingAsync = ref.watch(userFollowingProvider(widget.userId));
 
     return followingAsync.when(
       data: (users) {
-        if (users.isEmpty) {
+        if (_cachedUsers == null) {
+          _cachedUsers = List.of(users);
+          for (final u in users) {
+            _followStatusMap[u.id] = u.isFollowing;
+          }
+        }
+
+        final displayList = _cachedUsers!;
+        if (displayList.isEmpty) {
           return const _EmptyFollowsView(
             icon: Icons.person_add_disabled_outlined,
             message: 'Not following anyone yet.',
@@ -147,16 +233,31 @@ class _FollowingListTab extends ConsumerWidget {
 
         return RefreshIndicator(
           onRefresh: () async {
-            ref.invalidate(userFollowingProvider(userId));
+            setState(() {
+              _cachedUsers = null;
+              _followStatusMap.clear();
+            });
+            ref.invalidate(userFollowingProvider(widget.userId));
+            await ref.read(userFollowingProvider(widget.userId).future);
           },
+
           child: ListView.separated(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            itemCount: users.length,
+            itemCount: displayList.length,
             separatorBuilder: (_, __) => const SizedBox(height: 8),
             itemBuilder: (ctx, idx) {
+              final user = displayList[idx];
+              final isFollowing = _followStatusMap[user.id] ?? user.isFollowing;
               return _FollowUserItemCard(
-                user: users[idx],
-                targetProfileUserId: userId,
+                key: ValueKey('following_user_${user.id}'),
+                user: user,
+                targetProfileUserId: widget.userId,
+                isFollowingOverride: isFollowing,
+                onFollowToggled: (newStatus) {
+                  setState(() {
+                    _followStatusMap[user.id] = newStatus;
+                  });
+                },
               );
             },
           ),
@@ -172,7 +273,13 @@ class _FollowingListTab extends ConsumerWidget {
             Text('Failed to load following: $err'),
             const SizedBox(height: 12),
             ElevatedButton(
-              onPressed: () => ref.invalidate(userFollowingProvider(userId)),
+              onPressed: () {
+                setState(() {
+                  _cachedUsers = null;
+                  _followStatusMap.clear();
+                });
+                ref.invalidate(userFollowingProvider(widget.userId));
+              },
               child: const Text('Retry'),
             ),
           ],
@@ -185,10 +292,15 @@ class _FollowingListTab extends ConsumerWidget {
 class _FollowUserItemCard extends ConsumerStatefulWidget {
   final SearchUserItem user;
   final String targetProfileUserId;
+  final bool? isFollowingOverride;
+  final ValueChanged<bool>? onFollowToggled;
 
   const _FollowUserItemCard({
+    super.key,
     required this.user,
     required this.targetProfileUserId,
+    this.isFollowingOverride,
+    this.onFollowToggled,
   });
 
   @override
@@ -202,23 +314,28 @@ class _FollowUserItemCardState extends ConsumerState<_FollowUserItemCard> {
   @override
   void initState() {
     super.initState();
-    _isFollowing = widget.user.isFollowing;
+    _isFollowing = widget.isFollowingOverride ?? widget.user.isFollowing;
   }
 
   @override
   void didUpdateWidget(covariant _FollowUserItemCard oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.user.isFollowing != widget.user.isFollowing) {
-      _isFollowing = widget.user.isFollowing;
+    if (widget.isFollowingOverride != null && widget.isFollowingOverride != _isFollowing) {
+      _isFollowing = widget.isFollowingOverride!;
+    } else if (oldWidget.user.id != widget.user.id) {
+      _isFollowing = widget.isFollowingOverride ?? widget.user.isFollowing;
     }
   }
 
   Future<void> _handleToggleFollow() async {
     if (_isToggling) return;
+    final previousStatus = _isFollowing;
+    final nextStatus = !previousStatus;
     setState(() {
       _isToggling = true;
-      _isFollowing = !_isFollowing;
+      _isFollowing = nextStatus;
     });
+    widget.onFollowToggled?.call(nextStatus);
 
     final repo = ref.read(profileRepositoryProvider);
     final result = await repo.toggleFollow(widget.user.id);
@@ -230,18 +347,20 @@ class _FollowUserItemCardState extends ConsumerState<_FollowUserItemCard> {
             _isFollowing = serverIsFollowing;
             _isToggling = false;
           });
+          widget.onFollowToggled?.call(serverIsFollowing);
         }
         ref.invalidate(profileControllerProvider);
         ref.invalidate(userProfileProvider(widget.user.id));
-        ref.invalidate(userFollowersProvider(widget.targetProfileUserId));
-        ref.invalidate(userFollowingProvider(widget.targetProfileUserId));
+        // NOTE: We deliberately do NOT invalidate userFollowingProvider or userFollowersProvider
+        // here so the user row remains visible until the user explicitly refreshes.
       },
       failure: (_) {
         if (mounted) {
           setState(() {
-            _isFollowing = !_isFollowing;
+            _isFollowing = previousStatus;
             _isToggling = false;
           });
+          widget.onFollowToggled?.call(previousStatus);
         }
       },
     );
@@ -250,6 +369,7 @@ class _FollowUserItemCardState extends ConsumerState<_FollowUserItemCard> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final currentAuthUser = ref.watch(authControllerProvider).asData?.value;
     final isSelf = currentAuthUser?.id == widget.user.id;
 
@@ -257,7 +377,9 @@ class _FollowUserItemCardState extends ConsumerState<_FollowUserItemCard> {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
-        side: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5)),
+        side: BorderSide(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: isDark ? 0.3 : 0.5),
+        ),
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
@@ -268,22 +390,14 @@ class _FollowUserItemCardState extends ConsumerState<_FollowUserItemCard> {
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           child: Row(
             children: [
-              CircleAvatar(
+              ProfileStoryAvatar(
+                userId: widget.user.id,
+                avatarUrl: widget.user.avatarUrl,
+                name: widget.user.fullName,
                 radius: 22,
-                backgroundColor: theme.colorScheme.primaryContainer,
-                backgroundImage: widget.user.avatarUrl != null && widget.user.avatarUrl!.isNotEmpty
-                    ? NetworkImage(ApiEndpoints.resolveUrl(widget.user.avatarUrl!))
-                    : null,
-                child: widget.user.avatarUrl == null || widget.user.avatarUrl!.isEmpty
-                    ? Text(
-                        widget.user.firstName.isNotEmpty ? widget.user.firstName[0].toUpperCase() : 'U',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: theme.colorScheme.onPrimaryContainer,
-                        ),
-                      )
-                    : null,
+                fallbackOnTap: () {
+                  context.push('/profile/${widget.user.id}');
+                },
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -306,7 +420,7 @@ class _FollowUserItemCardState extends ConsumerState<_FollowUserItemCard> {
                           style: TextStyle(
                             fontSize: 11.5,
                             fontWeight: FontWeight.w600,
-                            color: theme.colorScheme.primary,
+                            color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -331,24 +445,35 @@ class _FollowUserItemCardState extends ConsumerState<_FollowUserItemCard> {
               if (!isSelf) ...[
                 const SizedBox(width: 8),
                 _isFollowing
-                    ? OutlinedButton.icon(
+                    ? OutlinedButton(
                         style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                           visualDensity: VisualDensity.compact,
-                          side: BorderSide(color: theme.colorScheme.primary),
+                          shape: const StadiumBorder(),
+                          side: BorderSide(
+                            color: isDark ? const Color(0xFF536471) : const Color(0xFFCFD9DE),
+                          ),
+                          foregroundColor: isDark ? Colors.white : Colors.black,
                         ),
                         onPressed: _handleToggleFollow,
-                        icon: const Icon(Icons.check, size: 13),
-                        label: const Text('Following', style: TextStyle(fontSize: 11.5)),
+                        child: const Text(
+                          'Following',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                        ),
                       )
-                    : FilledButton.icon(
+                    : FilledButton(
                         style: FilledButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                           visualDensity: VisualDensity.compact,
+                          shape: const StadiumBorder(),
+                          backgroundColor: isDark ? Colors.white : Colors.black,
+                          foregroundColor: isDark ? Colors.black : Colors.white,
                         ),
                         onPressed: _handleToggleFollow,
-                        icon: const Icon(Icons.person_add_alt_1, size: 13),
-                        label: const Text('Follow', style: TextStyle(fontSize: 11.5)),
+                        child: const Text(
+                          'Follow',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                        ),
                       ),
               ],
             ],

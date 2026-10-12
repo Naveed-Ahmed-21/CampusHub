@@ -40,10 +40,13 @@ class ProfileRemoteDataSource {
   }
 
   Future<UserProfile> addSkill(String skillName, String? proficiency) async {
-    final response = await _dio.post('/api/v1/profile/skills', data: {
-      'skillName': skillName,
-      'proficiency': proficiency,
-    });
+    final payload = <String, dynamic>{
+      'skillName': skillName.trim(),
+    };
+    if (proficiency != null && proficiency.trim().isNotEmpty) {
+      payload['proficiency'] = proficiency.trim();
+    }
+    final response = await _dio.post('/api/v1/profile/skills', data: payload);
     return UserProfile.fromJson(response.data['data']);
   }
 
@@ -58,12 +61,19 @@ class ProfileRemoteDataSource {
     String? projectUrl,
     String? repoUrl,
   }) async {
-    final response = await _dio.post('/api/v1/profile/projects', data: {
-      'title': title,
-      'description': description,
-      'projectUrl': projectUrl,
-      'repoUrl': repoUrl,
-    });
+    final payload = <String, dynamic>{
+      'title': title.trim(),
+    };
+    if (description != null && description.trim().isNotEmpty) {
+      payload['description'] = description.trim();
+    }
+    if (projectUrl != null && projectUrl.trim().isNotEmpty) {
+      payload['projectUrl'] = projectUrl.trim();
+    }
+    if (repoUrl != null && repoUrl.trim().isNotEmpty) {
+      payload['repoUrl'] = repoUrl.trim();
+    }
+    final response = await _dio.post('/api/v1/profile/projects', data: payload);
     return UserProfile.fromJson(response.data['data']);
   }
 

@@ -13,16 +13,39 @@ class RouterNotifier extends ChangeNotifier {
 
   String? redirect(BuildContext context, String currentPath) {
     final authState = _ref.read(authControllerProvider);
+
+    // If auth state is still loading (cold start autoLogin in flight),
+    // stay on root splash and do not bounce to /login
+    if (authState.isLoading) {
+      return null;
+    }
+
     final user = authState.asData?.value;
     if (currentPath == '/register') return '/login';
 
     final isAuthenticated = user != null;
-    final isAuthScreen = currentPath == '/login' || currentPath == '/forgot-password';
+    final isAuthScreen = currentPath == '/login' ||
+        currentPath == '/forgot-password' ||
+        currentPath.startsWith('/setup-password');
 
     if (!isAuthenticated && !isAuthScreen) return '/login';
 
-    if (isAuthenticated && (isAuthScreen || currentPath == '/' || (currentPath == '/feed' && !user.isStudent))) {
-      if (user.isAdmin) return '/admin';
+    // If authenticated student hasn't completed onboarding, direct them to /onboarding
+    if (isAuthenticated && user.isStudent && !user.isProfileCompleted) {
+      if (currentPath != '/onboarding') {
+        return '/onboarding';
+      }
+      return null;
+    }
+
+    // If already completed onboarding but visits /onboarding, redirect to home
+    if (isAuthenticated && currentPath == '/onboarding' && user.isProfileCompleted) {
+      return '/feed';
+    }
+
+    if (isAuthenticated && (isAuthScreen || currentPath == '/')) {
+      if (user.isDeptAdmin) return '/dept-admin';
+      if (user.isMainAdmin) return '/admin';
       if (user.isPlacementOfficer) return '/placement';
       if (user.isFaculty) return '/faculty';
       return '/feed';
@@ -30,7 +53,16 @@ class RouterNotifier extends ChangeNotifier {
 
     // Role-based navigation route guards (UX level)
     if (isAuthenticated) {
-      if (currentPath.startsWith('/admin') && !user.isAdmin) {
+      if (currentPath == '/feed' && user.isDeptAdmin) {
+        return '/dept-admin';
+      }
+      if (currentPath == '/feed' && user.isFaculty) {
+        return '/faculty';
+      }
+      if (currentPath.startsWith('/dept-admin') && !user.isDeptAdmin && !user.isMainAdmin) {
+        return '/feed';
+      }
+      if (currentPath.startsWith('/admin') && !user.isMainAdmin) {
         return '/feed';
       }
       if (currentPath.startsWith('/placement/drives/create') &&
@@ -46,6 +78,7 @@ class RouterNotifier extends ChangeNotifier {
     }
 
     return null;
+
   }
 }
 

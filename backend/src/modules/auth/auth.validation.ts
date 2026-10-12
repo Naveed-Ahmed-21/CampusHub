@@ -14,7 +14,7 @@ export const registerSchema = z.object({
 
 export const loginSchema = z.object({
   body: z.object({
-    email: z.string().email('Invalid email address'),
+    email: z.string().min(1, 'Email or username is required'),
     password: z.string().min(1, 'Password is required'),
   }),
 });
@@ -38,3 +38,47 @@ export const resetPasswordSchema = z.object({
     newPassword: z.string().min(8, 'New password must be at least 8 characters'),
   }),
 });
+
+export const checkStatusSchema = z.object({
+  body: z.object({
+    email: z.string().email('Invalid email address'),
+  }),
+});
+
+export const setupPasswordSchema = z.object({
+  body: z.object({
+    email: z.string().email('Invalid email address'),
+    newPassword: z.string().min(8, 'Password must be at least 8 characters'),
+    token: z.string().optional(),
+    otp: z.string().optional(),
+  }),
+});
+
+export const sendFirstLoginOtpSchema = z.object({
+  body: z.object({
+    email: z.string().email('Invalid email address'),
+  }),
+});
+
+export const verifyFirstLoginOtpSchema = z.object({
+  body: z.object({
+    email: z.string().email('Invalid email address'),
+    otp: z.string().min(4, 'OTP code is required'),
+  }),
+});
+
+export const verifyForgotPasswordOtpSchema = z.object({
+  body: z.object({
+    email: z.string().email('Invalid email address'),
+    otp: z.string().min(4, 'OTP code is required'),
+  }),
+});
+
+export const changePasswordSchema = z.object({
+  body: z.object({
+    currentPassword: z.string().min(1, 'Current password is required'),
+    newPassword: z.string().min(6, 'New password must be at least 6 characters'),
+  }),
+});
+
+

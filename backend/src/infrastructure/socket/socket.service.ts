@@ -1,7 +1,7 @@
 import { Server as HttpServer } from 'http';
 import { Server, Socket } from 'socket.io';
-import { logger } from '../logger/logger.service.js';
-import { env } from '../../config/env.config.js';
+import { logger } from '../logger/logger.service';
+import { env } from '../../config/env.config';
 
 export class SocketService {
   private static instance: SocketService;

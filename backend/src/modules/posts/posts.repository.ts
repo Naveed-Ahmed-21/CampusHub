@@ -480,6 +480,36 @@ export class PostsRepository {
     });
   }
 
+  async getPostDetailsById(postId: string, userId?: string) {
+    return prisma.post.findUnique({
+      where: { id: postId },
+      include: {
+        author: {
+          select: { id: true, username: true, first_name: true, last_name: true, avatar_url: true, role: true },
+        },
+        club: {
+          select: { id: true, name: true, logo_url: true, category: true },
+        },
+        attachments: true,
+        _count: {
+          select: { likes: true, comments: true },
+        },
+        likes: userId
+          ? {
+              where: { user_id: userId },
+              select: { id: true },
+            }
+          : undefined,
+        saves: userId
+          ? {
+              where: { user_id: userId },
+              select: { id: true },
+            }
+          : undefined,
+      },
+    });
+  }
+
   async deletePost(postId: string) {
     return prisma.post.delete({
       where: { id: postId },

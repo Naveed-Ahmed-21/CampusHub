@@ -195,11 +195,15 @@ class _CreatePostSheetState extends ConsumerState<CreatePostSheet> {
       maxChildSize: 0.95,
       expand: false,
       builder: (context, scrollController) {
-        return Container(
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surface,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-          ),
+        final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+        return AnimatedPadding(
+          padding: EdgeInsets.only(bottom: bottomInset),
+          duration: const Duration(milliseconds: 100),
+          child: Container(
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surface,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            ),
           child: Column(
             children: [
               // Sheet Drag Handle
@@ -438,8 +442,9 @@ class _CreatePostSheetState extends ConsumerState<CreatePostSheet> {
               ),
             ],
           ),
-        );
-      },
+        ),
+      );
+    },
     );
   }
 

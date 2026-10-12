@@ -1,5 +1,5 @@
 import { prisma } from '../../config/database';
-import { ChatRoomType } from '@prisma/client';
+import { ChatRoomType, ChatRequestStatus, Role } from '@prisma/client';
 import { SendMessageDto } from './chat.types';
 
 export class ChatRepository {
@@ -167,19 +167,38 @@ export class ChatRepository {
   }
 
   async findPublicGroups(collegeId: string, currentUserId: string, query?: string, limit: number = 30) {
+    const andConditions: any[] = [
+      {
+        OR: [
+          { club_id: null },
+          { club: { status: 'APPROVED' } },
+        ],
+      },
+    ];
+
+    if (query && query.trim().length > 0) {
+      const q = query.trim();
+      andConditions.push({
+        OR: [
+          { name: { contains: q, mode: 'insensitive' } },
+          { description: { contains: q, mode: 'insensitive' } },
+        ],
+      });
+    }
+
     const whereConditions: any = {
       college_id: collegeId,
       type: ChatRoomType.GROUP,
       is_private: false,
+      department_id: null,
+      NOT: [
+        { name: 'Whole College' },
+        { name: { startsWith: 'Batch ' } },
+        { name: { contains: 'Department' } },
+        { club: { status: { not: 'APPROVED' } } },
+      ],
+      AND: andConditions,
     };
-
-    if (query && query.trim().length > 0) {
-      const q = query.trim();
-      whereConditions.OR = [
-        { name: { contains: q, mode: 'insensitive' } },
-        { description: { contains: q, mode: 'insensitive' } },
-      ];
-    }
 
     const groups = await prisma.chatRoom.findMany({
       where: whereConditions,
@@ -321,7 +340,7 @@ export class ChatRepository {
           department_id: departmentId,
           name: `${departmentName} Department Chat`,
           type: ChatRoomType.GROUP,
-          is_private: false,
+          is_private: true,
           participants: {
             create: users.map((u) => ({
               user_id: u.id,
@@ -349,6 +368,357 @@ export class ChatRepository {
             },
           },
         },
+      });
+    }
+
+    return room;
+  }
+
+  async addUserToDepartmentChat(departmentId: string, collegeId: string, departmentName: string, userId: string) {
+    const room = await this.findOrCreateDepartmentChatRoom(departmentId, collegeId, departmentName);
+    return prisma.chatParticipant.upsert({
+      where: {
+        room_id_user_id: {
+          room_id: room.id,
+          user_id: userId,
+        },
+      },
+      update: {
+        status: 'ACTIVE',
+      },
+      create: {
+        room_id: room.id,
+        user_id: userId,
+        role: 'MEMBER',
+        status: 'ACTIVE',
+      },
+    });
+  }
+
+  async findOrCreateBatchChatRoom(collegeId: string, batchName: string) {
+    const roomName = `Batch ${batchName}`;
+    let room = await prisma.chatRoom.findFirst({
+      where: {
+        college_id: collegeId,
+        type: ChatRoomType.GROUP,
+        name: roomName,
+        department_id: null,
+        club_id: null,
+      },
+      include: {
+        participants: {
+          where: { status: 'ACTIVE' },
+          include: {
+            user: {
+              select: {
+                id: true,
+                username: true,
+                first_name: true,
+                last_name: true,
+                avatar_url: true,
+                role: true,
+                is_online: true,
+                last_seen: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!room) {
+      room = await prisma.chatRoom.create({
+        data: {
+          college_id: collegeId,
+          name: roomName,
+          description: `Official batch community for the ${batchName} graduating class across all departments.`,
+          avatar_url: 'assets/images/gcee_logo.png',
+          type: ChatRoomType.GROUP,
+          is_private: true,
+        },
+        include: {
+          participants: {
+            where: { status: 'ACTIVE' },
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  username: true,
+                  first_name: true,
+                  last_name: true,
+                  avatar_url: true,
+                  role: true,
+                  is_online: true,
+                  last_seen: true,
+                },
+              },
+            },
+          },
+        },
+      });
+    }
+
+    return room;
+  }
+
+  async addUserToBatchChat(collegeId: string, batchName: string, userId: string) {
+    const room = await this.findOrCreateBatchChatRoom(collegeId, batchName);
+    return prisma.chatParticipant.upsert({
+      where: {
+        room_id_user_id: {
+          room_id: room.id,
+          user_id: userId,
+        },
+      },
+      update: {
+        status: 'ACTIVE',
+      },
+      create: {
+        room_id: room.id,
+        user_id: userId,
+        role: 'MEMBER',
+        status: 'ACTIVE',
+      },
+    });
+  }
+
+  async findOrCreateBatchDepartmentChatRoom(
+    departmentId: string,
+    collegeId: string,
+    departmentName: string,
+    batchName: string
+  ) {
+    const roomName = `${departmentName} (${batchName})`;
+    let room = await prisma.chatRoom.findFirst({
+      where: {
+        college_id: collegeId,
+        department_id: departmentId,
+        type: ChatRoomType.GROUP,
+        name: roomName,
+      },
+      include: {
+        participants: {
+          where: { status: 'ACTIVE' },
+          include: {
+            user: {
+              select: {
+                id: true,
+                username: true,
+                first_name: true,
+                last_name: true,
+                avatar_url: true,
+                role: true,
+                is_online: true,
+                last_seen: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!room) {
+      room = await prisma.chatRoom.create({
+        data: {
+          college_id: collegeId,
+          department_id: departmentId,
+          name: roomName,
+          description: `Official batch department chat for ${departmentName} (${batchName}).`,
+          avatar_url: 'assets/images/gcee_logo.png',
+          type: ChatRoomType.GROUP,
+          is_private: true,
+        },
+        include: {
+          participants: {
+            where: { status: 'ACTIVE' },
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  username: true,
+                  first_name: true,
+                  last_name: true,
+                  avatar_url: true,
+                  role: true,
+                  is_online: true,
+                  last_seen: true,
+                },
+              },
+            },
+          },
+        },
+      });
+    }
+
+    return room;
+  }
+
+  async addUserToBatchDepartmentChat(
+    departmentId: string,
+    collegeId: string,
+    departmentName: string,
+    batchName: string,
+    userId: string
+  ) {
+    const room = await this.findOrCreateBatchDepartmentChatRoom(departmentId, collegeId, departmentName, batchName);
+    return prisma.chatParticipant.upsert({
+      where: {
+        room_id_user_id: {
+          room_id: room.id,
+          user_id: userId,
+        },
+      },
+      update: {
+        status: 'ACTIVE',
+      },
+      create: {
+        room_id: room.id,
+        user_id: userId,
+        role: 'MEMBER',
+        status: 'ACTIVE',
+      },
+    });
+  }
+
+  async findOrCreateWholeCollegeChatRoom(collegeId: string) {
+    let room = await prisma.chatRoom.findFirst({
+      where: {
+        college_id: collegeId,
+        type: ChatRoomType.GROUP,
+        name: 'Whole College',
+        club_id: null,
+        department_id: null,
+      },
+      include: {
+        participants: {
+          where: { status: 'ACTIVE' },
+          include: {
+            user: {
+              select: {
+                id: true,
+                username: true,
+                first_name: true,
+                last_name: true,
+                avatar_url: true,
+                role: true,
+                is_online: true,
+                last_seen: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!room) {
+      const adminUser = await prisma.user.findFirst({
+        where: { college_id: collegeId, role: Role.ADMIN },
+        select: { id: true },
+      });
+
+      const allUsers = await prisma.user.findMany({
+        where: { college_id: collegeId, status: 'ACTIVE' },
+        select: { id: true, role: true },
+      });
+
+      room = await prisma.chatRoom.create({
+        data: {
+          college_id: collegeId,
+          name: 'Whole College',
+          description: 'Official college-wide community and announcement group for all members of Government College of Engineering, Erode.',
+          avatar_url: 'assets/images/gcee_logo.png',
+          type: ChatRoomType.GROUP,
+          is_private: false,
+          created_by_id: adminUser?.id,
+          participants: {
+            create: allUsers.map((u) => ({
+              user_id: u.id,
+              role: u.role === Role.ADMIN ? 'ADMIN' : 'MEMBER',
+              status: 'ACTIVE',
+            })),
+          },
+        },
+        include: {
+          participants: {
+            where: { status: 'ACTIVE' },
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  username: true,
+                  first_name: true,
+                  last_name: true,
+                  avatar_url: true,
+                  role: true,
+                  is_online: true,
+                  last_seen: true,
+                },
+              },
+            },
+          },
+        },
+      });
+    }
+
+    return room;
+  }
+
+  async addUserToWholeCollegeChat(collegeId: string, userId: string, role: string = 'MEMBER') {
+    const room = await this.findOrCreateWholeCollegeChatRoom(collegeId);
+    return prisma.chatParticipant.upsert({
+      where: {
+        room_id_user_id: {
+          room_id: room.id,
+          user_id: userId,
+        },
+      },
+      update: {
+        status: 'ACTIVE',
+        ...(role === 'ADMIN' ? { role: 'ADMIN' } : {}),
+      },
+      create: {
+        room_id: room.id,
+        user_id: userId,
+        role: role === 'ADMIN' ? 'ADMIN' : 'MEMBER',
+        status: 'ACTIVE',
+      },
+    });
+  }
+
+  async syncAllUsersToWholeCollegeChat(collegeId: string) {
+    const room = await this.findOrCreateWholeCollegeChatRoom(collegeId);
+    const allUsers = await prisma.user.findMany({
+      where: { college_id: collegeId, status: 'ACTIVE' },
+      select: { id: true, role: true },
+    });
+
+    const existingParticipants = await prisma.chatParticipant.findMany({
+      where: { room_id: room.id },
+      select: { user_id: true },
+    });
+    const existingSet = new Set(existingParticipants.map((p) => p.user_id));
+
+    const missing = allUsers.filter((u) => !existingSet.has(u.id));
+    if (missing.length > 0) {
+      await prisma.chatParticipant.createMany({
+        data: missing.map((u) => ({
+          room_id: room.id,
+          user_id: u.id,
+          role: u.role === Role.ADMIN ? 'ADMIN' : 'MEMBER',
+          status: 'ACTIVE',
+        })),
+        skipDuplicates: true,
+      });
+    }
+
+    const adminUser = await prisma.user.findFirst({
+      where: { college_id: collegeId, role: Role.ADMIN },
+      select: { id: true },
+    });
+    if (adminUser) {
+      await prisma.chatParticipant.updateMany({
+        where: { room_id: room.id, user_id: adminUser.id },
+        data: { role: 'ADMIN' },
       });
     }
 
@@ -742,7 +1112,7 @@ export class ChatRepository {
         where: whereConditions,
         skip,
         take: limit,
-        orderBy: { created_at: 'asc' },
+        orderBy: { created_at: 'desc' },
         include: {
           sender: {
             select: { id: true, username: true, first_name: true, last_name: true, avatar_url: true, role: true },
@@ -772,7 +1142,7 @@ export class ChatRepository {
       }),
     ]);
 
-    return { total, page, limit, messages };
+    return { total, page, limit, messages: messages.reverse() };
   }
 
   async addOrToggleReaction(messageId: string, userId: string, emoji: string) {
@@ -906,5 +1276,278 @@ export class ChatRepository {
         last_seen: true,
       },
     });
+  }
+
+  // ==========================================
+  // Student Chat Settings
+  // ==========================================
+  async getStudentChatSettings(studentId: string) {
+    return prisma.studentChatSettings.findUnique({
+      where: { student_id: studentId },
+    });
+  }
+
+  async upsertStudentChatSettings(studentId: string, requireApproval: boolean) {
+    return prisma.studentChatSettings.upsert({
+      where: { student_id: studentId },
+      update: {
+        require_student_conversation_approval: requireApproval,
+      },
+      create: {
+        student_id: studentId,
+        require_student_conversation_approval: requireApproval,
+      },
+    });
+  }
+
+  // ==========================================
+  // Chat Requests
+  // ==========================================
+  async findPendingChatRequest(senderId: string, recipientId: string) {
+    return prisma.chatRequest.findFirst({
+      where: {
+        sender_id: senderId,
+        recipient_id: recipientId,
+        status: ChatRequestStatus.PENDING,
+      },
+      include: {
+        sender: {
+          select: {
+            id: true,
+            first_name: true,
+            last_name: true,
+            email: true,
+            avatar_url: true,
+            role: true,
+            department: { select: { id: true, name: true, code: true } },
+          },
+        },
+        recipient: {
+          select: {
+            id: true,
+            first_name: true,
+            last_name: true,
+            email: true,
+            avatar_url: true,
+            role: true,
+          },
+        },
+      },
+    });
+  }
+
+  async findChatRequestById(requestId: string) {
+    return prisma.chatRequest.findUnique({
+      where: { id: requestId },
+      include: {
+        sender: {
+          select: {
+            id: true,
+            first_name: true,
+            last_name: true,
+            email: true,
+            avatar_url: true,
+            role: true,
+            college_id: true,
+            department: { select: { id: true, name: true, code: true } },
+          },
+        },
+        recipient: {
+          select: {
+            id: true,
+            first_name: true,
+            last_name: true,
+            email: true,
+            avatar_url: true,
+            role: true,
+            college_id: true,
+          },
+        },
+      },
+    });
+  }
+
+  async createChatRequest(senderId: string, recipientId: string, introductoryMessage: string) {
+    return prisma.chatRequest.create({
+      data: {
+        sender_id: senderId,
+        recipient_id: recipientId,
+        introductory_message: introductoryMessage,
+        status: ChatRequestStatus.PENDING,
+      },
+      include: {
+        sender: {
+          select: {
+            id: true,
+            first_name: true,
+            last_name: true,
+            email: true,
+            avatar_url: true,
+            role: true,
+            department: { select: { id: true, name: true, code: true } },
+          },
+        },
+        recipient: {
+          select: {
+            id: true,
+            first_name: true,
+            last_name: true,
+            email: true,
+            avatar_url: true,
+            role: true,
+          },
+        },
+      },
+    });
+  }
+
+  async updateChatRequestStatus(requestId: string, status: ChatRequestStatus, conversationId?: string) {
+    return prisma.chatRequest.update({
+      where: { id: requestId },
+      data: {
+        status,
+        conversation_id: conversationId,
+        responded_at: new Date(),
+      },
+      include: {
+        sender: {
+          select: {
+            id: true,
+            first_name: true,
+            last_name: true,
+            email: true,
+            avatar_url: true,
+            role: true,
+          },
+        },
+        recipient: {
+          select: {
+            id: true,
+            first_name: true,
+            last_name: true,
+            email: true,
+            avatar_url: true,
+            role: true,
+          },
+        },
+      },
+    });
+  }
+
+  async getIncomingChatRequests(recipientId: string, status?: ChatRequestStatus) {
+    return prisma.chatRequest.findMany({
+      where: {
+        recipient_id: recipientId,
+        ...(status ? { status } : {}),
+      },
+      orderBy: { created_at: 'desc' },
+      include: {
+        sender: {
+          select: {
+            id: true,
+            first_name: true,
+            last_name: true,
+            email: true,
+            avatar_url: true,
+            role: true,
+            department: { select: { id: true, name: true, code: true } },
+          },
+        },
+      },
+    });
+  }
+
+  async getSentChatRequests(senderId: string) {
+    return prisma.chatRequest.findMany({
+      where: {
+        sender_id: senderId,
+      },
+      orderBy: { created_at: 'desc' },
+      include: {
+        recipient: {
+          select: {
+            id: true,
+            first_name: true,
+            last_name: true,
+            email: true,
+            avatar_url: true,
+            role: true,
+            department: { select: { id: true, name: true, code: true } },
+          },
+        },
+      },
+    });
+  }
+
+  // ==========================================
+  // Chat-Only Blocking
+  // ==========================================
+  async isChatBlockedBetween(user1Id: string, user2Id: string): Promise<boolean> {
+    const block = await prisma.chatBlock.findFirst({
+      where: {
+        OR: [
+          { blocker_id: user1Id, blocked_id: user2Id },
+          { blocker_id: user2Id, blocked_id: user1Id },
+        ],
+      },
+    });
+    return !!block;
+  }
+
+  async getBlockRecord(user1Id: string, user2Id: string) {
+    return prisma.chatBlock.findFirst({
+      where: {
+        OR: [
+          { blocker_id: user1Id, blocked_id: user2Id },
+          { blocker_id: user2Id, blocked_id: user1Id },
+        ],
+      },
+    });
+  }
+
+  async blockUser(blockerId: string, blockedId: string) {
+    return prisma.chatBlock.upsert({
+      where: {
+        blocker_id_blocked_id: {
+          blocker_id: blockerId,
+          blocked_id: blockedId,
+        },
+      },
+      update: {},
+      create: {
+        blocker_id: blockerId,
+        blocked_id: blockedId,
+      },
+    });
+  }
+
+  async unblockUser(blockerId: string, blockedId: string) {
+    return prisma.chatBlock.deleteMany({
+      where: {
+        blocker_id: blockerId,
+        blocked_id: blockedId,
+      },
+    });
+  }
+
+  async getBlockedUsers(userId: string) {
+    const blocks = await prisma.chatBlock.findMany({
+      where: { blocker_id: userId },
+      include: {
+        blocked: {
+          select: {
+            id: true,
+            first_name: true,
+            last_name: true,
+            email: true,
+            avatar_url: true,
+            role: true,
+            department: { select: { id: true, name: true, code: true } },
+          },
+        },
+      },
+      orderBy: { created_at: 'desc' },
+    });
+    return blocks.map((b) => b.blocked);
   }
 }

@@ -11,33 +11,6 @@ class DynamicHostInterceptor extends Interceptor {
     options.baseUrl = ApiEndpoints.baseUrl;
     handler.next(options);
   }
-
-  @override
-  void onError(DioException err, ErrorInterceptorHandler handler) async {
-    // If connection error (e.g. adb reverse was dropped or network route changed)
-    if (err.type == DioExceptionType.connectionError ||
-        err.type == DioExceptionType.connectionTimeout ||
-        err.response == null) {
-      for (final candidate in ApiEndpoints.candidateUrls) {
-        if (candidate != ApiEndpoints.baseUrl) {
-          try {
-            final testDio = Dio(BaseOptions(
-              connectTimeout: const Duration(milliseconds: 2000),
-            ));
-            final ping = await testDio.get('$candidate/health');
-            if (ping.statusCode == 200) {
-              ApiEndpoints.setBaseUrl(candidate);
-              final reqOptions = err.requestOptions;
-              reqOptions.baseUrl = candidate;
-              final retryRes = await testDio.fetch(reqOptions);
-              return handler.resolve(retryRes);
-            }
-          } catch (_) {}
-        }
-      }
-    }
-    handler.next(err);
-  }
 }
 
 final dioClientProvider = Provider<Dio>((ref) {

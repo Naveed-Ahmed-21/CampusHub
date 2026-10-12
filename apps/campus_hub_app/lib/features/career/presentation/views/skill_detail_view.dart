@@ -5,6 +5,8 @@ import '../../domain/career_models.dart';
 import '../providers/career_provider.dart';
 import '../theme/career_theme.dart';
 import '../widgets/career_shared_widgets.dart';
+import '../../../../core/widgets/campus_back_button.dart';
+import '../../../../core/widgets/campus_app_bar.dart';
 import 'adaptive_quiz_view.dart';
 import 'learning_workspace_view.dart';
 import 'projects_evidence_view.dart';
@@ -138,13 +140,10 @@ class _SkillDetailViewState extends ConsumerState<SkillDetailView> {
 
     return Scaffold(
       backgroundColor: CareerTheme.background,
-      appBar: AppBar(
-        backgroundColor: CareerTheme.background,
-        elevation: 0,
-        leading: BackButton(
-          color: Colors.white,
-          onPressed: () => Navigator.of(context).pop(),
-        ),
+      appBar: CampusAppBar(
+        title: widget.skillName,
+        subtitle: 'Phase ${widget.phaseNumber} Skill',
+        leading: const CampusBackButton(),
         actions: [
           IconButton(
             icon: Icon(

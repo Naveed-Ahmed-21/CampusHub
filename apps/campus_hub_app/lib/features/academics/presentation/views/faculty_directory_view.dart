@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/constants/api_endpoints.dart';
 import '../../../../shared/responsive/responsive_layout.dart';
 import '../../../../shared/widgets/async_value_widget.dart';
 import '../controllers/academics_controller.dart';
 import '../../domain/models/academic_models.dart';
 import '../../../chat/data/chat_repository.dart';
+import '../../../../core/widgets/campus_back_button.dart';
+import '../../../../core/widgets/campus_app_bar.dart';
+import '../../../../core/widgets/campus_avatar.dart';
+import '../../../../core/widgets/atmospheric_background.dart';
 
 class FacultyDirectoryView extends ConsumerStatefulWidget {
   const FacultyDirectoryView({super.key});
@@ -79,32 +82,14 @@ class _FacultyDirectoryViewState extends ConsumerState<FacultyDirectoryView> {
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      GestureDetector(
+                      CampusAvatar(
+                        imageUrl: fac.avatarUrl,
+                        name: fac.name,
+                        radius: 34,
                         onTap: () {
                           Navigator.pop(ctx);
                           context.push('/profile/${fac.id}');
                         },
-                        child: CircleAvatar(
-                          radius: 34,
-                          backgroundColor: Colors.blue.withValues(alpha: 0.15),
-                          backgroundImage:
-                              fac.avatarUrl != null && fac.avatarUrl!.isNotEmpty
-                                  ? NetworkImage(
-                                      ApiEndpoints.resolveUrl(fac.avatarUrl!))
-                                  : null,
-                          child: fac.avatarUrl == null || fac.avatarUrl!.isEmpty
-                              ? Text(
-                                  fac.name.isNotEmpty
-                                      ? fac.name[0].toUpperCase()
-                                      : 'F',
-                                  style: const TextStyle(
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.blue,
-                                  ),
-                                )
-                              : null,
-                        ),
                       ),
                       const SizedBox(width: 16),
                       Expanded(
@@ -371,19 +356,21 @@ class _FacultyDirectoryViewState extends ConsumerState<FacultyDirectoryView> {
     final facultyListAsync = ref.watch(
         academicFacultyDirectoryProvider(_query.isEmpty ? null : _query));
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Faculty & Mentors Directory',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+    return AtmosphericBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: const CampusAppBar(
+          leading: CampusBackButton(),
+          title: 'Faculty & Mentors',
+          subtitle: 'Academic Directory',
         ),
-      ),
-      body: ResponsiveLayout(
-        mobile: _buildBody(context, facultyListAsync, isDesktop: false),
-        desktop: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 960),
-            child: _buildBody(context, facultyListAsync, isDesktop: true),
+        body: ResponsiveLayout(
+          mobile: _buildBody(context, facultyListAsync, isDesktop: false),
+          desktop: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 960),
+              child: _buildBody(context, facultyListAsync, isDesktop: true),
+            ),
           ),
         ),
       ),
@@ -485,32 +472,12 @@ class _FacultyDirectoryViewState extends ConsumerState<FacultyDirectoryView> {
                             Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                GestureDetector(
+                                CampusAvatar(
+                                  imageUrl: fac.avatarUrl,
+                                  name: fac.name,
+                                  radius: 28,
                                   onTap: () =>
                                       context.push('/profile/${fac.id}'),
-                                  child: CircleAvatar(
-                                    radius: 28,
-                                    backgroundColor:
-                                        Colors.blue.withValues(alpha: 0.15),
-                                    backgroundImage: fac.avatarUrl != null &&
-                                            fac.avatarUrl!.isNotEmpty
-                                        ? NetworkImage(ApiEndpoints.resolveUrl(
-                                            fac.avatarUrl!))
-                                        : null,
-                                    child: fac.avatarUrl == null ||
-                                            fac.avatarUrl!.isEmpty
-                                        ? Text(
-                                            fac.name.isNotEmpty
-                                                ? fac.name[0].toUpperCase()
-                                                : 'F',
-                                            style: const TextStyle(
-                                              fontSize: 20,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.blue,
-                                            ),
-                                          )
-                                        : null,
-                                  ),
                                 ),
                                 const SizedBox(width: 14),
                                 Expanded(

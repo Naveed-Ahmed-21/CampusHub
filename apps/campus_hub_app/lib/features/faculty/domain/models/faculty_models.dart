@@ -13,6 +13,13 @@ class FacultyDashboard {
     required this.upcomingEvents,
   });
 
+  const FacultyDashboard.empty()
+      : faculty = const FacultyInfo.empty(),
+        stats = const FacultyStats.empty(),
+        todaySchedule = const [],
+        recentAnnouncements = const [],
+        upcomingEvents = const [];
+
   factory FacultyDashboard.fromJson(Map<String, dynamic> json) {
     return FacultyDashboard(
       faculty:
@@ -55,6 +62,17 @@ class FacultyInfo {
     this.specialization = 'Distributed Systems & Cloud Computing',
   });
 
+  const FacultyInfo.empty()
+      : id = '',
+        name = '',
+        email = '',
+        designation = 'Faculty',
+        department = '',
+        avatarUrl = null,
+        officeRoom = '',
+        officeHours = '',
+        specialization = '';
+
   factory FacultyInfo.fromJson(Map<String, dynamic> json) {
     return FacultyInfo(
       id: json['id'] as String? ?? '',
@@ -87,6 +105,13 @@ class FacultyStats {
     required this.upcomingEventsCount,
     required this.publishedAnnouncementsCount,
   });
+
+  const FacultyStats.empty()
+      : totalSubjects = 0,
+        totalMentees = 0,
+        todayClassesCount = 0,
+        upcomingEventsCount = 0,
+        publishedAnnouncementsCount = 0;
 
   factory FacultyStats.fromJson(Map<String, dynamic> json) {
     return FacultyStats(
@@ -476,6 +501,26 @@ class FacultyProfileModel {
     this.menteesCount = 0,
   });
 
+  const FacultyProfileModel.empty()
+      : id = '',
+        userId = '',
+        name = '',
+        email = '',
+        avatarUrl = null,
+        designation = 'Faculty',
+        qualification = '',
+        department = '',
+        specialization = '',
+        bio = '',
+        officeRoom = '',
+        officeHours = '',
+        expertise = const [],
+        publications = const [],
+        linkedinUrl = null,
+        googleScholar = null,
+        subjectsCount = 0,
+        menteesCount = 0;
+
   factory FacultyProfileModel.fromJson(Map<String, dynamic> json) {
     return FacultyProfileModel(
       id: json['id'] as String? ?? '',
@@ -849,6 +894,17 @@ class FacultyAcademicContext {
     required this.classes,
     required this.todaySchedule,
   });
+
+  const FacultyAcademicContext.empty()
+      : academicYear = '2026-27',
+        termName = 'Semester 1',
+        termType = 'ODD',
+        startDate = '',
+        endDate = '',
+        academicHeader = '2026–27 • Semester 1 | My Teaching',
+        assignedSubjects = const [],
+        classes = const [],
+        todaySchedule = const [];
 
   factory FacultyAcademicContext.fromJson(Map<String, dynamic> json) {
     final term = json['currentTerm'] as Map<String, dynamic>? ?? {};

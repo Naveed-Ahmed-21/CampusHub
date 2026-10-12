@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:socket_io_client/socket_io_client.dart' as socket_io;
-import '../config/app_config.dart';
+import '../constants/api_endpoints.dart';
 import '../storage/secure_storage_service.dart';
 
 final socketServiceProvider = Provider<SocketService>((ref) {
@@ -19,7 +19,7 @@ class SocketService {
     final token = await _storage.getAccessToken();
     
     _socket = socket_io.io(
-      AppConfig.socketUrl,
+      ApiEndpoints.baseUrl,
       socket_io.OptionBuilder()
           .setTransports(['websocket'])
           .disableAutoConnect()

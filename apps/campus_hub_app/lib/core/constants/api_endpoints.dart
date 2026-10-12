@@ -3,8 +3,8 @@ abstract class ApiEndpoints {
 
   static const List<String> candidateUrls = [
     'http://localhost:5000',
-    'http://172.18.15.11:5000',
     'http://10.0.2.2:5000',
+    'http://127.0.0.1:5000',
   ];
 
   static String get baseUrl {

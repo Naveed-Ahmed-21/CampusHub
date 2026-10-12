@@ -2,10 +2,16 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/constants/api_endpoints.dart';
 import '../providers/club_provider.dart';
 import 'create_club_dialog.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
+import '../../../../core/widgets/campus_app_bar.dart';
+import '../../../../core/widgets/campus_bottom_nav.dart';
+import '../../../../core/widgets/campus_glass_card.dart';
+import '../../../../core/widgets/campus_segmented_control.dart';
+import '../../../../core/widgets/campus_avatar.dart';
+import '../../../../core/widgets/atmospheric_background.dart';
+import '../../../../core/theme/app_colors.dart';
 
 class ClubsListView extends ConsumerStatefulWidget {
   final bool showAppBar;
@@ -71,11 +77,8 @@ class _ClubsListViewState extends ConsumerState<ClubsListView>
 
     return Scaffold(
       appBar: widget.showAppBar
-          ? AppBar(
-              title: const Text(
-                'Campus Clubs & Communities',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
+          ? CampusAppBar(
+              title: 'Campus Clubs & Communities',
               actions: [
                 if (isAdmin)
                   IconButton(
@@ -97,43 +100,23 @@ class _ClubsListViewState extends ConsumerState<ClubsListView>
         icon: const Icon(Icons.add),
         label: const Text('Create Club'),
       ),
-      body: Column(
-        children: [
-          // Scope Selector Tabs & Search Header
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-            child: Column(
-              children: [
-                // Top Scope Tabs: [ All Clubs ] [ My Department ]
-                SizedBox(
-                  width: double.infinity,
-                  child: SegmentedButton<bool>(
-                    showSelectedIcon: false,
-                    style: SegmentedButton.styleFrom(
-                      visualDensity: VisualDensity.compact,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      selectedBackgroundColor:
-                          theme.colorScheme.primaryContainer,
-                      selectedForegroundColor:
-                          theme.colorScheme.onPrimaryContainer,
-                    ),
-                    segments: const [
-                      ButtonSegment<bool>(
-                        value: false,
-                        label: Text('All Clubs',
-                            style: TextStyle(fontWeight: FontWeight.w600)),
-                        icon: Icon(Icons.public, size: 16),
-                      ),
-                      ButtonSegment<bool>(
-                        value: true,
-                        label: Text('My Department',
-                            style: TextStyle(fontWeight: FontWeight.w600)),
-                        icon: Icon(Icons.domain, size: 16),
-                      ),
+      body: AtmosphericBackground(
+        child: Column(
+          children: [
+            // Scope Selector Tabs & Search Header
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+              child: Column(
+                children: [
+                  // Top Scope Tabs: [ All Clubs ] [ My Department ]
+                  CampusSegmentedControl(
+                    selectedIndex: isDepartmentOnly ? 1 : 0,
+                    items: const [
+                      CampusSegmentItem(label: 'All Clubs'),
+                      CampusSegmentItem(label: 'My Department'),
                     ],
-                    selected: {isDepartmentOnly},
-                    onSelectionChanged: (Set<bool> newSelection) {
-                      final deptOnly = newSelection.first;
+                    onValueChanged: (idx) {
+                      final deptOnly = idx == 1;
                       ref.read(clubFilterProvider.notifier).state =
                           filter.copyWith(
                         departmentOnly: deptOnly,
@@ -142,34 +125,46 @@ class _ClubsListViewState extends ConsumerState<ClubsListView>
                       );
                     },
                   ),
-                ),
-                const SizedBox(height: 12),
+                  const SizedBox(height: 10),
 
-                // Search Bar with Debounce
-                TextField(
-                  controller: _searchController,
-                  decoration: InputDecoration(
-                    hintText: 'Search clubs by name or keywords...',
-                    prefixIcon: const Icon(Icons.search, size: 20),
-                    suffixIcon: _searchController.text.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(Icons.clear, size: 18),
-                            onPressed: () {
-                              _searchController.clear();
-                              ref.read(clubFilterProvider.notifier).state =
-                                  filter.copyWith(searchQuery: '');
-                            },
-                          )
-                        : null,
-                    border: OutlineInputBorder(
+                  // Search Bar with Debounce
+                  Container(
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: theme.brightness == Brightness.dark
+                          ? AppColors.darkSurface.withValues(alpha: 0.6)
+                          : AppColors.lightSurface.withValues(alpha: 0.8),
                       borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: theme.brightness == Brightness.dark
+                            ? Colors.white.withValues(alpha: 0.08)
+                            : Colors.black.withValues(alpha: 0.06),
+                      ),
                     ),
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 10),
+                    child: TextField(
+                      controller: _searchController,
+                      style: TextStyle(fontSize: 14, color: theme.colorScheme.onSurface),
+                      decoration: InputDecoration(
+                        hintText: 'Search clubs by name or keywords...',
+                        hintStyle: TextStyle(fontSize: 13, color: theme.colorScheme.onSurfaceVariant),
+                        prefixIcon: Icon(Icons.search, size: 18, color: theme.colorScheme.onSurfaceVariant),
+                        suffixIcon: _searchController.text.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear, size: 16),
+                                onPressed: () {
+                                  _searchController.clear();
+                                  ref.read(clubFilterProvider.notifier).state =
+                                      filter.copyWith(searchQuery: '');
+                                },
+                              )
+                            : null,
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                      ),
+                      onChanged: _onSearchChanged,
+                    ),
                   ),
-                  onChanged: _onSearchChanged,
-                ),
-                const SizedBox(height: 8),
+                  const SizedBox(height: 8),
 
                 // Category Chips
                 SizedBox(
@@ -240,66 +235,29 @@ class _ClubsListViewState extends ConsumerState<ClubsListView>
 
                 return ListView.builder(
                   key: const PageStorageKey<String>('clubs_list_scroll_key'),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  padding: EdgeInsets.fromLTRB(16, 6, 16, CampusBottomNav.getBottomClearance(context)),
                   itemCount: clubs.length,
                   itemBuilder: (context, index) {
                     final club = clubs[index];
                     final deptLabel =
                         club.departmentCode ?? club.departmentName;
 
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        side: BorderSide(
-                          color: theme.colorScheme.outlineVariant
-                              .withValues(alpha: 0.5),
-                        ),
-                      ),
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(14),
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: CampusGlassCard(
                         onTap: () => context.push('/clubs/${club.id}'),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  CircleAvatar(
-                                    radius: 26,
-                                    backgroundColor:
-                                        theme.colorScheme.primaryContainer,
-                                    backgroundImage: club.logoUrl != null &&
-                                            club.logoUrl!.isNotEmpty
-                                        ? NetworkImage(ApiEndpoints.resolveUrl(
-                                            club.logoUrl!))
-                                        : null,
-                                    onBackgroundImageError:
-                                        club.logoUrl != null &&
-                                                club.logoUrl!.isNotEmpty
-                                            ? (_, __) {}
-                                            : null,
-                                    child: club.logoUrl == null ||
-                                            club.logoUrl!.isEmpty
-                                        ? Text(
-                                            club.name.isNotEmpty
-                                                ? club.name
-                                                    .substring(0, 1)
-                                                    .toUpperCase()
-                                                : 'C',
-                                            style: TextStyle(
-                                              fontSize: 20,
-                                              fontWeight: FontWeight.bold,
-                                              color: theme.colorScheme
-                                                  .onPrimaryContainer,
-                                            ),
-                                          )
-                                        : null,
-                                  ),
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                CampusAvatar(
+                                  imageUrl: club.logoUrl,
+                                  name: club.name,
+                                  radius: 26,
+                                ),
                                   const SizedBox(width: 14),
                                   Expanded(
                                     child: Column(
@@ -473,28 +431,28 @@ class _ClubsListViewState extends ConsumerState<ClubsListView>
                             ],
                           ),
                         ),
+                      );
+                    },
+                  );
+                },
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (err, stack) => Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text('Failed to load clubs: $err'),
+                      const SizedBox(height: 12),
+                      ElevatedButton(
+                        onPressed: () => ref.invalidate(approvedClubsProvider),
+                        child: const Text('Retry'),
                       ),
-                    );
-                  },
-                );
-              },
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (err, stack) => Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text('Failed to load clubs: $err'),
-                    const SizedBox(height: 12),
-                    ElevatedButton(
-                      onPressed: () => ref.invalidate(approvedClubsProvider),
-                      child: const Text('Retry'),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

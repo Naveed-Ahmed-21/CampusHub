@@ -40,7 +40,7 @@ void main() {
     'email': 'po@campushub.edu',
     'firstName': 'David',
     'lastName': 'Miller',
-    'role': 'PLACEMENT_OFFICER',
+    'role': 'PLACEMENT',
     'collegeId': 'clg_1',
     'collegeName': 'Institute of Engineering',
   });
@@ -134,7 +134,7 @@ void main() {
 
       expect(find.text('Teaching'), findsWidgets);
       expect(find.text('Campus'), findsWidgets);
-      expect(find.text('CampusHub Faculty'), findsOneWidget);
+      expect(find.text('Faculty Hub'), findsOneWidget);
     });
 
     testWidgets('3. Admin Role - routes to /admin with metrics panel', (tester) async {

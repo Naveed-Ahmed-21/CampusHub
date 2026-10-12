@@ -5,6 +5,8 @@ import '../../domain/career_models.dart';
 import '../providers/career_provider.dart';
 import '../theme/career_theme.dart';
 import '../widgets/career_shared_widgets.dart';
+import '../../../../core/widgets/campus_back_button.dart';
+import '../../../../core/widgets/campus_app_bar.dart';
 import 'career_roadmap_view.dart';
 import 'create_roadmap_view.dart';
 import 'skill_graph_view.dart';
@@ -170,21 +172,9 @@ class _UserRoadmapsListViewState extends ConsumerState<UserRoadmapsListView> {
 
     return Scaffold(
       backgroundColor: CareerTheme.background,
-      appBar: AppBar(
-        backgroundColor: CareerTheme.background,
-        elevation: 0,
-        leading: BackButton(
-          color: Colors.white,
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: const Text(
-          'My Learning Roadmaps',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w700,
-            fontSize: 18,
-          ),
-        ),
+      appBar: CampusAppBar(
+        title: 'My Learning Roadmaps',
+        leading: const CampusBackButton(),
         actions: [
           IconButton(
             icon: const Icon(Icons.add_road_rounded, color: CareerTheme.primaryCyan),

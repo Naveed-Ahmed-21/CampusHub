@@ -18,6 +18,9 @@ import '../controllers/faculty_controller.dart';
 // import '../domain/models/faculty_models.dart';
 import '../widgets/add_subject_dialog.dart';
 import '../widgets/faculty_drawer_widget.dart';
+import '../../../../core/widgets/campus_app_bar.dart';
+
+import '../../../profile/presentation/widgets/profile_story_avatar.dart';
 
 class FacultyProfileView extends ConsumerWidget {
   const FacultyProfileView({super.key});
@@ -30,12 +33,15 @@ class FacultyProfileView extends ConsumerWidget {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       drawer: const FacultyDrawerWidget(),
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: theme.scaffoldBackgroundColor,
-        surfaceTintColor: Colors.transparent,
-        title: const Text('Faculty Profile',
-            style: TextStyle(fontWeight: FontWeight.bold)),
+      appBar: CampusAppBar(
+        title: 'Faculty Profile',
+        leading: Builder(
+          builder: (ctx) => IconButton(
+            icon: const Icon(Icons.menu),
+            tooltip: 'Open Drawer',
+            onPressed: () => Scaffold.of(ctx).openDrawer(),
+          ),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -357,80 +363,33 @@ class _FacultyHeroCard extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Avatar with camera action
-              Stack(
-                children: [
-                  Container(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: theme.colorScheme.primary.withValues(alpha: 0.3),
-                        width: 3,
-                      ),
-                    ),
-                    child: GestureDetector(
-                      onTap: () {
-                        if (profile.avatarUrl != null &&
-                            profile.avatarUrl!.isNotEmpty) {
-                          FullScreenImageViewer.openSingle(
-                            context,
-                            imageUrl: profile.avatarUrl!,
-                            heroTag: 'faculty_avatar_${profile.id}',
-                            title: profile.name,
-                            subtitle:
-                                '${profile.designation} • ${profile.department}',
-                          );
-                        }
-                      },
-                      child: Hero(
-                        tag: 'faculty_avatar_${profile.id}',
-                        child: CircleAvatar(
-                          radius: 42,
-                          backgroundColor: theme.colorScheme.primaryContainer,
-                          backgroundImage: profile.avatarUrl != null &&
-                                  profile.avatarUrl!.isNotEmpty
-                              ? NetworkImage(
-                                  ApiEndpoints.resolveUrl(profile.avatarUrl!))
-                              : null,
-                          child: profile.avatarUrl == null ||
-                                  profile.avatarUrl!.isEmpty
-                              ? Text(
-                                  profile.name.isNotEmpty
-                                      ? profile.name[0].toUpperCase()
-                                      : 'F',
-                                  style:
-                                      theme.textTheme.headlineLarge?.copyWith(
-                                    color: theme.colorScheme.onPrimaryContainer,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                )
-                              : null,
-                        ),
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    bottom: 0,
-                    right: 0,
-                    child: Material(
-                      color: theme.colorScheme.primary,
-                      shape: const CircleBorder(),
-                      elevation: 2,
-                      child: InkWell(
-                        customBorder: const CircleBorder(),
-                        onTap: pickAndUploadAvatar,
-                        child: Padding(
-                          padding: const EdgeInsets.all(6),
-                          child: Icon(
-                            Icons.camera_alt,
-                            size: 15,
-                            color: theme.colorScheme.onPrimary,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+              ProfileStoryAvatar(
+                userId: profile.id,
+                avatarUrl: profile.avatarUrl,
+                name: profile.name,
+                radius: 42,
+                heroTag: 'faculty_avatar_${profile.id}',
+                showCameraBadge: true,
+                onCameraTap: pickAndUploadAvatar,
+                fallbackOnTap: () {
+                  final hasAvatar = profile.avatarUrl != null &&
+                      profile.avatarUrl!.trim().isNotEmpty;
+                  if (hasAvatar) {
+                    FullScreenImageViewer.openSingle(
+                      context,
+                      imageUrl:
+                          ApiEndpoints.resolveUrl(profile.avatarUrl!.trim()),
+                      heroTag: 'faculty_avatar_${profile.id}',
+                      title: profile.name,
+                      subtitle:
+                          '${profile.designation} • ${profile.department}',
+                    );
+                  } else {
+                    pickAndUploadAvatar();
+                  }
+                },
               ),
+
               const SizedBox(width: 16),
 
               // Faculty Info details
@@ -782,10 +741,12 @@ class _SpecializationSection extends StatelessWidget {
               Icon(Icons.psychology_outlined,
                   color: theme.colorScheme.primary, size: 20),
               const SizedBox(width: 8),
-              Text(
-                'Areas of Interest & Specialization',
-                style: theme.textTheme.titleSmall
-                    ?.copyWith(fontWeight: FontWeight.bold),
+              Expanded(
+                child: Text(
+                  'Areas of Interest & Specialization',
+                  style: theme.textTheme.titleSmall
+                      ?.copyWith(fontWeight: FontWeight.bold),
+                ),
               ),
             ],
           ),
@@ -1233,10 +1194,12 @@ class _SocialLinksSection extends StatelessWidget {
                 Icon(Icons.link_rounded,
                     color: theme.colorScheme.primary, size: 20),
                 const SizedBox(width: 8),
-                Text(
-                  'Professional & Social Profiles',
-                  style: theme.textTheme.titleSmall
-                      ?.copyWith(fontWeight: FontWeight.bold),
+                Expanded(
+                  child: Text(
+                    'Professional & Social Profiles',
+                    style: theme.textTheme.titleSmall
+                        ?.copyWith(fontWeight: FontWeight.bold),
+                  ),
                 ),
               ],
             ),
@@ -1254,16 +1217,18 @@ class _SocialLinksSection extends StatelessWidget {
               subtitle: Text(
                 profile.linkedinUrl != null && profile.linkedinUrl!.isNotEmpty
                     ? profile.linkedinUrl!
-                    : 'linkedin.com/in/faculty-profile',
+                    : 'Not connected',
                 style: const TextStyle(fontSize: 11.5),
               ),
-              trailing: const Icon(Icons.open_in_new, size: 15),
-              onTap: () => UrlLauncherService.openUrl(
-                context,
-                profile.linkedinUrl != null && profile.linkedinUrl!.isNotEmpty
-                    ? profile.linkedinUrl!
-                    : 'https://linkedin.com',
-              ),
+              trailing: profile.linkedinUrl != null && profile.linkedinUrl!.isNotEmpty
+                  ? const Icon(Icons.open_in_new, size: 15)
+                  : null,
+              onTap: profile.linkedinUrl != null && profile.linkedinUrl!.isNotEmpty
+                  ? () => UrlLauncherService.openUrl(
+                        context,
+                        profile.linkedinUrl!,
+                      )
+                  : null,
             ),
             const Divider(height: 1),
             ListTile(
@@ -1280,17 +1245,18 @@ class _SocialLinksSection extends StatelessWidget {
                 profile.googleScholar != null &&
                         profile.googleScholar!.isNotEmpty
                     ? profile.googleScholar!
-                    : 'scholar.google.com/citations',
+                    : 'Not connected',
                 style: const TextStyle(fontSize: 11.5),
               ),
-              trailing: const Icon(Icons.open_in_new, size: 15),
-              onTap: () => UrlLauncherService.openUrl(
-                context,
-                profile.googleScholar != null &&
-                        profile.googleScholar!.isNotEmpty
-                    ? profile.googleScholar!
-                    : 'https://scholar.google.com',
-              ),
+              trailing: profile.googleScholar != null && profile.googleScholar!.isNotEmpty
+                  ? const Icon(Icons.open_in_new, size: 15)
+                  : null,
+              onTap: profile.googleScholar != null && profile.googleScholar!.isNotEmpty
+                  ? () => UrlLauncherService.openUrl(
+                        context,
+                        profile.googleScholar!,
+                      )
+                  : null,
             ),
           ],
         ),
@@ -1378,7 +1344,7 @@ class _SliverTabBarDelegate extends SliverPersistentHeaderDelegate {
 
   @override
   bool shouldRebuild(_SliverTabBarDelegate oldDelegate) {
-    return false;
+    return true;
   }
 }
 

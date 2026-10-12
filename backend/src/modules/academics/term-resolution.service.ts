@@ -59,6 +59,7 @@ export class TermResolutionService {
   async ensureAcademicStructure(collegeId: string): Promise<void> {
     const existingYears = await prisma.academicYear.findMany({
       where: { college_id: collegeId },
+      include: { terms: true },
     });
 
     if (existingYears.length === 0) {
@@ -122,6 +123,36 @@ export class TermResolutionService {
           },
         },
       });
+    } else {
+      // Ensure existing academic years have terms
+      for (const year of existingYears) {
+        if (!year.terms || year.terms.length === 0) {
+          const startYear = year.start_date.getFullYear();
+          const endYear = year.end_date.getFullYear();
+          await prisma.academicTerm.createMany({
+            data: [
+              {
+                academic_year_id: year.id,
+                name: 'Semester 1',
+                term_type: 'ODD',
+                semester_number: 1,
+                start_date: year.start_date,
+                end_date: new Date(`${startYear}-12-31`),
+                status: 'ACTIVE',
+              },
+              {
+                academic_year_id: year.id,
+                name: 'Semester 2',
+                term_type: 'EVEN',
+                semester_number: 2,
+                start_date: new Date(`${endYear}-01-01`),
+                end_date: year.end_date,
+                status: 'UPCOMING',
+              },
+            ],
+          });
+        }
+      }
     }
 
     // Ensure at least one AcademicProgram exists per department
@@ -146,6 +177,64 @@ export class TermResolutionService {
           },
         });
       }
+    }
+
+    // Ensure common engineering batches exist for the college
+    const commonBatches = [
+      { name: '2026-2030', admissionYear: 2026, graduationYear: 2030 },
+      { name: '2025-2029', admissionYear: 2025, graduationYear: 2029 },
+      { name: '2024-2028', admissionYear: 2024, graduationYear: 2028 },
+      { name: '2023-2027', admissionYear: 2023, graduationYear: 2027 },
+      { name: '2022-2026', admissionYear: 2022, graduationYear: 2026 },
+      { name: '2021-2025', admissionYear: 2021, graduationYear: 2025 },
+      { name: '2020-2024', admissionYear: 2020, graduationYear: 2024 },
+    ];
+
+    for (const b of commonBatches) {
+      const exists = await prisma.batch.findFirst({
+        where: {
+          college_id: collegeId,
+          name: b.name,
+        },
+      });
+      if (!exists) {
+        await prisma.batch.create({
+          data: {
+            college_id: collegeId,
+            name: b.name,
+            admission_year: b.admissionYear,
+            graduation_year: b.graduationYear,
+            status: 'ACTIVE',
+            department_id: null,
+          },
+        });
+      }
+    }
+  }
+
+  /**
+   * Calculates the student's study year (1..5) from their admission year / batch
+   * following Anna University's academic calendar (June to May cycle).
+   */
+  calculateYearFromBatch(admissionYear: number, targetDate: Date = new Date()): {
+    currentYear: number;
+    yearLabel: string;
+    isGraduated: boolean;
+  } {
+    const month = targetDate.getMonth() + 1; // 1-12
+    const acadStartYear = month >= 6 ? targetDate.getFullYear() : targetDate.getFullYear() - 1;
+    const diff = acadStartYear - admissionYear + 1;
+
+    if (diff <= 1) {
+      return { currentYear: 1, yearLabel: '1st Year', isGraduated: false };
+    } else if (diff === 2) {
+      return { currentYear: 2, yearLabel: '2nd Year', isGraduated: false };
+    } else if (diff === 3) {
+      return { currentYear: 3, yearLabel: '3rd Year', isGraduated: false };
+    } else if (diff === 4) {
+      return { currentYear: 4, yearLabel: '4th Year', isGraduated: false };
+    } else {
+      return { currentYear: 5, yearLabel: 'Graduated', isGraduated: true };
     }
   }
 
@@ -208,7 +297,7 @@ export class TermResolutionService {
     }
 
     // 3. Fallback to latest created term
-    const latestTerm = await prisma.academicTerm.findFirst({
+    let latestTerm: any = await prisma.academicTerm.findFirst({
       where: {
         academic_year: { college_id: collegeId },
       },
@@ -219,7 +308,35 @@ export class TermResolutionService {
     });
 
     if (!latestTerm) {
-      throw new Error('No academic terms found for college');
+      let activeYear = await prisma.academicYear.findFirst({
+        where: { college_id: collegeId },
+      });
+      if (!activeYear) {
+        activeYear = await prisma.academicYear.create({
+          data: {
+            college_id: collegeId,
+            year_name: '2026-27',
+            start_date: new Date('2026-06-01'),
+            end_date: new Date('2027-05-31'),
+            is_active: true,
+          },
+        });
+      }
+
+      latestTerm = await prisma.academicTerm.create({
+        data: {
+          academic_year_id: activeYear.id,
+          name: 'Semester 1',
+          term_type: 'ODD',
+          semester_number: 1,
+          start_date: new Date('2026-06-01'),
+          end_date: new Date('2026-12-31'),
+          status: 'ACTIVE',
+        },
+        include: {
+          academic_year: true,
+        },
+      });
     }
 
     return {
@@ -307,7 +424,9 @@ export class TermResolutionService {
     const ayStartYear = ayMatch ? parseInt(ayMatch[1], 10) : new Date(currentTerm.startDate).getFullYear();
 
     const rawYear = ayStartYear - admissionYear + 1;
-    const yearOfStudy = Math.max(1, Math.min(rawYear, Math.ceil(totalSemesters / 2)));
+    const isGraduated = profile.current_status === 'GRADUATED' || rawYear > Math.ceil(totalSemesters / 2);
+    const effectiveYear = profile.current_year || (isGraduated ? 5 : Math.max(1, Math.min(rawYear, Math.ceil(totalSemesters / 2))));
+    const yearOfStudy = Math.min(effectiveYear, Math.ceil(totalSemesters / 2));
 
     // Term 1 (June–Dec) is ODD; Term 2 (Jan–May) is EVEN
     const isOdd = currentTerm.termType === 'ODD' || currentTerm.semesterNumber === 1;
@@ -332,6 +451,10 @@ export class TermResolutionService {
     const deptCode = student.department?.code || 'GEN';
     const section = profile.section || 'A';
 
+    const yearLabel = (isGraduated || effectiveYear >= 5)
+      ? 'Graduated'
+      : (effectiveYear === 1 ? '1st Year' : effectiveYear === 2 ? '2nd Year' : effectiveYear === 3 ? '3rd Year' : '4th Year');
+
     return {
       studentId: student.id,
       admissionYear,
@@ -343,18 +466,145 @@ export class TermResolutionService {
       departmentName: student.department?.name || 'Academic Department',
       departmentCode: deptCode,
       section,
-      yearOfStudy: derivedYearOfStudy,
-      yearRoman,
-      yearLabel: `${yearRoman} Year`,
+      yearOfStudy: isGraduated ? 5 : derivedYearOfStudy,
+      yearRoman: isGraduated ? 'Graduated' : yearRoman,
+      yearLabel,
       semester: finalSemester,
       semesterRoman,
-      semesterLabel: `${semesterRoman} Semester`,
+      semesterLabel: isGraduated ? 'Graduated' : `${semesterRoman} Semester`,
       academicYear: currentTerm.academicYear,
       academicTerm: currentTerm.termName,
-      academicHeader: `${yearRoman} Year • ${semesterRoman} Semester | ${currentTerm.academicYear} | ${deptCode} • Section ${section}`,
-      status: profile.current_status,
+      academicHeader: isGraduated
+        ? `Graduated | Batch ${profile.batch_name || `${admissionYear}-${admissionYear + 4}`} | ${deptCode}`
+        : `${yearLabel} • ${semesterRoman} Semester | ${currentTerm.academicYear} | ${deptCode}`,
+      status: isGraduated ? 'GRADUATED' : profile.current_status,
       hasOverride: !!override,
       overrideReason: override?.reason || undefined,
+    };
+  }
+
+  /**
+   * Idempotent Academic Year Transition Process.
+   * Advances active students:
+   *   1st Year -> 2nd Year
+   *   2nd Year -> 3rd Year
+   *   3rd Year -> 4th Year
+   *   4th Year -> Graduated
+   * If already processed for this academic year, skips execution.
+   */
+  async processYearTransition(collegeId: string, academicYearId: string, actorUserId?: string): Promise<{
+    success: boolean;
+    alreadyProcessed: boolean;
+    academicYear: string;
+    studentsAffected: number;
+    graduatedCount: number;
+    message: string;
+  }> {
+    const academicYear = await prisma.academicYear.findUnique({
+      where: { id: academicYearId },
+    });
+    if (!academicYear || academicYear.college_id !== collegeId) {
+      throw new Error('Academic year not found');
+    }
+
+    // 1. Check if transition already processed (idempotency guard)
+    const existing = await prisma.academicTransitionRecord.findUnique({
+      where: {
+        college_id_academic_year_id: {
+          college_id: collegeId,
+          academic_year_id: academicYearId,
+        },
+      },
+    });
+
+    if (existing) {
+      return {
+        success: true,
+        alreadyProcessed: true,
+        academicYear: academicYear.year_name,
+        studentsAffected: existing.students_affected,
+        graduatedCount: existing.graduated_count,
+        message: `Academic year transition for ${academicYear.year_name} was already processed on ${existing.processed_at.toISOString().split('T')[0]}.`,
+      };
+    }
+
+    // 2. Parse academic year start (e.g. "2026-27" -> 2026)
+    const ayMatch = academicYear.year_name.match(/^(\d{4})/);
+    const ayStartYear = ayMatch ? parseInt(ayMatch[1], 10) : new Date(academicYear.start_date).getFullYear();
+
+    // 3. Find all students in college
+    const students = await prisma.user.findMany({
+      where: {
+        college_id: collegeId,
+        role: 'STUDENT',
+        status: { not: 'DEACTIVATED' },
+      },
+      include: {
+        academic_profile: {
+          include: { program: true },
+        },
+      },
+    });
+
+    let studentsAffected = 0;
+    let graduatedCount = 0;
+
+    for (const student of students) {
+      const profile = student.academic_profile;
+      if (!profile) continue;
+
+      if (profile.current_status === 'GRADUATED') {
+        continue;
+      }
+
+      const admissionYear = profile.admission_year;
+      const totalSemesters = profile.program?.total_semesters || 8;
+      const maxYear = Math.ceil(totalSemesters / 2);
+
+      const newYearOfStudy = ayStartYear - admissionYear + 1;
+
+      if (newYearOfStudy > maxYear) {
+        // Mark as Graduated
+        await prisma.studentAcademicProfile.update({
+          where: { id: profile.id },
+          data: {
+            current_status: 'GRADUATED',
+            current_year: maxYear + 1,
+          },
+        });
+        graduatedCount++;
+        studentsAffected++;
+      } else {
+        await prisma.studentAcademicProfile.update({
+          where: { id: profile.id },
+          data: {
+            current_year: newYearOfStudy,
+          },
+        });
+        studentsAffected++;
+      }
+    }
+
+    // 4. Record transition
+    await prisma.academicTransitionRecord.create({
+      data: {
+        college_id: collegeId,
+        academic_year_id: academicYearId,
+        academic_year: academicYear.year_name,
+        processed_by: actorUserId,
+        students_affected: studentsAffected,
+        graduated_count: graduatedCount,
+        notes: `Automated progression transition for academic calendar year ${academicYear.year_name}.`,
+      },
+    });
+
+    return {
+      success: true,
+      alreadyProcessed: false,
+      academicYear: academicYear.year_name,
+      studentsAffected,
+      graduatedCount,
+      message: `Academic year transition completed successfully for ${academicYear.year_name}. ${studentsAffected} students progressed (${graduatedCount} graduated).`,
     };
   }
 
@@ -418,3 +668,5 @@ export class TermResolutionService {
     }
   }
 }
+
+export const termResolutionService = new TermResolutionService();

@@ -85,6 +85,11 @@ class FeedRemoteDataSource {
     await _dio.delete('/api/v1/posts/$postId');
   }
 
+  Future<PostItem> getPostById(String postId) async {
+    final response = await _dio.get('/api/v1/posts/$postId');
+    return PostItem.fromJson(response.data['data']);
+  }
+
   Future<PostItem> updatePost(String postId, {String? title, String? content}) async {
     final response = await _dio.patch('/api/v1/posts/$postId', data: {
       if (title != null) 'title': title,
@@ -97,4 +102,9 @@ class FeedRemoteDataSource {
 final feedRemoteDataSourceProvider = Provider<FeedRemoteDataSource>((ref) {
   final dio = ref.watch(dioClientProvider);
   return FeedRemoteDataSource(dio);
+});
+
+final postByIdProvider = FutureProvider.family<PostItem, String>((ref, postId) async {
+  final ds = ref.watch(feedRemoteDataSourceProvider);
+  return ds.getPostById(postId);
 });

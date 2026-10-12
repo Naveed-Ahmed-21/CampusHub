@@ -15,7 +15,8 @@ export const postsRouter = Router();
 postsRouter.use(requireAuth());
 
 postsRouter.get('/', validateRequest(queryPostsSchema), postsController.getFeed);
-postsRouter.post('/', requireRole('STUDENT', 'FACULTY', 'PLACEMENT_OFFICER', 'ADMIN'), validateRequest(createPostSchema), postsController.createPost);
+postsRouter.get('/:postId', postsController.getPostById);
+postsRouter.post('/', requireRole('STUDENT', 'FACULTY', 'PLACEMENT', 'ADMIN', 'DEPT_ADMIN'), validateRequest(createPostSchema), postsController.createPost);
 postsRouter.patch('/:postId', validateRequest(updatePostSchema), postsController.updatePost);
 postsRouter.delete('/:postId', postsController.deletePost);
 postsRouter.post('/:postId/like', postsController.toggleLike);

@@ -27,6 +27,18 @@ class SocketChatService {
       StreamController<Map<String, dynamic>>.broadcast();
   final _notificationStreamController =
       StreamController<NotificationModel>.broadcast();
+  final _chatRequestCreatedController =
+      StreamController<ChatRequestModel>.broadcast();
+  final _chatRequestAcceptedController =
+      StreamController<Map<String, dynamic>>.broadcast();
+  final _chatRequestDeclinedController =
+      StreamController<Map<String, dynamic>>.broadcast();
+  final _chatRequestCancelledController =
+      StreamController<Map<String, dynamic>>.broadcast();
+  final _chatBlockedController =
+      StreamController<Map<String, dynamic>>.broadcast();
+  final _chatUnblockedController =
+      StreamController<Map<String, dynamic>>.broadcast();
 
   Stream<ChatMessageModel> get onNewMessage => _messageStreamController.stream;
   Stream<Map<String, dynamic>> get onTypingChange =>
@@ -41,6 +53,18 @@ class SocketChatService {
       _deletedMessageStreamController.stream;
   Stream<NotificationModel> get onNewNotification =>
       _notificationStreamController.stream;
+  Stream<ChatRequestModel> get onChatRequestCreated =>
+      _chatRequestCreatedController.stream;
+  Stream<Map<String, dynamic>> get onChatRequestAccepted =>
+      _chatRequestAcceptedController.stream;
+  Stream<Map<String, dynamic>> get onChatRequestDeclined =>
+      _chatRequestDeclinedController.stream;
+  Stream<Map<String, dynamic>> get onChatRequestCancelled =>
+      _chatRequestCancelledController.stream;
+  Stream<Map<String, dynamic>> get onChatBlocked =>
+      _chatBlockedController.stream;
+  Stream<Map<String, dynamic>> get onChatUnblocked =>
+      _chatUnblockedController.stream;
 
   SocketChatService(this._storage);
 
@@ -48,7 +72,13 @@ class SocketChatService {
     final token = await _storage.getAccessToken();
     if (token == null) return;
 
-    if (_socket != null && _socket!.connected) return;
+    if (_socket != null) {
+      try {
+        _socket!.disconnect();
+        _socket!.dispose();
+      } catch (_) {}
+      _socket = null;
+    }
 
     _socket = io.io(
       ApiEndpoints.baseUrl,
@@ -71,14 +101,24 @@ class SocketChatService {
 
           final currentUserId = await _storage.getUserId();
           if (currentUserId != null && message.senderId != currentUserId) {
+            String previewText = message.message;
+            if (previewText.isEmpty) {
+              if (message.mediaType == 'IMAGE') {
+                previewText = '📷 Photo';
+              } else if (message.mediaType == 'VIDEO') {
+                previewText = '🎬 Video';
+              } else if (message.mediaType == 'DOCUMENT') {
+                previewText = '📄 ${message.fileName ?? "Document"}';
+              } else {
+                previewText = 'Sent an attachment';
+              }
+            }
             LocalNotificationService.showNotification(
               id: message.id.hashCode,
               title: message.senderName.isNotEmpty
                   ? message.senderName
                   : 'New message',
-              body: message.message.isNotEmpty
-                  ? message.message
-                  : 'Sent an attachment',
+              body: previewText,
               category: 'Chat',
               payload: '/chat/${message.roomId}',
             );
@@ -125,10 +165,14 @@ class SocketChatService {
       }
     });
 
-    _socket!.on('new_notification', (data) {
+    _socket!.on('new_notification', (data) async {
       if (data != null && data is Map<String, dynamic>) {
         try {
           final notif = NotificationModel.fromJson(data);
+          final currentUserId = await _storage.getUserId();
+          if (notif.userId.isNotEmpty && currentUserId != null && notif.userId != currentUserId) {
+            return;
+          }
           _notificationStreamController.add(notif);
           LocalNotificationService.showNotification(
             id: notif.id.hashCode,
@@ -140,6 +184,69 @@ class SocketChatService {
         } catch (e) {
           debugPrint('⚠️ Error parsing incoming notification: $e');
         }
+      }
+    });
+
+    _socket!.on('chat.request.created', (data) async {
+      if (data != null && data is Map<String, dynamic>) {
+        try {
+          final req = ChatRequestModel.fromJson(data);
+          _chatRequestCreatedController.add(req);
+
+          final currentUserId = await _storage.getUserId();
+          if (currentUserId != null && req.senderId != currentUserId) {
+            LocalNotificationService.showNotification(
+              id: req.id.hashCode,
+              title: 'New Chat Request',
+              body: '${req.sender?.fullName ?? "A student"} wants to start a conversation with you',
+              category: 'Chat',
+              payload: '/chat/requests',
+            );
+          }
+        } catch (e) {
+          debugPrint('⚠️ Error parsing incoming chat request: $e');
+        }
+      }
+    });
+
+    _socket!.on('chat.request.accepted', (data) async {
+      if (data != null && data is Map<String, dynamic>) {
+        try {
+          _chatRequestAcceptedController.add(data);
+          final senderName = data['senderName'] ?? data['recipientName'] ?? 'Student';
+          final roomId = data['roomId']?.toString() ?? '';
+          LocalNotificationService.showNotification(
+            id: DateTime.now().millisecondsSinceEpoch.remainder(100000),
+            title: 'Chat Request Accepted',
+            body: '$senderName accepted your chat request! Tap to start chatting.',
+            category: 'Chat',
+            payload: roomId.isNotEmpty ? '/chat/$roomId' : '/chat',
+          );
+        } catch (_) {}
+      }
+    });
+
+    _socket!.on('chat.request.declined', (data) {
+      if (data != null && data is Map<String, dynamic>) {
+        _chatRequestDeclinedController.add(data);
+      }
+    });
+
+    _socket!.on('chat.request.cancelled', (data) {
+      if (data != null && data is Map<String, dynamic>) {
+        _chatRequestCancelledController.add(data);
+      }
+    });
+
+    _socket!.on('chat.blocked', (data) {
+      if (data != null && data is Map<String, dynamic>) {
+        _chatBlockedController.add(data);
+      }
+    });
+
+    _socket!.on('chat.unblocked', (data) {
+      if (data != null && data is Map<String, dynamic>) {
+        _chatUnblockedController.add(data);
       }
     });
 
@@ -222,6 +329,12 @@ class SocketChatService {
     _reactionStreamController.close();
     _deletedMessageStreamController.close();
     _notificationStreamController.close();
+    _chatRequestCreatedController.close();
+    _chatRequestAcceptedController.close();
+    _chatRequestDeclinedController.close();
+    _chatRequestCancelledController.close();
+    _chatBlockedController.close();
+    _chatUnblockedController.close();
   }
 }
 

@@ -16,11 +16,9 @@ class _AddSubjectDialogState extends ConsumerState<AddSubjectDialog> {
   final _formKey = GlobalKey<FormState>();
   final _codeController = TextEditingController();
   final _nameController = TextEditingController();
-  final _departmentController =
-      TextEditingController(text: 'Computer Science & Engineering');
   final _descriptionController = TextEditingController();
   String _selectedSemester = 'Semester 5';
-  String _selectedSection = 'A';
+  String _selectedSection = 'Year 1';
   int _credits = 4;
   bool _isSubmitting = false;
 
@@ -35,18 +33,47 @@ class _AddSubjectDialogState extends ConsumerState<AddSubjectDialog> {
     'Semester 8',
   ];
 
-  final List<String> _sections = ['A', 'B', 'C', 'D'];
+  final List<String> _sections = ['Year 1', 'Year 2', 'Year 3', 'Year 4'];
+
+  final List<String> _departments = [
+    'Computer Science & Engineering',
+    'Information Technology',
+    'Electronics & Communication Engineering',
+    'Electrical & Electronics Engineering',
+    'Mechanical Engineering',
+    'Civil Engineering',
+    'Automobile Engineering',
+  ];
+  late String _selectedDepartment;
 
   bool get isEditing => widget.subjectToEdit != null;
 
   @override
   void initState() {
     super.initState();
+    final facultyProfile = ref.read(facultyProfileProvider).asData?.value;
+    String initialDept = 'Computer Science & Engineering';
+    if (widget.subjectToEdit != null) {
+      initialDept = widget.subjectToEdit!.department;
+    } else if (facultyProfile != null && facultyProfile.department.isNotEmpty) {
+      initialDept = facultyProfile.department.trim();
+    }
+
+    final matchDept = _departments.firstWhere(
+      (d) =>
+          d.toLowerCase() == initialDept.toLowerCase() ||
+          d.toLowerCase().contains(initialDept.toLowerCase()),
+      orElse: () => initialDept,
+    );
+    if (!_departments.contains(matchDept)) {
+      _departments.add(matchDept);
+    }
+    _selectedDepartment = matchDept;
+
     if (widget.subjectToEdit != null) {
       final s = widget.subjectToEdit!;
       _codeController.text = s.code;
       _nameController.text = s.name;
-      _departmentController.text = s.department;
       _descriptionController.text = s.description ?? '';
       _credits = s.credits;
 
@@ -57,11 +84,20 @@ class _AddSubjectDialogState extends ConsumerState<AddSubjectDialog> {
         _selectedSemester = s.semester;
       }
 
-      if (_sections.contains(s.section)) {
-        _selectedSection = s.section;
+      final mappedSec = s.section == 'A'
+          ? 'Year 1'
+          : s.section == 'B'
+              ? 'Year 2'
+              : s.section == 'C'
+                  ? 'Year 3'
+                  : s.section == 'D'
+                      ? 'Year 4'
+                      : s.section;
+      if (_sections.contains(mappedSec)) {
+        _selectedSection = mappedSec;
       } else {
-        _sections.add(s.section);
-        _selectedSection = s.section;
+        _sections.add(mappedSec);
+        _selectedSection = mappedSec;
       }
     }
   }
@@ -70,7 +106,6 @@ class _AddSubjectDialogState extends ConsumerState<AddSubjectDialog> {
   void dispose() {
     _codeController.dispose();
     _nameController.dispose();
-    _departmentController.dispose();
     _descriptionController.dispose();
     super.dispose();
   }
@@ -90,7 +125,7 @@ class _AddSubjectDialogState extends ConsumerState<AddSubjectDialog> {
                 semester: _selectedSemester,
                 section: _selectedSection,
                 credits: _credits,
-                departmentName: _departmentController.text.trim(),
+                departmentName: _selectedDepartment,
                 description: _descriptionController.text.trim().isNotEmpty
                     ? _descriptionController.text.trim()
                     : null,
@@ -103,7 +138,7 @@ class _AddSubjectDialogState extends ConsumerState<AddSubjectDialog> {
                 semester: _selectedSemester,
                 section: _selectedSection,
                 credits: _credits,
-                departmentName: _departmentController.text.trim(),
+                departmentName: _selectedDepartment,
                 description: _descriptionController.text.trim().isNotEmpty
                     ? _descriptionController.text.trim()
                     : null,
@@ -247,7 +282,7 @@ class _AddSubjectDialogState extends ConsumerState<AddSubjectDialog> {
                           initialValue: _selectedSection,
                           isExpanded: true,
                           decoration: InputDecoration(
-                            labelText: 'Section',
+                            labelText: 'Year',
                             border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12)),
                           ),
@@ -271,14 +306,27 @@ class _AddSubjectDialogState extends ConsumerState<AddSubjectDialog> {
                   Row(
                     children: [
                       Expanded(
-                        child: TextFormField(
-                          controller: _departmentController,
+                        child: DropdownButtonFormField<String>(
+                          initialValue: _selectedDepartment,
+                          isExpanded: true,
                           decoration: InputDecoration(
-                            labelText: 'Department',
+                            labelText: 'Department *',
                             border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12)),
                             prefixIcon: const Icon(Icons.apartment),
                           ),
+                          items: _departments
+                              .map((d) => DropdownMenuItem(
+                                    value: d,
+                                    child: Text(d,
+                                        overflow: TextOverflow.ellipsis),
+                                  ))
+                              .toList(),
+                          onChanged: (val) {
+                            if (val != null) {
+                              setState(() => _selectedDepartment = val);
+                            }
+                          },
                         ),
                       ),
                       const SizedBox(width: 12),

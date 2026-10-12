@@ -36,8 +36,39 @@ export class AuthController {
     res.status(200).json({ success: true, ...result });
   });
 
+  verifyForgotPasswordOtp = asyncHandler(async (req: Request, res: Response) => {
+    const result = await this.authService.verifyForgotPasswordOtp(req.body);
+    res.status(200).json({ success: true, data: result });
+  });
+
+  checkStatus = asyncHandler(async (req: Request, res: Response) => {
+    const result = await this.authService.checkStatus(req.body.email);
+    res.status(200).json({ success: true, data: result });
+  });
+
+  setupPassword = asyncHandler(async (req: Request, res: Response) => {
+    const result = await this.authService.setupPassword(req.body);
+    res.status(200).json({ success: true, data: result });
+  });
+
+  sendFirstLoginOtp = asyncHandler(async (req: Request, res: Response) => {
+    const result = await this.authService.sendFirstLoginOtp(req.body);
+    res.status(200).json({ success: true, data: result });
+  });
+
+  verifyFirstLoginOtp = asyncHandler(async (req: Request, res: Response) => {
+    const result = await this.authService.verifyFirstLoginOtp(req.body);
+    res.status(200).json({ success: true, data: result });
+  });
+
   getMe = asyncHandler(async (req: Request, res: Response) => {
     const user = await this.authService.getMe(req.user!.userId);
     res.status(200).json({ success: true, data: user });
   });
+
+  changePassword = asyncHandler(async (req: Request, res: Response) => {
+    await this.authService.changePassword(req.user!.userId, req.body);
+    res.status(200).json({ success: true, message: 'Password changed successfully' });
+  });
 }
+

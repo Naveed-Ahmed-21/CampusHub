@@ -4,6 +4,9 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/theme/theme_notifier.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../feed/presentation/controllers/feed_controller.dart';
+import '../../../chat/presentation/providers/chat_provider.dart';
+import '../../../../core/widgets/campus_back_button.dart';
+import '../../../../core/widgets/campus_app_bar.dart';
 
 class SettingsView extends ConsumerStatefulWidget {
   const SettingsView({super.key});
@@ -96,14 +99,15 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
     final theme = Theme.of(context);
     final currentThemeMode = ref.watch(themeNotifierProvider);
     final currentFeedType = ref.watch(activeFeedTypeProvider);
+    final authUser = ref.watch(authControllerProvider).asData?.value;
+    final isStudent = authUser?.role == 'STUDENT';
+    final studentSettings = ref.watch(studentChatSettingsProvider);
+    final requireApproval = studentSettings.value?.requireStudentConversationApproval ?? false;
 
     return Scaffold(
-      backgroundColor: theme.colorScheme.surface,
-      appBar: AppBar(
-        title: const Text('Settings & Preferences'),
-        backgroundColor: theme.colorScheme.surface,
-        elevation: 0,
-        scrolledUnderElevation: 0,
+      appBar: const CampusAppBar(
+        leading: CampusBackButton(),
+        title: 'Settings & Preferences',
       ),
       body: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -252,6 +256,34 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
             ),
             child: Column(
               children: [
+                if (isStudent) ...[
+                  SwitchListTile(
+                    value: requireApproval,
+                    activeTrackColor: theme.colorScheme.primary,
+                    title: const Text(
+                      'Require approval for new student conversations',
+                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                    ),
+                    subtitle: const Text(
+                      'When enabled, another student must send you a chat request before starting a new conversation. Faculty and authorized staff can still contact you directly.',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    onChanged: (val) async {
+                      try {
+                        await ref
+                            .read(studentChatSettingsProvider.notifier)
+                            .updateApprovalSetting(val);
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Failed to update chat approval setting: $e')),
+                          );
+                        }
+                      }
+                    },
+                  ),
+                  Divider(height: 1, color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3)),
+                ],
                 SwitchListTile(
                   value: _showOnlineStatus,
                   activeTrackColor: theme.colorScheme.primary,

@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/constants/api_endpoints.dart';
+import '../../../../core/utils/app_date_formatter.dart';
+import '../../../../core/widgets/campus_avatar.dart';
+import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../domain/models/post_item.dart';
 import '../../data/repositories/feed_repository_impl.dart';
 import '../controllers/feed_controller.dart';
@@ -18,6 +20,7 @@ class PostCommentsSheet extends ConsumerStatefulWidget {
   static Future<void> show(BuildContext context, String postId) {
     return showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => PostCommentsSheet(postId: postId),
@@ -184,8 +187,14 @@ class _PostCommentsSheetState extends ConsumerState<PostCommentsSheet> {
   }
 
   void _navigateToProfile(BuildContext context, String userId) {
-    if (userId.trim().isEmpty) return;
-    context.push('/profile/${userId.trim()}');
+    final cleanId = userId.trim();
+    if (cleanId.isEmpty) return;
+    final currentUserId = ref.read(authControllerProvider).asData?.value?.id;
+    if (currentUserId != null && currentUserId == cleanId) {
+      context.push('/profile');
+    } else {
+      context.push('/profile/$cleanId');
+    }
   }
 
   void _showAuthorDetails(BuildContext context, PostAuthorItem author) {
@@ -197,21 +206,10 @@ class _PostCommentsSheetState extends ConsumerState<PostCommentsSheet> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Row(
           children: [
-            CircleAvatar(
+            CampusAvatar(
+              imageUrl: author.avatarUrl,
+              name: author.name,
               radius: 20,
-              backgroundColor: theme.colorScheme.primaryContainer,
-              backgroundImage: author.avatarUrl != null && author.avatarUrl!.isNotEmpty
-                  ? NetworkImage(ApiEndpoints.resolveUrl(author.avatarUrl!))
-                  : null,
-              child: author.avatarUrl == null || author.avatarUrl!.isEmpty
-                  ? Text(
-                      author.name.isNotEmpty ? author.name[0].toUpperCase() : 'U',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: theme.colorScheme.onPrimaryContainer,
-                      ),
-                    )
-                  : null,
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -310,14 +308,7 @@ class _PostCommentsSheetState extends ConsumerState<PostCommentsSheet> {
   }
 
   String _formatTime(String dateStr) {
-    final date = DateTime.tryParse(dateStr);
-    if (date == null) return dateStr;
-    final diff = DateTime.now().difference(date);
-    if (diff.inMinutes < 1) return 'Just now';
-    if (diff.inMinutes < 60) return '${diff.inMinutes}m';
-    if (diff.inHours < 24) return '${diff.inHours}h';
-    if (diff.inDays < 7) return '${diff.inDays}d';
-    return '${date.day}/${date.month}';
+    return AppDateFormatter.formatFeedDate(dateStr);
   }
 
   @override
@@ -519,22 +510,10 @@ class _PostCommentsSheetState extends ConsumerState<PostCommentsSheet> {
               GestureDetector(
                 onTap: () => _navigateToProfile(context, comment.author.id),
                 onLongPress: () => _showAuthorDetails(context, comment.author),
-                child: CircleAvatar(
+                child: CampusAvatar(
+                  imageUrl: comment.author.avatarUrl,
+                  name: comment.author.name,
                   radius: isReply ? 14 : 17,
-                  backgroundColor: theme.colorScheme.primaryContainer,
-                  backgroundImage: comment.author.avatarUrl != null && comment.author.avatarUrl!.isNotEmpty
-                      ? NetworkImage(ApiEndpoints.resolveUrl(comment.author.avatarUrl!))
-                      : null,
-                  child: comment.author.avatarUrl == null || comment.author.avatarUrl!.isEmpty
-                      ? Text(
-                          comment.author.name.isNotEmpty ? comment.author.name[0].toUpperCase() : 'U',
-                          style: TextStyle(
-                            fontSize: isReply ? 11 : 13,
-                            fontWeight: FontWeight.bold,
-                            color: theme.colorScheme.onPrimaryContainer,
-                          ),
-                        )
-                      : null,
                 ),
               ),
               const SizedBox(width: 10),

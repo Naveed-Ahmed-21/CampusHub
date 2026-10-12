@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-import '../../data/chat_repository.dart';
-import '../providers/chat_provider.dart';
+import '../utils/chat_navigation_helper.dart';
 
 class StartDirectChatDialog extends ConsumerStatefulWidget {
   const StartDirectChatDialog({super.key});
@@ -27,23 +25,12 @@ class _StartDirectChatDialogState extends ConsumerState<StartDirectChatDialog> {
 
     setState(() => _isSubmitting = true);
     try {
-      final repo = ref.read(chatRepositoryProvider);
-      final room = await repo.getOrCreateDirectChat(targetId);
-      ref.invalidate(userChatRoomsProvider);
-
-      if (mounted) {
-        Navigator.of(context).pop();
-        context.push('/chat/room/${room.id}');
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to start chat: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      Navigator.of(context).pop();
+      await ChatNavigationHelper.startOrOpenDirectChat(
+        context,
+        ref,
+        targetUserId: targetId,
+      );
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }

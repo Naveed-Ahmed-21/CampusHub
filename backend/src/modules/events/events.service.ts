@@ -30,27 +30,11 @@ export class EventsService {
   }
 
   async getEventDetails(eventId: string) {
-    try {
-      const event = await this.eventsRepository.findEventById(eventId);
-      if (event) return event;
-    } catch (_) {
-      // Fallback
+    const event = await this.eventsRepository.findEventById(eventId);
+    if (!event) {
+      throw new NotFoundError('Event not found');
     }
-    return {
-      id: eventId,
-      title: 'Annual Tech Summit 2026',
-      description: 'Keynote speeches, AI panels, and competitive coding contests.',
-      location: 'Main Auditorium',
-      start_time: new Date(Date.now() + 86400000 * 3),
-      end_time: new Date(Date.now() + 86400000 * 3 + 14400000),
-      category: 'TECHNICAL',
-      event_scope: 'COLLEGE',
-      banner_url: null,
-      max_capacity: 500,
-      registration_deadline: new Date(Date.now() + 86400000 * 2),
-      created_at: new Date(),
-      _count: { registrations: 142 },
-    };
+    return event;
   }
 
   async getCalendarEvents(collegeId: string, query: CalendarQueryDto) {

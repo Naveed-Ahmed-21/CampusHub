@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_glass.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/widgets/campus_glass_card.dart';
+import '../../../../core/widgets/campus_button.dart';
+import '../../../../core/widgets/campus_dialog.dart';
 import '../../domain/models/faculty_models.dart';
 import '../controllers/faculty_controller.dart';
 import 'add_edit_schedule_slot_dialog.dart';
@@ -13,56 +19,45 @@ class FacultyScheduleCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     if (slots.isEmpty) {
-      return Card(
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(
-              color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5)),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.event_available, size: 48, color: Colors.grey),
-              const SizedBox(height: 12),
-              const Text(
-                'No lecture slots scheduled for today 🎉',
-                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+      return CampusGlassCard(
+        intensity: GlassIntensity.subtle,
+        padding: AppSpacing.p20,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.event_available, size: 48, color: (isDark ? AppColors.secondaryCyan : AppColors.primaryBlue).withValues(alpha: 0.6)),
+            const SizedBox(height: 12),
+            const Text(
+              'No lecture slots scheduled for today 🎉',
+              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+            ),
+            const SizedBox(height: 16),
+            CampusButton(
+              onPressed: () => showDialog(
+                context: context,
+                builder: (ctx) => const AddEditScheduleSlotDialog(),
               ),
-              const SizedBox(height: 16),
-              FilledButton.icon(
-                onPressed: () => showDialog(
-                  context: context,
-                  builder: (ctx) => const AddEditScheduleSlotDialog(),
-                ),
-                icon: const Icon(Icons.add),
-                label: const Text('Add Class Slot'),
-              ),
-            ],
-          ),
+              icon: const Icon(Icons.add, size: 18),
+              label: 'Add Class Slot',
+              type: CampusButtonType.primary,
+            ),
+          ],
         ),
       );
     }
 
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(
-            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
+    return CampusGlassCard(
+      intensity: GlassIntensity.subtle,
+      padding: AppSpacing.p16,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
                 Row(
                   children: [
                     Container(
@@ -119,8 +114,7 @@ class FacultyScheduleCard extends ConsumerWidget {
             ...slots.map((slot) => _ScheduleItemTile(slot: slot)),
           ],
         ),
-      ),
-    );
+      );
   }
 }
 
@@ -132,19 +126,20 @@ class _ScheduleItemTile extends ConsumerWidget {
   Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete Schedule Slot'),
+      builder: (ctx) => CampusDialog(
+        title: 'Delete Schedule Slot',
         content: Text(
             'Are you sure you want to remove "${slot.subjectCode} - ${slot.subjectName}" from your schedule?'),
         actions: [
-          TextButton(
+          CampusButton(
+            label: 'Cancel',
+            type: CampusButtonType.ghost,
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
           ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+          CampusButton(
+            label: 'Delete',
+            type: CampusButtonType.danger,
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Delete'),
           ),
         ],
       ),

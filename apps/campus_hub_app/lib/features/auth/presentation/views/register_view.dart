@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import '../../../../shared/widgets/custom_button.dart';
 import '../../../../shared/widgets/custom_text_field.dart';
 import '../../../../shared/responsive/responsive_layout.dart';
+import '../../../../core/widgets/campus_back_button.dart';
+import '../../../../core/widgets/campus_app_bar.dart';
+import '../../../../core/widgets/atmospheric_background.dart';
 import '../controllers/auth_controller.dart';
 
 class RegisterView extends ConsumerStatefulWidget {
@@ -58,17 +60,17 @@ class _RegisterViewState extends ConsumerState<RegisterView> {
     final authState = ref.watch(authControllerProvider);
     final isLoading = authState.isLoading;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Create Account'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
+    return AtmosphericBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: const CampusAppBar(
+          title: 'Create Account',
+          leading: CampusBackButton(),
         ),
-      ),
-      body: ResponsiveLayout(
-        mobile: _buildMobileLayout(context, isLoading),
-        desktop: _buildDesktopLayout(context, isLoading),
+        body: ResponsiveLayout(
+          mobile: _buildMobileLayout(context, isLoading),
+          desktop: _buildDesktopLayout(context, isLoading),
+        ),
       ),
     );
   }

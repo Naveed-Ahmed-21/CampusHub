@@ -7,6 +7,8 @@ import '../providers/career_provider.dart';
 import '../theme/career_theme.dart';
 import '../widgets/ask_ai_doubt_sheet.dart';
 import '../widgets/career_shared_widgets.dart';
+import '../../../../core/widgets/campus_back_button.dart';
+import '../../../../core/widgets/campus_app_bar.dart';
 import 'adaptive_quiz_view.dart';
 import 'projects_evidence_view.dart';
 
@@ -125,34 +127,10 @@ class _LearningWorkspaceViewState extends ConsumerState<LearningWorkspaceView> {
 
     return Scaffold(
       backgroundColor: CareerTheme.background,
-      appBar: AppBar(
-        backgroundColor: CareerTheme.background,
-        elevation: 0,
-        leading: BackButton(
-          color: Colors.white,
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              widget.topic,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            Text(
-              '$roleTitle • Phase ${widget.phaseNumber}',
-              style: const TextStyle(fontSize: 11, color: CareerTheme.primaryCyan),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-        ),
+      appBar: CampusAppBar(
+        title: widget.topic,
+        subtitle: '$roleTitle • Phase ${widget.phaseNumber}',
+        leading: const CampusBackButton(),
       ),
       body: SafeArea(
         child: SingleChildScrollView(

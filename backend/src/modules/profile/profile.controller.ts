@@ -72,4 +72,44 @@ export class ProfileController {
     const profile = await this.profileService.removeProject(req.user!.userId, projectId);
     res.status(200).json({ success: true, data: profile });
   });
+
+  getOnboardingContext = asyncHandler(async (req: Request, res: Response) => {
+    const context = await this.profileService.getOnboardingContext(req.user!.userId);
+    res.status(200).json({ success: true, data: context });
+  });
+
+  submitOnboarding = asyncHandler(async (req: Request, res: Response) => {
+    const result = await this.profileService.submitOnboarding(req.user!.userId, req.body);
+    res.status(200).json({ success: true, message: 'Onboarding completed successfully', data: result });
+  });
+
+  getDetailedStudentProfile = asyncHandler(async (req: Request, res: Response) => {
+    const profile = await this.profileService.getDetailedStudentProfile(req.user!.userId);
+    res.status(200).json({ success: true, data: profile });
+  });
+
+  updateCareerProfile = asyncHandler(async (req: Request, res: Response) => {
+    const result = await this.profileService.updateCareerProfile(req.user!.userId, req.body);
+    res.status(200).json({ success: true, data: result });
+  });
+
+  createChangeRequest = asyncHandler(async (req: Request, res: Response) => {
+    const result = await this.profileService.createProfileChangeRequest(
+      req.user!.userId,
+      req.user!.collegeId,
+      req.body,
+    );
+    res.status(201).json({ success: true, message: 'Profile change request submitted', data: result });
+  });
+
+  getStudentChangeRequests = asyncHandler(async (req: Request, res: Response) => {
+    const result = await this.profileService.getStudentChangeRequests(req.user!.userId);
+    res.status(200).json({ success: true, data: result });
+  });
+
+  cancelChangeRequest = asyncHandler(async (req: Request, res: Response) => {
+    const result = await this.profileService.cancelChangeRequest(req.params.id, req.user!.userId);
+    res.status(200).json({ success: true, message: 'Change request cancelled', data: result });
+  });
 }
+

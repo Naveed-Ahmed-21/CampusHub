@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/branding/gcee_logo.dart';
+import '../../../../core/branding/gcee_brand.dart';
 import '../../../../features/auth/presentation/controllers/auth_controller.dart';
 import '../../../../features/notifications/presentation/providers/notifications_provider.dart';
 import '../../../../features/chat/presentation/providers/chat_provider.dart';
+import '../../../../core/widgets/campus_avatar.dart';
+import '../controllers/faculty_controller.dart';
 
 class FacultyDrawerWidget extends ConsumerWidget {
   const FacultyDrawerWidget({super.key});
@@ -61,13 +65,77 @@ class FacultyDrawerWidget extends ConsumerWidget {
     final unreadChats = ref.watch(unreadChatsCountProvider);
     final unreadNotifications = ref.watch(unreadNotificationsCountProvider);
 
-    final facultyName = user != null ? '${user.firstName} ${user.lastName}' : 'Dr. Robert Taylor';
-    const facultyDept = 'Associate Professor • Computer Science';
+    final facultyProfile = ref.watch(facultyProfileProvider).asData?.value;
+    final facultyName = user != null && '${user.firstName} ${user.lastName}'.trim().isNotEmpty
+        ? '${user.firstName} ${user.lastName}'.trim()
+        : 'Faculty Member';
+    final facultyDept = (facultyProfile != null && facultyProfile.department.isNotEmpty)
+        ? '${facultyProfile.designation.isNotEmpty ? "${facultyProfile.designation} • " : ""}${facultyProfile.department}'
+        : 'Faculty Member';
+    final userAvatar = user?.avatarUrl?.trim();
+    final profileAvatar = facultyProfile?.avatarUrl?.trim();
+    final hasUserAvatar = userAvatar != null && userAvatar.isNotEmpty;
 
     return Drawer(
       child: SafeArea(
         child: Column(
           children: [
+            // Institutional Branding Header
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+              child: Row(
+                children: [
+                  const GceeLogo(size: 38),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              GceeBrand.productName,
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: -0.2,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.primary.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                GceeBrand.institutionShort,
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold,
+                                  color: theme.colorScheme.primary,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          GceeBrand.institutionName,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                            fontSize: 10.5,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Divider(height: 1, color: theme.dividerColor.withValues(alpha: 0.15)),
+
             // Faculty Header Profile Box
             InkWell(
               onTap: () {
@@ -81,17 +149,10 @@ class FacultyDrawerWidget extends ConsumerWidget {
                 ),
                 child: Row(
                   children: [
-                    CircleAvatar(
+                    CampusAvatar(
+                      imageUrl: hasUserAvatar ? userAvatar : profileAvatar,
+                      name: facultyName,
                       radius: 26,
-                      backgroundColor: theme.colorScheme.primaryContainer,
-                      child: Text(
-                        facultyName.isNotEmpty ? facultyName[0].toUpperCase() : 'F',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: theme.colorScheme.primary,
-                          fontSize: 18,
-                        ),
-                      ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -105,9 +166,9 @@ class FacultyDrawerWidget extends ConsumerWidget {
                             overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 2),
-                          const Text(
+                          Text(
                             facultyDept,
-                            style: TextStyle(color: Colors.grey, fontSize: 11),
+                            style: const TextStyle(color: Colors.grey, fontSize: 11),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),

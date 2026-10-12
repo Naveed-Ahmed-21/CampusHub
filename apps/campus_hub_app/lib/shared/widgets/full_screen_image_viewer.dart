@@ -67,7 +67,7 @@ class FullScreenImageViewer extends StatefulWidget {
     String? customTitle,
   }) {
     if (images.isEmpty) return Future.value();
-    return Navigator.of(context).push(
+    return Navigator.of(context, rootNavigator: true).push(
       PageRouteBuilder(
         opaque: false,
         barrierDismissible: true,
@@ -289,7 +289,7 @@ class _FullScreenImageViewerState extends State<FullScreenImageViewer>
                         backgroundColor: Colors.black38,
                         radius: 20,
                         child: IconButton(
-                          icon: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
+                          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 18),
                           onPressed: () => Navigator.of(context).pop(),
                         ),
                       ),

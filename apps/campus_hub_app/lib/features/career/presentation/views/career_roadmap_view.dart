@@ -5,6 +5,9 @@ import '../../domain/career_models.dart';
 import '../providers/career_provider.dart';
 import '../theme/career_theme.dart';
 import '../widgets/career_shared_widgets.dart';
+import '../../../../core/widgets/campus_back_button.dart';
+import '../../../../core/widgets/campus_app_bar.dart';
+import '../../../../core/theme/app_colors.dart';
 import 'skill_detail_view.dart';
 import 'skill_graph_view.dart';
 
@@ -77,28 +80,45 @@ class _CareerRoadmapViewState extends ConsumerState<CareerRoadmapView> {
   Future<void> _confirmDeleteRoadmap() async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1E293B),
-        title: const Text('Delete Roadmap?', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        content: Text(
-          'Are you sure you want to delete "${_roadmap?.title ?? 'this roadmap'}"? All progress associated with this track will be removed.',
-          style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 14),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel', style: TextStyle(color: Color(0xFF94A3B8))),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFEF4444),
-              foregroundColor: Colors.white,
+      builder: (ctx) {
+        final isDark = Theme.of(ctx).brightness == Brightness.dark;
+        return AlertDialog(
+          backgroundColor: isDark ? const Color(0xFF16181C) : Colors.white,
+          title: Text(
+            'Delete Roadmap?',
+            style: TextStyle(
+              color: isDark ? Colors.white : AppColors.primaryText,
+              fontWeight: FontWeight.bold,
             ),
-            child: const Text('Delete'),
           ),
-        ],
-      ),
+          content: Text(
+            'Are you sure you want to delete "${_roadmap?.title ?? 'this roadmap'}"? All progress associated with this track will be removed.',
+            style: TextStyle(
+              color: isDark ? AppColors.darkSecondaryText : AppColors.secondaryText,
+              fontSize: 14,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: Text(
+                'Cancel',
+                style: TextStyle(
+                  color: isDark ? AppColors.darkSecondaryText : AppColors.secondaryText,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.error,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
     );
 
     if (confirmed != true || !mounted) return;
@@ -118,7 +138,7 @@ class _CareerRoadmapViewState extends ConsumerState<CareerRoadmapView> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Roadmap deleted successfully.'),
-            backgroundColor: Color(0xFF10B981),
+            backgroundColor: AppColors.success,
           ),
         );
         Navigator.of(context).pop();
@@ -129,7 +149,7 @@ class _CareerRoadmapViewState extends ConsumerState<CareerRoadmapView> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to delete roadmap: $e'),
-            backgroundColor: const Color(0xFFEF4444),
+            backgroundColor: AppColors.error,
           ),
         );
       }
@@ -138,32 +158,30 @@ class _CareerRoadmapViewState extends ConsumerState<CareerRoadmapView> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     if (_isLoading) {
       return Scaffold(
-        backgroundColor: CareerTheme.background,
-        appBar: AppBar(
-          backgroundColor: CareerTheme.background,
-          elevation: 0,
-          leading: BackButton(
-            color: Colors.white,
-            onPressed: () => Navigator.of(context).pop(),
-          ),
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        appBar: const CampusAppBar(
+          title: 'Career Roadmap',
+          leading: CampusBackButton(),
         ),
-        body: const Center(
-          child: CircularProgressIndicator(strokeWidth: 2.5, color: CareerTheme.primaryCyan),
+        body: Center(
+          child: CircularProgressIndicator(
+            strokeWidth: 2.5,
+            color: isDark ? Colors.white : AppColors.pureBlack,
+          ),
         ),
       );
     }
 
     if (_errorMessage != null || _roadmap == null) {
       return Scaffold(
-        backgroundColor: CareerTheme.background,
-        appBar: AppBar(
-          backgroundColor: CareerTheme.background,
-          leading: BackButton(
-            color: Colors.white,
-            onPressed: () => Navigator.of(context).pop(),
-          ),
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        appBar: const CampusAppBar(
+          title: 'Career Roadmap',
+          leading: CampusBackButton(),
         ),
         body: Center(
           child: Padding(
@@ -171,9 +189,16 @@ class _CareerRoadmapViewState extends ConsumerState<CareerRoadmapView> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.error_outline_rounded, color: CareerTheme.error, size: 48),
+                const Icon(Icons.error_outline_rounded, color: AppColors.error, size: 48),
                 const SizedBox(height: 16),
-                Text(_errorMessage ?? 'Roadmap not found', style: const TextStyle(color: Colors.white70), textAlign: TextAlign.center),
+                Text(
+                  _errorMessage ?? 'Roadmap not found',
+                  style: TextStyle(
+                    color: isDark ? AppColors.darkSecondaryText : AppColors.secondaryText,
+                    fontSize: 14,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
                 const SizedBox(height: 20),
                 CareerPrimaryButton(
                   label: 'Retry Loading',
@@ -214,30 +239,31 @@ class _CareerRoadmapViewState extends ConsumerState<CareerRoadmapView> {
         ? phases.fold<int>(0, (sum, p) => sum + p.weeks)
         : (roadmap.estimatedMonths > 0 ? roadmap.estimatedMonths * 4 : 16);
 
+    final iconColor = isDark ? Colors.white : AppColors.primaryText;
+
     return Scaffold(
-      backgroundColor: CareerTheme.background,
-      appBar: AppBar(
-        backgroundColor: CareerTheme.background,
-        elevation: 0,
-        leading: BackButton(
-          color: Colors.white,
-          onPressed: () => Navigator.of(context).pop(),
-        ),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      appBar: CampusAppBar(
+        title: roadmap.targetRole,
+        subtitle: 'Roadmap & Milestones',
+        leading: const CampusBackButton(),
         actions: [
           IconButton(
             icon: Icon(
               _isBookmarked ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
-              color: _isBookmarked ? CareerTheme.primaryCyan : Colors.white70,
+              color: _isBookmarked
+                  ? (isDark ? Colors.white : AppColors.pureBlack)
+                  : (isDark ? AppColors.darkSecondaryText : AppColors.secondaryText),
             ),
             onPressed: () => setState(() => _isBookmarked = !_isBookmarked),
           ),
           IconButton(
-            icon: const Icon(Icons.hub_rounded, color: CareerTheme.primaryCyan),
+            icon: Icon(Icons.hub_rounded, color: iconColor),
             tooltip: 'Skill Graph',
             onPressed: () => SkillGraphView.open(context, roadmapId: widget.roadmapId),
           ),
           IconButton(
-            icon: const Icon(Icons.delete_outline_rounded, color: CareerTheme.error),
+            icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error),
             tooltip: 'Delete Roadmap',
             onPressed: _confirmDeleteRoadmap,
           ),
@@ -260,10 +286,10 @@ class _CareerRoadmapViewState extends ConsumerState<CareerRoadmapView> {
                       children: [
                         Text(
                           roadmap.title,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.w800,
-                            color: Colors.white,
+                            color: isDark ? Colors.white : AppColors.primaryText,
                             letterSpacing: -0.4,
                           ),
                           maxLines: 1,
@@ -272,10 +298,10 @@ class _CareerRoadmapViewState extends ConsumerState<CareerRoadmapView> {
                         const SizedBox(height: 4),
                         Text(
                           '$estimatedWeeks Weeks • ${phases.isNotEmpty ? phases.length : 8} Milestones',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w500,
-                            color: CareerTheme.textMuted,
+                            color: isDark ? AppColors.darkSecondaryText : AppColors.secondaryText,
                           ),
                         ),
                       ],
@@ -286,7 +312,8 @@ class _CareerRoadmapViewState extends ConsumerState<CareerRoadmapView> {
                     percentage: overallPercent,
                     size: 58,
                     strokeWidth: 5.5,
-                    progressColor: CareerTheme.primaryCyan,
+                    progressColor: isDark ? Colors.white : AppColors.pureBlack,
+                    backgroundColor: isDark ? AppColors.darkElevatedSurface : const Color(0xFFE2E8F0),
                   ),
                 ],
               ),
@@ -318,11 +345,16 @@ class _CareerRoadmapViewState extends ConsumerState<CareerRoadmapView> {
   // TIMELINE TAB (SCREEN 4)
   // ==========================================
   Widget _buildTimelineTab(List<RoadmapPhaseDetailModel> phases, List<RoadmapNodeModel> allNodes) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     if (phases.isEmpty && allNodes.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 40),
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 40),
         child: Center(
-          child: Text('No milestones available in this roadmap.', style: TextStyle(color: CareerTheme.textMuted)),
+          child: Text(
+            'No milestones available in this roadmap.',
+            style: TextStyle(color: isDark ? AppColors.darkSecondaryText : AppColors.secondaryText),
+          ),
         ),
       );
     }
@@ -339,6 +371,24 @@ class _CareerRoadmapViewState extends ConsumerState<CareerRoadmapView> {
         runningWeek = end + 1;
         phaseWeekRanges[i] = pWeeks > 1 ? 'Weeks $start – $end ($pWeeks wks)' : 'Week $start';
       }
+    }
+
+    // Precalculate phase completion for sequential unlock progression
+    final phaseCompletion = <int, bool>{};
+    for (int i = 0; i < itemCount; i++) {
+      int totalTasks = 1;
+      int completedTasks = 0;
+      if (phases.isNotEmpty) {
+        final phase = phases[i];
+        totalTasks = phase.tasks.isNotEmpty ? phase.tasks.length : 1;
+        for (final t in phase.tasks) {
+          if (_completedNodes.contains(t.id)) completedTasks++;
+        }
+      } else {
+        final node = allNodes[i];
+        if (_completedNodes.contains(node.id)) completedTasks = 1;
+      }
+      phaseCompletion[i] = completedTasks >= totalTasks && totalTasks > 0;
     }
 
     return ListView.builder(
@@ -369,27 +419,39 @@ class _CareerRoadmapViewState extends ConsumerState<CareerRoadmapView> {
           if (_completedNodes.contains(node.id)) completedPhaseTasks = 1;
         }
 
-        // Status determinations matching reference Screen 4:
-        // Completed: Green circle with number, e.g. "✓ 4/4 completed"
-        // Current: Blue/Cyan circle, e.g. "⚡ In progress • 2/5"
-        // Locked: Grey circle with lock icon, e.g. "🔒 Locked"
-        final isCompleted = completedPhaseTasks >= totalPhaseTasks && totalPhaseTasks > 0;
-        final isInProgress = !isCompleted && (idx == 0 || idx == 2 || completedPhaseTasks > 0);
+        // Sequential unlocking progression:
+        // - Phase 0 is unlocked by default.
+        // - Phase idx > 0 ONLY unlocks if phase idx - 1 is completed (or completed tasks > 0).
+        final isCompleted = phaseCompletion[idx] ?? false;
+        final prevPhaseCompleted = idx == 0 || (phaseCompletion[idx - 1] ?? false);
+        final isInProgress = !isCompleted && prevPhaseCompleted;
         final isLocked = !isCompleted && !isInProgress;
 
-        Color badgeColor = CareerTheme.locked;
+        Color badgeColor;
         Widget badgeIcon = Text(
           '$phaseNumber',
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Colors.white),
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+            color: isCompleted
+                ? Colors.white
+                : (isInProgress
+                    ? (isDark ? Colors.black : Colors.white)
+                    : (isDark ? AppColors.darkSecondaryText : AppColors.secondaryText)),
+          ),
         );
 
         if (isCompleted) {
-          badgeColor = CareerTheme.success;
+          badgeColor = AppColors.success;
         } else if (isInProgress) {
-          badgeColor = CareerTheme.primaryCyan;
-        } else if (isLocked) {
-          badgeColor = CareerTheme.surfaceElevated;
-          badgeIcon = const Icon(Icons.lock_rounded, size: 12, color: CareerTheme.lockedText);
+          badgeColor = isDark ? Colors.white : AppColors.pureBlack;
+        } else {
+          badgeColor = isDark ? AppColors.darkElevatedSurface : const Color(0xFFE2E8F0);
+          badgeIcon = Icon(
+            Icons.lock_rounded,
+            size: 12,
+            color: isDark ? AppColors.darkSecondaryText : AppColors.secondaryText,
+          );
         }
 
         return IntrinsicHeight(
@@ -405,7 +467,9 @@ class _CareerRoadmapViewState extends ConsumerState<CareerRoadmapView> {
                     decoration: BoxDecoration(
                       color: badgeColor,
                       shape: BoxShape.circle,
-                      border: isLocked ? Border.all(color: CareerTheme.glassBorder) : null,
+                      border: isLocked
+                          ? Border.all(color: isDark ? AppColors.darkBorder : const Color(0xFFE2E8F0))
+                          : null,
                       boxShadow: (isCompleted || isInProgress)
                           ? [
                               BoxShadow(
@@ -422,8 +486,8 @@ class _CareerRoadmapViewState extends ConsumerState<CareerRoadmapView> {
                       child: Container(
                         width: 2,
                         color: isCompleted
-                            ? CareerTheme.success.withValues(alpha: 0.5)
-                            : CareerTheme.surfaceElevated,
+                            ? AppColors.success.withValues(alpha: 0.5)
+                            : (isDark ? AppColors.darkBorder : const Color(0xFFE2E8F0)),
                         margin: const EdgeInsets.symmetric(vertical: 4),
                       ),
                     ),
@@ -459,18 +523,20 @@ class _CareerRoadmapViewState extends ConsumerState<CareerRoadmapView> {
                                   fontSize: 10,
                                   fontWeight: FontWeight.w700,
                                   color: isCompleted
-                                      ? CareerTheme.success
-                                      : (isInProgress ? CareerTheme.primaryCyan : CareerTheme.textSubtle),
+                                      ? AppColors.success
+                                      : (isInProgress
+                                          ? (isDark ? Colors.white : AppColors.primaryText)
+                                          : (isDark ? AppColors.darkSecondaryText : AppColors.secondaryText)),
                                   letterSpacing: 0.5,
                                 ),
                               ),
                               const SizedBox(height: 2),
                               Text(
                                 title,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w700,
-                                  color: Colors.white,
+                                  color: isDark ? Colors.white : AppColors.primaryText,
                                 ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
@@ -479,22 +545,29 @@ class _CareerRoadmapViewState extends ConsumerState<CareerRoadmapView> {
                               Row(
                                 children: [
                                   if (isCompleted) ...[
-                                    const Icon(Icons.check_circle_rounded, size: 12, color: CareerTheme.success),
+                                    const Icon(Icons.check_circle_rounded, size: 12, color: AppColors.success),
                                     const SizedBox(width: 4),
                                     Text(
                                       '✓ $totalPhaseTasks/$totalPhaseTasks completed',
-                                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: CareerTheme.success),
+                                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.success),
                                     ),
                                   ] else if (isInProgress) ...[
                                     const Text('⚡ ', style: TextStyle(fontSize: 11)),
                                     Text(
                                       'In progress • $completedPhaseTasks/$totalPhaseTasks',
-                                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: CareerTheme.primaryCyan),
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                        color: isDark ? Colors.white : AppColors.primaryText,
+                                      ),
                                     ),
                                   ] else ...[
-                                    const Text(
+                                    Text(
                                       '🔒 Locked',
-                                      style: TextStyle(fontSize: 11, color: CareerTheme.lockedText),
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: isDark ? AppColors.darkSecondaryText : AppColors.secondaryText,
+                                      ),
                                     ),
                                   ],
                                 ],
@@ -502,7 +575,11 @@ class _CareerRoadmapViewState extends ConsumerState<CareerRoadmapView> {
                             ],
                           ),
                         ),
-                        const Icon(Icons.chevron_right_rounded, color: CareerTheme.textSubtle, size: 20),
+                        Icon(
+                          Icons.chevron_right_rounded,
+                          color: isDark ? AppColors.darkSecondaryText : AppColors.secondaryText,
+                          size: 20,
+                        ),
                       ],
                     ),
                   ),
@@ -519,6 +596,8 @@ class _CareerRoadmapViewState extends ConsumerState<CareerRoadmapView> {
   // OVERVIEW TAB (SCREEN 4)
   // ==========================================
   Widget _buildOverviewTab(CareerRoadmapModel roadmap) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -527,21 +606,32 @@ class _CareerRoadmapViewState extends ConsumerState<CareerRoadmapView> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Curriculum Overview', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white)),
+              Text(
+                'Curriculum Overview',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: isDark ? Colors.white : AppColors.primaryText,
+                ),
+              ),
               const SizedBox(height: 8),
               Text(
                 roadmap.description.isNotEmpty
                     ? roadmap.description
                     : 'A comprehensive, industry-aligned learning path covering foundations, architecture, and real-world implementation.',
-                style: const TextStyle(fontSize: 13, color: CareerTheme.textSecondary, height: 1.4),
+                style: TextStyle(
+                  fontSize: 13,
+                  color: isDark ? AppColors.darkSecondaryText : AppColors.secondaryText,
+                  height: 1.4,
+                ),
               ),
               const SizedBox(height: 16),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  _buildStatItem('Estimated Time', '${roadmap.estimatedMonths} Months'),
-                  _buildStatItem('Target Level', roadmap.level),
-                  _buildStatItem('Category', roadmap.category),
+                  _buildStatItem('Estimated Time', '${roadmap.estimatedMonths} Months', isDark),
+                  _buildStatItem('Target Level', roadmap.level, isDark),
+                  _buildStatItem('Category', roadmap.category, isDark),
                 ],
               ),
             ],
@@ -553,21 +643,38 @@ class _CareerRoadmapViewState extends ConsumerState<CareerRoadmapView> {
         CareerGlassCard(
           padding: const EdgeInsets.all(16),
           onTap: () => SkillGraphView.open(context, roadmapId: widget.roadmapId),
-          child: const Row(
+          child: Row(
             children: [
-              Icon(Icons.hub_rounded, color: CareerTheme.primaryCyan, size: 24),
-              SizedBox(width: 14),
+              Icon(Icons.hub_rounded, color: isDark ? Colors.white : AppColors.primaryText, size: 24),
+              const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Interactive Skill Dependency Graph', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white)),
-                    SizedBox(height: 2),
-                    Text('Inspect prerequisites, parallel skills and DAG hierarchy', style: TextStyle(fontSize: 11, color: CareerTheme.textMuted)),
+                    Text(
+                      'Interactive Skill Dependency Graph',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: isDark ? Colors.white : AppColors.primaryText,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Inspect prerequisites, parallel skills and DAG hierarchy',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: isDark ? AppColors.darkSecondaryText : AppColors.secondaryText,
+                      ),
+                    ),
                   ],
                 ),
               ),
-              Icon(Icons.arrow_forward_ios_rounded, color: CareerTheme.primaryCyan, size: 14),
+              Icon(
+                Icons.arrow_forward_ios_rounded,
+                color: isDark ? Colors.white : AppColors.primaryText,
+                size: 14,
+              ),
             ],
           ),
         ),
@@ -575,13 +682,26 @@ class _CareerRoadmapViewState extends ConsumerState<CareerRoadmapView> {
     );
   }
 
-  Widget _buildStatItem(String label, String value) {
+  Widget _buildStatItem(String label, String value, bool isDark) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 10, color: CareerTheme.textSubtle)),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 10,
+            color: isDark ? AppColors.darkSecondaryText : AppColors.secondaryText,
+          ),
+        ),
         const SizedBox(height: 2),
-        Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: CareerTheme.primaryCyan)),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            color: isDark ? Colors.white : AppColors.primaryText,
+          ),
+        ),
       ],
     );
   }

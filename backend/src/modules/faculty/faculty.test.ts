@@ -20,16 +20,37 @@ describe('Faculty Module Tests', () => {
       if (college) {
         collegeId = college.id;
       }
-      const facultyUser = await prisma.user.findFirst({ where: { role: 'FACULTY' } });
+      let facultyUser = await prisma.user.findFirst({ where: { email: 'test.temp.faculty@campushub.edu' } });
       if (facultyUser) {
+        if (facultyUser.role !== 'FACULTY') {
+          facultyUser = await prisma.user.update({
+            where: { id: facultyUser.id },
+            data: { role: 'FACULTY' },
+          });
+        }
         facultyUserId = facultyUser.id;
         collegeId = facultyUser.college_id;
+      } else if (college) {
+        facultyUser = await prisma.user.create({
+          data: {
+            college_id: college.id,
+            email: 'test.temp.faculty@campushub.edu',
+            password_hash: '$argon2id$v=19$m=65536,t=3,p=4$dummy',
+            first_name: 'Dr. Test',
+            last_name: 'Faculty',
+            role: 'FACULTY',
+            status: 'ACTIVE',
+          },
+        });
+        facultyUserId = facultyUser.id;
       }
       const studentUser = await prisma.user.findFirst({ where: { role: 'STUDENT' } });
       if (studentUser) {
         studentUserId = studentUser.id;
       }
-    } catch (_) {}
+    } catch (err) {
+      console.error('Error in faculty.test.ts beforeAll:', err);
+    }
 
     facultyToken = generateAccessToken({
       userId: facultyUserId,
@@ -311,6 +332,7 @@ describe('Faculty Module Tests', () => {
           await prisma.subjectEnrollment.deleteMany({ where: { subject_id: createdSubjectId } });
           await prisma.facultySubject.deleteMany({ where: { subject_id: createdSubjectId } });
           await prisma.subject.deleteMany({ where: { id: createdSubjectId } });
+          await prisma.user.deleteMany({ where: { email: 'test.temp.faculty@campushub.edu' } });
         } catch (_) {}
       }
     });

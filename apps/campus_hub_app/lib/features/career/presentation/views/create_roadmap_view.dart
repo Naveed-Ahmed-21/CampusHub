@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/widgets/campus_back_button.dart';
+import '../../../../core/widgets/campus_app_bar.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../theme/career_theme.dart';
 import '../widgets/career_shared_widgets.dart';
 import 'roadmap_generating_view.dart';
@@ -100,23 +103,16 @@ class _CreateRoadmapViewState extends ConsumerState<CreateRoadmapView> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryTextColor = isDark ? Colors.white : AppColors.primaryText;
+    final secondaryTextColor = isDark ? AppColors.darkSecondaryText : AppColors.secondaryText;
+    final borderColor = isDark ? AppColors.darkBorder : AppColors.border;
+
     return Scaffold(
-      backgroundColor: CareerTheme.background,
-      appBar: AppBar(
-        backgroundColor: CareerTheme.background,
-        elevation: 0,
-        leading: BackButton(
-          color: Colors.white,
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: const Text(
-          'Create Your Roadmap',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-            color: Colors.white,
-          ),
-        ),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      appBar: const CampusAppBar(
+        title: 'Create Your Roadmap',
+        leading: CampusBackButton(),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -125,16 +121,16 @@ class _CreateRoadmapViewState extends ConsumerState<CreateRoadmapView> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Subtitle
-              const Text(
+              Text(
                 "Tell us your goal and we'll create a personalized learning path.",
-                style: TextStyle(fontSize: 13, color: CareerTheme.textMuted, height: 1.4),
+                style: TextStyle(fontSize: 13, color: secondaryTextColor, height: 1.4),
               ),
               const SizedBox(height: 24),
 
               // 1. WHAT DO YOU WANT TO LEARN?
-              const Text(
+              Text(
                 'What do you want to learn?',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white),
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: primaryTextColor),
               ),
               const SizedBox(height: 10),
               CareerGlassCard(
@@ -142,10 +138,10 @@ class _CreateRoadmapViewState extends ConsumerState<CreateRoadmapView> {
                 borderRadius: CareerTheme.radiusMedium,
                 child: TextField(
                   controller: _goalController,
-                  style: const TextStyle(color: Colors.white, fontSize: 14),
-                  decoration: const InputDecoration(
+                  style: TextStyle(color: primaryTextColor, fontSize: 14),
+                  decoration: InputDecoration(
                     hintText: 'e.g. Full Stack Developer, Data Scientist',
-                    hintStyle: TextStyle(color: CareerTheme.textSubtle, fontSize: 13),
+                    hintStyle: TextStyle(color: secondaryTextColor, fontSize: 13),
                     border: InputBorder.none,
                   ),
                 ),
@@ -162,13 +158,13 @@ class _CreateRoadmapViewState extends ConsumerState<CreateRoadmapView> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
-                        color: CareerTheme.surfaceSecondary,
+                        color: isDark ? AppColors.darkSecondary : const Color(0xFFF1F5F9),
                         borderRadius: BorderRadius.circular(CareerTheme.radiusSmall),
-                        border: Border.all(color: CareerTheme.glassBorder),
+                        border: Border.all(color: borderColor),
                       ),
                       child: Text(
                         suggestion,
-                        style: const TextStyle(fontSize: 11, color: CareerTheme.primaryCyan),
+                        style: TextStyle(fontSize: 11, color: primaryTextColor),
                       ),
                     ),
                   );
@@ -180,22 +176,23 @@ class _CreateRoadmapViewState extends ConsumerState<CreateRoadmapView> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
+                  Text(
                     'Timeframe',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white),
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: primaryTextColor),
                   ),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
                     decoration: BoxDecoration(
-                      color: CareerTheme.primaryCyan.withValues(alpha: 0.15),
+                      color: isDark ? AppColors.darkSecondary : const Color(0xFFF1F5F9),
                       borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: borderColor),
                     ),
                     child: Text(
                       '${_timeframeWeeks.round()} weeks',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
-                        color: CareerTheme.primaryCyan,
+                        color: primaryTextColor,
                       ),
                     ),
                   ),
@@ -209,10 +206,10 @@ class _CreateRoadmapViewState extends ConsumerState<CreateRoadmapView> {
                   children: [
                     SliderTheme(
                       data: SliderTheme.of(context).copyWith(
-                        activeTrackColor: CareerTheme.primaryCyan,
-                        inactiveTrackColor: CareerTheme.surfaceElevated,
-                        thumbColor: Colors.white,
-                        overlayColor: CareerTheme.primaryCyan.withValues(alpha: 0.2),
+                        activeTrackColor: isDark ? Colors.white : AppColors.pureBlack,
+                        inactiveTrackColor: isDark ? AppColors.darkElevatedSurface : const Color(0xFFE2E8F0),
+                        thumbColor: isDark ? Colors.white : AppColors.pureBlack,
+                        overlayColor: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.15),
                         thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 9),
                         trackHeight: 4,
                       ),
@@ -224,13 +221,13 @@ class _CreateRoadmapViewState extends ConsumerState<CreateRoadmapView> {
                         onChanged: (val) => setState(() => _timeframeWeeks = val),
                       ),
                     ),
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 10.0),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 10.0),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('1 week', style: TextStyle(fontSize: 11, color: CareerTheme.textSubtle)),
-                          Text('24 weeks', style: TextStyle(fontSize: 11, color: CareerTheme.textSubtle)),
+                          Text('1 week', style: TextStyle(fontSize: 11, color: secondaryTextColor)),
+                          Text('24 weeks', style: TextStyle(fontSize: 11, color: secondaryTextColor)),
                         ],
                       ),
                     ),
@@ -240,9 +237,9 @@ class _CreateRoadmapViewState extends ConsumerState<CreateRoadmapView> {
               const SizedBox(height: 28),
 
               // 3. YOUR CURRENT LEVEL
-              const Text(
+              Text(
                 'Your current level',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white),
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: primaryTextColor),
               ),
               const SizedBox(height: 12),
               Row(
@@ -280,13 +277,13 @@ class _CreateRoadmapViewState extends ConsumerState<CreateRoadmapView> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
+                    Text(
                       'Additional preferences (optional)',
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white),
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: primaryTextColor),
                     ),
                     Icon(
                       _showPreferences ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
-                      color: CareerTheme.textMuted,
+                      color: secondaryTextColor,
                       size: 20,
                     ),
                   ],
@@ -302,22 +299,22 @@ class _CreateRoadmapViewState extends ConsumerState<CreateRoadmapView> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Department
-                      const Text('Your Department', style: TextStyle(fontSize: 11, color: CareerTheme.textMuted)),
+                      Text('Your Department', style: TextStyle(fontSize: 11, color: secondaryTextColor)),
                       const SizedBox(height: 6),
                       DropdownButtonFormField<String>(
                         isExpanded: true,
                         initialValue: _selectedDepartment,
-                        dropdownColor: CareerTheme.surfaceSecondary,
-                        style: const TextStyle(fontSize: 13, color: Colors.white),
-                        decoration: const InputDecoration(
-                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        dropdownColor: isDark ? AppColors.darkElevatedSurface : Colors.white,
+                        style: TextStyle(fontSize: 13, color: primaryTextColor),
+                        decoration: InputDecoration(
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                           border: OutlineInputBorder(
-                            borderSide: BorderSide(color: CareerTheme.glassBorder),
-                            borderRadius: BorderRadius.all(Radius.circular(8)),
+                            borderSide: BorderSide(color: borderColor),
+                            borderRadius: const BorderRadius.all(Radius.circular(8)),
                           ),
                           enabledBorder: OutlineInputBorder(
-                            borderSide: BorderSide(color: CareerTheme.glassBorder),
-                            borderRadius: BorderRadius.all(Radius.circular(8)),
+                            borderSide: BorderSide(color: borderColor),
+                            borderRadius: const BorderRadius.all(Radius.circular(8)),
                           ),
                         ),
                         items: _departments.map((d) {
@@ -331,22 +328,22 @@ class _CreateRoadmapViewState extends ConsumerState<CreateRoadmapView> {
                       const SizedBox(height: 14),
 
                       // Learning Focus
-                      const Text('Learning Focus', style: TextStyle(fontSize: 11, color: CareerTheme.textMuted)),
+                      Text('Learning Focus', style: TextStyle(fontSize: 11, color: secondaryTextColor)),
                       const SizedBox(height: 6),
                       DropdownButtonFormField<String>(
                         isExpanded: true,
                         initialValue: _selectedFocus,
-                        dropdownColor: CareerTheme.surfaceSecondary,
-                        style: const TextStyle(fontSize: 13, color: Colors.white),
-                        decoration: const InputDecoration(
-                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        dropdownColor: isDark ? AppColors.darkElevatedSurface : Colors.white,
+                        style: TextStyle(fontSize: 13, color: primaryTextColor),
+                        decoration: InputDecoration(
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                           border: OutlineInputBorder(
-                            borderSide: BorderSide(color: CareerTheme.glassBorder),
-                            borderRadius: BorderRadius.all(Radius.circular(8)),
+                            borderSide: BorderSide(color: borderColor),
+                            borderRadius: const BorderRadius.all(Radius.circular(8)),
                           ),
                           enabledBorder: OutlineInputBorder(
-                            borderSide: BorderSide(color: CareerTheme.glassBorder),
-                            borderRadius: BorderRadius.all(Radius.circular(8)),
+                            borderSide: BorderSide(color: borderColor),
+                            borderRadius: const BorderRadius.all(Radius.circular(8)),
                           ),
                         ),
                         items: _focusOptions.map((f) {
@@ -360,22 +357,22 @@ class _CreateRoadmapViewState extends ConsumerState<CreateRoadmapView> {
                       const SizedBox(height: 14),
 
                       // Preferred Language
-                      const Text('Preferred Language', style: TextStyle(fontSize: 11, color: CareerTheme.textMuted)),
+                      Text('Preferred Language', style: TextStyle(fontSize: 11, color: secondaryTextColor)),
                       const SizedBox(height: 6),
                       DropdownButtonFormField<String>(
                         isExpanded: true,
                         initialValue: _selectedLanguage,
-                        dropdownColor: CareerTheme.surfaceSecondary,
-                        style: const TextStyle(fontSize: 13, color: Colors.white),
-                        decoration: const InputDecoration(
-                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        dropdownColor: isDark ? AppColors.darkElevatedSurface : Colors.white,
+                        style: TextStyle(fontSize: 13, color: primaryTextColor),
+                        decoration: InputDecoration(
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                           border: OutlineInputBorder(
-                            borderSide: BorderSide(color: CareerTheme.glassBorder),
-                            borderRadius: BorderRadius.all(Radius.circular(8)),
+                            borderSide: BorderSide(color: borderColor),
+                            borderRadius: const BorderRadius.all(Radius.circular(8)),
                           ),
                           enabledBorder: OutlineInputBorder(
-                            borderSide: BorderSide(color: CareerTheme.glassBorder),
-                            borderRadius: BorderRadius.all(Radius.circular(8)),
+                            borderSide: BorderSide(color: borderColor),
+                            borderRadius: const BorderRadius.all(Radius.circular(8)),
                           ),
                         ),
                         items: _languages.map((l) {

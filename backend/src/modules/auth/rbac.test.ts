@@ -2,41 +2,107 @@ import request from 'supertest';
 import { createApp } from '../../app';
 import { generateAccessToken } from '../../shared/utils/jwt.util';
 import { Role } from '@prisma/client';
+import { prisma } from '../../infrastructure/prisma/prisma.service';
+import { AdminRepository } from '../admin/admin.repository';
 
 const app = createApp();
 
 describe('RBAC Security & Authorization Test Suite', () => {
-  // Mock JWT Access Tokens for each role
-  const studentToken = generateAccessToken({
-    sub: 'std_1001',
-    userId: 'std_1001',
-    collegeId: 'clg_88291',
-    role: Role.STUDENT,
-    email: 'student@campushub.edu',
+  let collegeId = '3cf77444-bd2c-42fc-99b2-458582976a85';
+  let adminUserId = 'ec430759-e7fa-4b99-ba77-922229198f6f';
+  let targetUserId = '74ea1083-6a4c-460a-9188-05143f8fb54e';
+
+  let studentToken = '';
+  let facultyToken = '';
+  let placementOfficerToken = '';
+  let adminToken = '';
+
+  beforeAll(async () => {
+    const college = await prisma.college.findFirst();
+    if (college) {
+      collegeId = college.id;
+    }
+    const admin = await prisma.user.findFirst({ where: { role: Role.ADMIN } });
+    if (admin) {
+      adminUserId = admin.id;
+    }
+
+    studentToken = generateAccessToken({
+      sub: '47ff6b35-dc06-4dc3-a62a-346cb73be31f',
+      userId: '47ff6b35-dc06-4dc3-a62a-346cb73be31f',
+      collegeId,
+      role: Role.STUDENT,
+      email: 'student@campushub.edu',
+    });
+
+    facultyToken = generateAccessToken({
+      sub: '58aa1083-6a4c-460a-9188-05143f8fb54d',
+      userId: '58aa1083-6a4c-460a-9188-05143f8fb54d',
+      collegeId,
+      role: Role.FACULTY,
+      email: 'faculty@campushub.edu',
+    });
+
+    placementOfficerToken = generateAccessToken({
+      sub: '58aa1083-6a4c-460a-9188-05143f8fb54f',
+      userId: '58aa1083-6a4c-460a-9188-05143f8fb54f',
+      collegeId,
+      role: Role.PLACEMENT,
+      email: 'placement@campushub.edu',
+    });
+
+    adminToken = generateAccessToken({
+      sub: adminUserId,
+      userId: adminUserId,
+      collegeId,
+      role: Role.ADMIN,
+      email: admin?.email || 'admin@campushub.edu',
+    });
+
+    // Dynamically create a temporary user for role update verification
+    const tempUser = await prisma.user.create({
+      data: {
+        college_id: collegeId,
+        email: `rbac.test.${Date.now()}@campushub.edu`,
+        password_hash: '$argon2id$v=19$m=65536,t=3,p=4$dummy',
+        first_name: 'RBAC',
+        last_name: 'Tester',
+        role: Role.STUDENT,
+        status: 'ACTIVE',
+        is_password_configured: true,
+        is_profile_completed: true,
+        first_login_completed: true,
+      },
+    });
+    targetUserId = tempUser.id;
+
+    // Dynamically create a temporary faculty user for faculty endpoint verification
+    await prisma.user.upsert({
+      where: { id: '58aa1083-6a4c-460a-9188-05143f8fb54d' },
+      update: {},
+      create: {
+        id: '58aa1083-6a4c-460a-9188-05143f8fb54d',
+        college_id: collegeId,
+        email: `rbac.faculty.${Date.now()}@campushub.edu`,
+        password_hash: '$argon2id$v=19$m=65536,t=3,p=4$dummy',
+        first_name: 'RBAC',
+        last_name: 'Faculty',
+        role: Role.FACULTY,
+        status: 'ACTIVE',
+        is_password_configured: true,
+        is_profile_completed: true,
+        first_login_completed: true,
+      },
+    });
   });
 
-  const facultyToken = generateAccessToken({
-    sub: 'fac_2002',
-    userId: 'fac_2002',
-    collegeId: 'clg_88291',
-    role: Role.FACULTY,
-    email: 'faculty@campushub.edu',
-  });
-
-  const placementOfficerToken = generateAccessToken({
-    sub: 'po_3003',
-    userId: 'po_3003',
-    collegeId: 'clg_88291',
-    role: Role.PLACEMENT_OFFICER,
-    email: 'placement@campushub.edu',
-  });
-
-  const adminToken = generateAccessToken({
-    sub: 'adm_4004',
-    userId: 'adm_4004',
-    collegeId: 'clg_88291',
-    role: Role.ADMIN,
-    email: 'admin@campushub.edu',
+  afterAll(async () => {
+    const repo = new AdminRepository();
+    if (targetUserId) {
+      await repo.deleteUser(targetUserId).catch(() => {});
+    }
+    await repo.deleteUser('58aa1083-6a4c-460a-9188-05143f8fb54d').catch(() => {});
+    await prisma.$disconnect();
   });
 
   describe('1. Authentication Verification (401 Unauthorized)', () => {
@@ -199,7 +265,7 @@ describe('RBAC Security & Authorization Test Suite', () => {
 
     it('ADMIN attempting to modify their own role returns 403 Forbidden', async () => {
       const res = await request(app)
-        .patch('/api/v1/admin/users/adm_4004/role')
+        .patch(`/api/v1/admin/users/${adminUserId}/role`)
         .set('Authorization', `Bearer ${adminToken}`)
         .send({ newRole: 'STUDENT' });
 
@@ -210,9 +276,9 @@ describe('RBAC Security & Authorization Test Suite', () => {
 
     it('ADMIN updating role of another user succeeds with 200', async () => {
       const res = await request(app)
-        .patch('/api/v1/admin/users/std_target_888/role')
+        .patch(`/api/v1/admin/users/${targetUserId}/role`)
         .set('Authorization', `Bearer ${adminToken}`)
-        .send({ newRole: 'PLACEMENT_OFFICER' });
+        .send({ newRole: 'PLACEMENT' });
 
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);

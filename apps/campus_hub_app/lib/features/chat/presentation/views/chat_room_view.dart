@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/socket_chat_service.dart';
+import '../../data/chat_repository.dart';
 import '../providers/chat_provider.dart';
 import '../../domain/chat_models.dart';
 import '../widgets/chat_app_bar.dart';
@@ -19,7 +20,11 @@ import '../../../../core/services/media_picker_service.dart';
 import '../../../../core/services/media_upload_service.dart';
 import '../../../../core/services/media_storage_service.dart';
 import '../../../../shared/widgets/selected_media_preview_widget.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/campus_avatar.dart';
 import '../utils/chat_date_formatter.dart';
+import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 
 class ChatRoomView extends ConsumerStatefulWidget {
   final String roomId;
@@ -346,7 +351,7 @@ class _ChatRoomViewState extends ConsumerState<ChatRoomView> with WidgetsBinding
                       enabled: !isUploading,
                       decoration: InputDecoration(
                         hintText: 'Add an optional caption...',
-                        hintStyle: TextStyle(fontSize: 13.5, color: theme.colorScheme.outline),
+                        hintStyle: TextStyle(fontSize: 13.5, color: theme.colorScheme.onSurfaceVariant),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                       ),
@@ -454,8 +459,33 @@ class _ChatRoomViewState extends ConsumerState<ChatRoomView> with WidgetsBinding
     final typingUser = ref.watch(roomTypingUserProvider(widget.roomId)).valueOrNull;
     final currentUser = ref.watch(authControllerProvider).asData?.value;
     final currentUserId = currentUser?.id ?? '';
+    final room = ref.watch(chatRoomDetailsProvider(widget.roomId)).valueOrNull;
+    final isDirect = room?.type == 'DIRECT';
+    final otherParticipant = isDirect ? room?.getOtherParticipant(currentUserId) : null;
+    final otherId = otherParticipant?.id ?? '';
+    final perm = otherId.isNotEmpty ? ref.watch(chatPermissionProvider(otherId)).valueOrNull : null;
+    final isBlockedByYou = perm?.isBlockedByYou ?? false;
+    final isBlockedByThem = perm?.isBlockedByThem ?? false;
+    final isBlocked = isBlockedByYou || isBlockedByThem;
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+
+    ref.listen<AsyncValue<List<ChatMessageModel>>>(
+      chatRoomMessagesProvider(widget.roomId),
+      (prev, next) {
+        if (next.hasValue && (next.value?.isNotEmpty ?? false)) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (_scrollController.hasClients) {
+              _scrollController.animateTo(
+                _scrollController.position.maxScrollExtent,
+                duration: const Duration(milliseconds: 250),
+                curve: Curves.easeOut,
+              );
+            }
+          });
+        }
+      },
+    );
 
     final chatBody = Container(
       color: isDark
@@ -472,11 +502,11 @@ class _ChatRoomViewState extends ConsumerState<ChatRoomView> with WidgetsBinding
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.mark_chat_read_outlined, size: 64, color: theme.colorScheme.outline),
+                        Icon(Icons.mark_chat_read_outlined, size: 64, color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6)),
                         const SizedBox(height: 12),
                         Text(
                           'No messages yet. Send a message to start chatting!',
-                          style: TextStyle(color: theme.colorScheme.outline, fontSize: 14),
+                          style: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 14),
                         ),
                       ],
                     ),
@@ -549,7 +579,7 @@ class _ChatRoomViewState extends ConsumerState<ChatRoomView> with WidgetsBinding
           ),
 
           // Typing Indicator Bar
-          if (typingUser != null)
+          if (typingUser != null && !isBlocked)
             Container(
               alignment: Alignment.centerLeft,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -575,7 +605,7 @@ class _ChatRoomViewState extends ConsumerState<ChatRoomView> with WidgetsBinding
             ),
 
           // Reply Preview Bar
-          if (_replyingTo != null)
+          if (_replyingTo != null && !isBlocked)
             ReplyPreviewBar(
               message: _replyingTo!,
               currentUserId: currentUserId,
@@ -586,55 +616,133 @@ class _ChatRoomViewState extends ConsumerState<ChatRoomView> with WidgetsBinding
               },
             ),
 
-          // Bottom Input Bar
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainer,
-              border: Border(
-                top: BorderSide(
-                  color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
+          // Bottom Bar: Blocked Banner or Regular Input Bar
+          if (isBlocked) ...[
+            if (isBlockedByYou)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainer,
+                  border: Border(
+                    top: BorderSide(
+                      color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
+                    ),
+                  ),
+                ),
+                child: SafeArea(
+                  child: Row(
+                    children: [
+                      const Icon(Icons.block, color: Colors.red, size: 20),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'You have blocked messages from this user.',
+                          style: TextStyle(fontSize: 13, color: theme.colorScheme.onSurface),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () async {
+                          try {
+                            final repo = ref.read(chatRepositoryProvider);
+                            await repo.unblockUser(otherId);
+                            ref.invalidate(chatPermissionProvider(otherId));
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('User unblocked')),
+                              );
+                            }
+                          } catch (e) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Failed to unblock: $e'), backgroundColor: Colors.red),
+                              );
+                            }
+                          }
+                        },
+                        child: const Text('Unblock', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainer,
+                  border: Border(
+                    top: BorderSide(
+                      color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
+                    ),
+                  ),
+                ),
+                child: SafeArea(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.info_outline, color: theme.colorScheme.onSurfaceVariant, size: 18),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Messaging is unavailable with this user.',
+                        style: TextStyle(fontSize: 13.5, color: theme.colorScheme.onSurfaceVariant),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ] else ...[
+            // Bottom Input Bar
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainer,
+                border: Border(
+                  top: BorderSide(
+                    color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
+                  ),
+                ),
+              ),
+              child: SafeArea(
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: Icon(Icons.attach_file, color: theme.colorScheme.onSurfaceVariant),
+                      onPressed: _showAttachmentOptions,
+                    ),
+                    Expanded(
+                      child: TextField(
+                        controller: _messageController,
+                        style: TextStyle(color: theme.colorScheme.onSurface, fontSize: 14.5),
+                        decoration: InputDecoration(
+                          hintText: _replyingTo != null ? 'Type your reply...' : 'Message...',
+                          hintStyle: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 14),
+                          fillColor: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                          filled: true,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(24),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                        onSubmitted: (_) => _sendMessage(),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    CircleAvatar(
+                      backgroundColor: theme.colorScheme.primary,
+                      radius: 22,
+                      child: IconButton(
+                        icon: Icon(Icons.send, color: theme.colorScheme.onPrimary, size: 19),
+                        onPressed: () => _sendMessage(),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
-            child: SafeArea(
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: Icon(Icons.attach_file, color: theme.colorScheme.onSurfaceVariant),
-                    onPressed: _showAttachmentOptions,
-                  ),
-                  Expanded(
-                    child: TextField(
-                      controller: _messageController,
-                      style: TextStyle(color: theme.colorScheme.onSurface, fontSize: 14.5),
-                      decoration: InputDecoration(
-                        hintText: _replyingTo != null ? 'Type your reply...' : 'Message...',
-                        hintStyle: TextStyle(color: theme.colorScheme.outline, fontSize: 14),
-                        fillColor: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-                        filled: true,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(24),
-                          borderSide: BorderSide.none,
-                        ),
-                      ),
-                      onSubmitted: (_) => _sendMessage(),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  CircleAvatar(
-                    backgroundColor: theme.colorScheme.primary,
-                    radius: 22,
-                    child: IconButton(
-                      icon: Icon(Icons.send, color: theme.colorScheme.onPrimary, size: 19),
-                      onPressed: () => _sendMessage(),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+          ],
         ],
       ),
     );
@@ -650,6 +758,166 @@ class _ChatRoomViewState extends ConsumerState<ChatRoomView> with WidgetsBinding
     );
   }
 
+  void _navigateToUserProfile(String userId) {
+    if (userId.isEmpty) return;
+    final currentUserId = ref.read(authControllerProvider).asData?.value?.id;
+    if (userId == currentUserId) {
+      context.push('/profile');
+    } else {
+      context.push('/profile/$userId');
+    }
+  }
+
+  void _showReactionsDetailsSheet(
+    BuildContext context,
+    ChatMessageModel msg,
+    ChatMessageReactionModel reaction,
+  ) {
+    final theme = Theme.of(context);
+    final room = ref.read(chatRoomDetailsProvider(widget.roomId)).valueOrNull;
+    final currentUserId = ref.read(authControllerProvider).asData?.value?.id;
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.withValues(alpha: 0.4),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Text(reaction.emoji, style: const TextStyle(fontSize: 24)),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Reactions (${reaction.count})',
+                          style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, size: 20),
+                      onPressed: () => Navigator.pop(ctx),
+                    ),
+                  ],
+                ),
+                const Divider(),
+                Flexible(
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: reaction.userIds.length,
+                    itemBuilder: (context, idx) {
+                      final uid = reaction.userIds[idx];
+                      final isMe = uid == currentUserId;
+                      final participant = room?.participants.where((p) => p.id == uid).firstOrNull;
+                      final name = isMe ? 'You' : (participant?.fullName ?? 'Member');
+                      final avatarUrl = participant?.avatarUrl;
+                      final role = participant?.role ?? 'STUDENT';
+
+                      return ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: CampusAvatar(
+                          imageUrl: avatarUrl,
+                          name: name,
+                          radius: 18,
+                        ),
+                        title: Row(
+                          children: [
+                            Text(
+                              name,
+                              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                            ),
+                            if (isMe) ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                decoration: BoxDecoration(
+                                  color: theme.colorScheme.primary.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  'You',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: theme.colorScheme.primary,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        subtitle: Text(
+                          role,
+                          style: TextStyle(fontSize: 12, color: theme.colorScheme.outline),
+                        ),
+                        trailing: Text(
+                          reaction.emoji,
+                          style: const TextStyle(fontSize: 18),
+                        ),
+                        onTap: () {
+                          Navigator.pop(ctx);
+                          _navigateToUserProfile(uid);
+                        },
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 12),
+                if (reaction.hasReacted)
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.red,
+                        side: const BorderSide(color: Colors.red),
+                      ),
+                      icon: const Icon(Icons.close, size: 16),
+                      label: const Text('Remove your reaction'),
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        ref
+                            .read(chatRoomMessagesProvider(widget.roomId).notifier)
+                            .toggleReaction(msg.id, reaction.emoji);
+                      },
+                    ),
+                  ),
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 8.0),
+                    child: Text(
+                      'Double-tap any reaction bubble to remove your reaction',
+                      style: TextStyle(fontSize: 11, color: theme.colorScheme.outline),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildWhatsAppMessageBubble(
     ChatMessageModel msg,
     bool isMe,
@@ -659,273 +927,313 @@ class _ChatRoomViewState extends ConsumerState<ChatRoomView> with WidgetsBinding
     List<ChatMessageModel> allMessages,
   ) {
     final isDeleted = msg.isDeletedForEveryone;
+    final isPostAttachment = msg.mediaType?.toUpperCase() == 'POST' ||
+        (msg.message.trim().startsWith('{') && msg.message.contains('"postId"'));
 
     final bubbleColor = isMe
-        ? (isDark ? theme.colorScheme.primaryContainer : const Color(0xFFDCF8C6))
-        : (isDark ? theme.colorScheme.surfaceContainerHigh : Colors.white);
+        ? (isDark ? Colors.white : Colors.black)
+        : (isDark ? const Color(0xFF16181C) : const Color(0xFFF7F9F9));
     final textColor = isMe
-        ? (isDark ? theme.colorScheme.onPrimaryContainer : const Color(0xFF111B21))
-        : theme.colorScheme.onSurface;
+        ? (isDark ? Colors.black : Colors.white)
+        : (isDark ? Colors.white : const Color(0xFF0F1419));
     final align = isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start;
+
+    final bubbleContent = GestureDetector(
+      onLongPress: () => _showMessageActionSheet(msg, currentUserId),
+      child: Container(
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.of(context).size.width * 0.72,
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: bubbleColor,
+          borderRadius: BorderRadius.only(
+            topLeft: const Radius.circular(14),
+            topRight: const Radius.circular(14),
+            bottomLeft: Radius.circular(isMe ? 14 : 0),
+            bottomRight: Radius.circular(isMe ? 0 : 14),
+          ),
+          border: isMe
+              ? null
+              : Border.all(
+                  color: isDark ? const Color(0xFF2F3336) : const Color(0xFFEFF3F4),
+                  width: 1,
+                ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 3,
+              offset: const Offset(0, 1),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Sender Name for Incoming Group Messages with Profile Navigation
+            if (!isMe && msg.senderName.isNotEmpty && !isDeleted) ...[
+              GestureDetector(
+                onTap: () => _navigateToUserProfile(msg.senderId),
+                child: Text(
+                  msg.senderName,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 4),
+            ],
+
+            // PART 7: Quoted Replied Message Box
+            if (msg.replyToMessage != null && !isDeleted) ...[
+              GestureDetector(
+                onTap: () => _scrollToMessage(msg.replyToMessage!.id, allMessages),
+                child: Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.black26 : Colors.black.withValues(alpha: 0.06),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border(
+                      left: BorderSide(
+                        color: theme.colorScheme.primary,
+                        width: 3.5,
+                      ),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        msg.replyToMessage!.senderName,
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.bold,
+                          color: theme.colorScheme.primary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        msg.replyToMessage!.isDeletedForEveryone
+                            ? 'This message was deleted'
+                            : (msg.replyToMessage!.mediaType == 'IMAGE'
+                                ? '📷 Photo'
+                                : (msg.replyToMessage!.mediaType == 'VIDEO'
+                                    ? '🎬 Video'
+                                    : (msg.replyToMessage!.mediaType == 'DOCUMENT'
+                                        ? '📄 ${msg.replyToMessage!.fileName ?? "Document"}'
+                                        : msg.replyToMessage!.message))),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: textColor.withValues(alpha: 0.75),
+                          fontStyle: msg.replyToMessage!.isDeletedForEveryone
+                              ? FontStyle.italic
+                              : FontStyle.normal,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+
+            // PART 10: Deleted for Everyone Message Placeholder
+            if (isDeleted) ...[
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.do_not_disturb_alt,
+                    size: 15,
+                    color: textColor.withValues(alpha: 0.6),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'This message was deleted',
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      fontStyle: FontStyle.italic,
+                      color: textColor.withValues(alpha: 0.6),
+                    ),
+                  ),
+                ],
+              ),
+            ] else ...[
+              // Image Attachment Card with Receiver Privacy & Download Flow
+              if (msg.mediaType == 'IMAGE' && msg.mediaUrl != null) ...[
+                ChatImageAttachmentWidget(
+                  message: msg,
+                  isMe: isMe,
+                  allMessages: allMessages,
+                ),
+                const SizedBox(height: 6),
+              ],
+
+              // Video Attachment Card with Poster & Play/Download Flow
+              if (msg.mediaType == 'VIDEO' && msg.mediaUrl != null) ...[
+                ChatVideoAttachmentWidget(
+                  message: msg,
+                  isMe: isMe,
+                ),
+                const SizedBox(height: 6),
+              ],
+
+              // Shared Post Attachment Card
+              if (isPostAttachment) ...[
+                ChatPostAttachmentWidget(
+                  message: msg,
+                  isMe: isMe,
+                ),
+                const SizedBox(height: 6),
+              ],
+
+              // Document / File Attachment Card with Native Open Support
+              if (!isPostAttachment && (msg.mediaType == 'DOCUMENT' || (msg.fileName != null && msg.mediaType != 'IMAGE' && msg.mediaType != 'VIDEO'))) ...[
+                ChatDocumentAttachmentWidget(
+                  message: msg,
+                  isMe: isMe,
+                ),
+                const SizedBox(height: 6),
+              ],
+
+              // Text Content
+              if (msg.message.isNotEmpty && !isPostAttachment)
+                Text(
+                  msg.message,
+                  style: TextStyle(fontSize: 14.5, color: textColor, height: 1.3),
+                ),
+            ],
+
+            const SizedBox(height: 4),
+
+            // Time & Read Receipt Ticks
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Text(
+                  ChatDateFormatter.formatMessageTime(msg.createdAt, context),
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    color: isMe
+                        ? (isDark
+                            ? theme.colorScheme.onPrimaryContainer.withValues(alpha: 0.7)
+                            : Colors.black54)
+                        : theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                if (isMe && !isDeleted) ...[
+                  const SizedBox(width: 4),
+                  MessageStatusIcon(
+                    status: msg.readByUserIdList.isNotEmpty
+                        ? MessageDeliveryStatus.read
+                        : MessageDeliveryStatus.delivered,
+                    color: isDark
+                        ? theme.colorScheme.onPrimaryContainer.withValues(alpha: 0.75)
+                        : Colors.black54,
+                  ),
+                ],
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
 
     return Container(
       margin: EdgeInsets.only(bottom: msg.reactions.isNotEmpty ? 10 : 4),
-      child: Column(
-        crossAxisAlignment: align,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          GestureDetector(
-            onLongPress: () => _showMessageActionSheet(msg, currentUserId),
-            child: Container(
-              constraints: BoxConstraints(
-                maxWidth: MediaQuery.of(context).size.width * 0.75,
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: bubbleColor,
-                borderRadius: BorderRadius.only(
-                  topLeft: const Radius.circular(14),
-                  topRight: const Radius.circular(14),
-                  bottomLeft: Radius.circular(isMe ? 14 : 0),
-                  bottomRight: Radius.circular(isMe ? 0 : 14),
+          // Small Sender Avatar for incoming group messages
+          if (!isMe) ...[
+            GestureDetector(
+              onTap: () => _navigateToUserProfile(msg.senderId),
+              child: Padding(
+                padding: const EdgeInsets.only(right: 6, bottom: 4),
+                child: CampusAvatar(
+                  imageUrl: msg.senderAvatarUrl,
+                  name: msg.senderName,
+                  radius: 13,
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
-                    blurRadius: 3,
-                    offset: const Offset(0, 1),
-                  ),
-                ],
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Sender Name for Incoming Group Messages
-                  if (!isMe && msg.senderName.isNotEmpty && !isDeleted) ...[
-                    Text(
-                      msg.senderName,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: theme.colorScheme.primary,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                  ],
-
-                  // PART 7: Quoted Replied Message Box
-                  if (msg.replyToMessage != null && !isDeleted) ...[
-                    GestureDetector(
-                      onTap: () => _scrollToMessage(msg.replyToMessage!.id, allMessages),
-                      child: Container(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: isDark ? Colors.black26 : Colors.black.withValues(alpha: 0.06),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border(
-                            left: BorderSide(
-                              color: theme.colorScheme.primary,
-                              width: 3.5,
-                            ),
-                          ),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              msg.replyToMessage!.senderName,
-                              style: TextStyle(
-                                fontSize: 11.5,
-                                fontWeight: FontWeight.bold,
-                                color: theme.colorScheme.primary,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              msg.replyToMessage!.isDeletedForEveryone
-                                  ? 'This message was deleted'
-                                  : (msg.replyToMessage!.mediaType == 'IMAGE'
-                                      ? '📷 Photo'
-                                      : (msg.replyToMessage!.mediaType == 'VIDEO'
-                                          ? '🎬 Video'
-                                          : (msg.replyToMessage!.mediaType == 'DOCUMENT'
-                                              ? '📄 ${msg.replyToMessage!.fileName ?? "Document"}'
-                                              : msg.replyToMessage!.message))),
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: textColor.withValues(alpha: 0.75),
-                                fontStyle: msg.replyToMessage!.isDeletedForEveryone
-                                    ? FontStyle.italic
-                                    : FontStyle.normal,
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-
-                  // PART 10: Deleted for Everyone Message Placeholder
-                  if (isDeleted) ...[
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.do_not_disturb_alt,
-                          size: 15,
-                          color: textColor.withValues(alpha: 0.6),
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          'This message was deleted',
-                          style: TextStyle(
-                            fontSize: 13.5,
-                            fontStyle: FontStyle.italic,
-                            color: textColor.withValues(alpha: 0.6),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ] else ...[
-                    // Image Attachment Card with Receiver Privacy & Download Flow
-                    if (msg.mediaType == 'IMAGE' && msg.mediaUrl != null) ...[
-                      ChatImageAttachmentWidget(
-                        message: msg,
-                        isMe: isMe,
-                        allMessages: allMessages,
-                      ),
-                      const SizedBox(height: 6),
-                    ],
-
-                    // Video Attachment Card with Poster & Play/Download Flow
-                    if (msg.mediaType == 'VIDEO' && msg.mediaUrl != null) ...[
-                      ChatVideoAttachmentWidget(
-                        message: msg,
-                        isMe: isMe,
-                      ),
-                      const SizedBox(height: 6),
-                    ],
-
-                    // Shared Post Attachment Card
-                    if (msg.mediaType == 'POST') ...[
-                      ChatPostAttachmentWidget(
-                        message: msg,
-                        isMe: isMe,
-                      ),
-                      const SizedBox(height: 6),
-                    ],
-
-                    // Document / File Attachment Card with Native Open Support
-                    if (msg.mediaType == 'DOCUMENT' || (msg.fileName != null && msg.mediaType != 'IMAGE' && msg.mediaType != 'VIDEO' && msg.mediaType != 'POST')) ...[
-                      ChatDocumentAttachmentWidget(
-                        message: msg,
-                        isMe: isMe,
-                      ),
-                      const SizedBox(height: 6),
-                    ],
-
-                    // Text Content
-                    if (msg.message.isNotEmpty && msg.mediaType != 'POST')
-                      Text(
-                        msg.message,
-                        style: TextStyle(fontSize: 14.5, color: textColor, height: 1.3),
-                      ),
-                  ],
-
-                  const SizedBox(height: 4),
-
-                  // Time & Read Receipt Ticks
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      Text(
-                        ChatDateFormatter.formatMessageTime(msg.createdAt, context),
-                        style: TextStyle(
-                          fontSize: 10.5,
-                          color: isMe
-                              ? (isDark
-                                  ? theme.colorScheme.onPrimaryContainer.withValues(alpha: 0.7)
-                                  : Colors.black54)
-                              : theme.colorScheme.outline,
-                        ),
-                      ),
-                      if (isMe && !isDeleted) ...[
-                        const SizedBox(width: 4),
-                        MessageStatusIcon(
-                          status: msg.readByUserIdList.isNotEmpty
-                              ? MessageDeliveryStatus.read
-                              : MessageDeliveryStatus.delivered,
-                        ),
-                      ],
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // PART 1: Reactions Row positioned directly below the bubble without overlapping
-          if (msg.reactions.isNotEmpty && !isDeleted) ...[
-            const SizedBox(height: 4),
-            Wrap(
-              spacing: 4,
-              runSpacing: 4,
-              alignment: isMe ? WrapAlignment.end : WrapAlignment.start,
-              children: msg.reactions.map((reaction) {
-                return GestureDetector(
-                  onTap: () {
-                    ref
-                        .read(chatRoomMessagesProvider(widget.roomId).notifier)
-                        .toggleReaction(msg.id, reaction.emoji);
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF2C2C2C) : Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: reaction.hasReacted
-                            ? theme.colorScheme.primary
-                            : (isDark ? Colors.white12 : Colors.black12),
-                        width: reaction.hasReacted ? 1.2 : 0.8,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.08),
-                          blurRadius: 4,
-                          offset: const Offset(0, 1),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(reaction.emoji, style: const TextStyle(fontSize: 13)),
-                        if (reaction.count > 1) ...[
-                          const SizedBox(width: 3),
-                          Text(
-                            '${reaction.count}',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              color: reaction.hasReacted
-                                  ? theme.colorScheme.primary
-                                  : textColor,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                );
-              }).toList(),
             ),
           ],
+          Flexible(
+            child: Column(
+              crossAxisAlignment: align,
+              children: [
+                bubbleContent,
+
+                // Reactions Row: single tap shows who reacted, double tap removes reaction
+                if (msg.reactions.isNotEmpty && !isDeleted) ...[
+                  const SizedBox(height: 4),
+                  Wrap(
+                    spacing: 4,
+                    runSpacing: 4,
+                    alignment: isMe ? WrapAlignment.end : WrapAlignment.start,
+                    children: msg.reactions.map((reaction) {
+                      return GestureDetector(
+                        onTap: () => _showReactionsDetailsSheet(context, msg, reaction),
+                        onDoubleTap: () {
+                          HapticFeedback.lightImpact();
+                          ref
+                              .read(chatRoomMessagesProvider(widget.roomId).notifier)
+                              .toggleReaction(msg.id, reaction.emoji);
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: isDark ? AppColors.darkSurface : theme.colorScheme.surface,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: reaction.hasReacted
+                                  ? theme.colorScheme.primary
+                                  : (isDark ? Colors.white12 : Colors.black12),
+                              width: reaction.hasReacted ? 1.2 : 0.8,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.08),
+                                blurRadius: 4,
+                                offset: const Offset(0, 1),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(reaction.emoji, style: const TextStyle(fontSize: 13)),
+                              if (reaction.count > 1) ...[
+                                const SizedBox(width: 3),
+                                Text(
+                                  '${reaction.count}',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: reaction.hasReacted
+                                        ? theme.colorScheme.primary
+                                        : textColor,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ],
+            ),
+          ),
         ],
       ),
     );

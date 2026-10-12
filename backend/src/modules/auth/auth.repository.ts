@@ -4,7 +4,7 @@ import { User, RefreshToken, PasswordResetToken } from '@prisma/client';
 export class AuthRepository {
   async findUserByEmail(email: string): Promise<User | null> {
     const cleanEmail = email.trim().toLowerCase();
-    return prisma.user.findFirst({
+    const user = await prisma.user.findFirst({
       where: {
         email: {
           equals: cleanEmail,
@@ -12,6 +12,8 @@ export class AuthRepository {
         },
       },
     });
+
+    return user;
   }
 
   async findUserById(id: string): Promise<User | null> {
@@ -77,9 +79,26 @@ export class AuthRepository {
     });
   }
 
+  async updateUserPasswordAndStatus(
+    userId: string,
+    passwordHash: string,
+    status: string,
+    isPasswordConfigured: boolean,
+  ): Promise<User> {
+    return prisma.user.update({
+      where: { id: userId },
+      data: {
+        password_hash: passwordHash,
+        status: status as any,
+        is_password_configured: isPasswordConfigured,
+      },
+    });
+  }
+
   async deletePasswordResetToken(id: string): Promise<void> {
     await prisma.passwordResetToken.delete({
       where: { id },
     });
   }
 }
+

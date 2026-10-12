@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/storage/secure_storage_service.dart';
 import '../../../../core/services/url_launcher_service.dart';
+import '../../../../core/services/campus_download_service.dart';
+import '../../../../core/widgets/campus_back_button.dart';
+import '../../../../core/widgets/campus_app_bar.dart';
 import '../../domain/career_models.dart';
 
 enum ReaderTheme {
@@ -425,24 +428,12 @@ class _DocumentReaderViewState extends ConsumerState<DocumentReaderView> {
 
     return Scaffold(
       backgroundColor: _backgroundColor,
-      appBar: AppBar(
-        backgroundColor: _backgroundColor,
-        foregroundColor: _textColor,
-        elevation: 0,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              widget.document.title,
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: _textColor),
-            ),
-            if (chapter != null)
-              Text(
-                'Chapter ${chapter.chapterNumber} of ${widget.document.chapters.length}',
-                style: TextStyle(fontSize: 11, color: _textColor.withValues(alpha: 0.6)),
-              ),
-          ],
-        ),
+      appBar: CampusAppBar(
+        title: widget.document.title,
+        subtitle: chapter != null
+            ? 'Chapter ${chapter.chapterNumber} of ${widget.document.chapters.length}'
+            : null,
+        leading: const CampusBackButton(),
         actions: [
           IconButton(
             icon: Icon(_isBookmarked ? Icons.bookmark : Icons.bookmark_border, size: 20),
@@ -467,24 +458,26 @@ class _DocumentReaderViewState extends ConsumerState<DocumentReaderView> {
             tooltip: 'Table of Contents',
             onPressed: _showTableOfContents,
           ),
-          if (widget.document.canonicalUrl.isNotEmpty)
+          if (widget.document.canonicalUrl.isNotEmpty) ...[
+            IconButton(
+              icon: const Icon(Icons.download_rounded, size: 20),
+              tooltip: 'Download to Device Storage',
+              onPressed: () {
+                CampusDownloadService.downloadResource(
+                  context: context,
+                  fileUrl: widget.document.canonicalUrl,
+                  fileName: '${widget.document.title.replaceAll(RegExp(r'\s+'), '_')}.pdf',
+                  subFolder: 'CareerGuides',
+                );
+              },
+            ),
             IconButton(
               icon: const Icon(Icons.open_in_new, size: 18),
               tooltip: 'Official Web Docs',
               onPressed: () => UrlLauncherService.openUrl(context, widget.document.canonicalUrl),
             ),
+          ],
         ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(3.0),
-          child: LinearProgressIndicator(
-            value: ((_currentChapterIndex + _scrollProgress) /
-                    (widget.document.chapters.isNotEmpty ? widget.document.chapters.length : 1))
-                .clamp(0.0, 1.0),
-            backgroundColor: _borderColor.withValues(alpha: 0.5),
-            valueColor: AlwaysStoppedAnimation<Color>(Colors.indigoAccent),
-            minHeight: 3,
-          ),
-        ),
       ),
       body: chapter == null
           ? Center(
@@ -495,6 +488,14 @@ class _DocumentReaderViewState extends ConsumerState<DocumentReaderView> {
             )
           : Column(
               children: [
+                LinearProgressIndicator(
+                  value: ((_currentChapterIndex + _scrollProgress) /
+                          (widget.document.chapters.isNotEmpty ? widget.document.chapters.length : 1))
+                      .clamp(0.0, 1.0),
+                  backgroundColor: _borderColor.withValues(alpha: 0.5),
+                  valueColor: const AlwaysStoppedAnimation<Color>(Colors.indigoAccent),
+                  minHeight: 3,
+                ),
                 Expanded(
                   child: ListView(
                     controller: _scrollController,
@@ -601,7 +602,7 @@ class _DocumentReaderViewState extends ConsumerState<DocumentReaderView> {
                                         foregroundColor: _textColor,
                                         side: BorderSide(color: _borderColor),
                                       ),
-                                      icon: const Icon(Icons.arrow_back, size: 16),
+                                      icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 14),
                                       label: const Text('Previous'),
                                       onPressed: () => _switchChapter(_currentChapterIndex - 1),
                                     ),
@@ -613,7 +614,7 @@ class _DocumentReaderViewState extends ConsumerState<DocumentReaderView> {
                                   Expanded(
                                     child: FilledButton.icon(
                                       style: FilledButton.styleFrom(backgroundColor: Colors.indigo),
-                                      icon: const Icon(Icons.arrow_forward, size: 16),
+                                      icon: const Icon(Icons.arrow_forward_ios_rounded, size: 14),
                                       label: const Text('Next Chapter'),
                                       onPressed: () => _switchChapter(_currentChapterIndex + 1),
                                     ),

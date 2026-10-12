@@ -449,3 +449,196 @@ class ChatMessageModel {
     );
   }
 }
+
+class StudentChatSettingsModel {
+  final bool requireStudentConversationApproval;
+  final bool isEligible;
+
+  StudentChatSettingsModel({
+    required this.requireStudentConversationApproval,
+    this.isEligible = true,
+  });
+
+  factory StudentChatSettingsModel.fromJson(Map<String, dynamic> json) {
+    return StudentChatSettingsModel(
+      requireStudentConversationApproval: json['require_student_conversation_approval'] ??
+          json['requireStudentConversationApproval'] ??
+          false,
+      isEligible: json['isEligible'] ?? true,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'requireStudentConversationApproval': requireStudentConversationApproval,
+  };
+}
+
+enum ChatPermissionAction {
+  allowDirectChat,
+  requireChatRequest,
+  requestPending,
+  blocked;
+
+  static ChatPermissionAction fromString(String? action) {
+    switch (action) {
+      case 'REQUIRE_CHAT_REQUEST':
+        return ChatPermissionAction.requireChatRequest;
+      case 'REQUEST_PENDING':
+        return ChatPermissionAction.requestPending;
+      case 'BLOCKED':
+        return ChatPermissionAction.blocked;
+      case 'ALLOW_DIRECT_CHAT':
+      default:
+        return ChatPermissionAction.allowDirectChat;
+    }
+  }
+}
+
+class ChatPermissionResult {
+  final ChatPermissionAction action;
+  final String? roomId;
+  final String? requestId;
+  final bool isBlockedByYou;
+  final bool isBlockedByThem;
+  final ChatParticipantUser? targetUser;
+
+  ChatPermissionResult({
+    required this.action,
+    this.roomId,
+    this.requestId,
+    this.isBlockedByYou = false,
+    this.isBlockedByThem = false,
+    this.targetUser,
+  });
+
+  factory ChatPermissionResult.fromJson(Map<String, dynamic> json) {
+    return ChatPermissionResult(
+      action: ChatPermissionAction.fromString(json['action'] as String?),
+      roomId: json['roomId'] as String?,
+      requestId: json['requestId'] as String?,
+      isBlockedByYou: json['isBlockedByYou'] == true,
+      isBlockedByThem: json['isBlockedByThem'] == true,
+      targetUser: json['targetUser'] != null
+          ? ChatParticipantUser.fromJson(json['targetUser'] as Map<String, dynamic>)
+          : null,
+    );
+  }
+}
+
+enum ChatRequestStatus {
+  pending,
+  accepted,
+  declined,
+  cancelled;
+
+  static ChatRequestStatus fromString(String? status) {
+    switch (status) {
+      case 'ACCEPTED':
+        return ChatRequestStatus.accepted;
+      case 'DECLINED':
+        return ChatRequestStatus.declined;
+      case 'CANCELLED':
+        return ChatRequestStatus.cancelled;
+      case 'PENDING':
+      default:
+        return ChatRequestStatus.pending;
+    }
+  }
+
+  String get label {
+    switch (this) {
+      case ChatRequestStatus.accepted:
+        return 'Accepted';
+      case ChatRequestStatus.declined:
+        return 'Declined';
+      case ChatRequestStatus.cancelled:
+        return 'Cancelled';
+      case ChatRequestStatus.pending:
+        return 'Pending';
+    }
+  }
+}
+
+class ChatRequestModel {
+  final String id;
+  final String senderId;
+  final String recipientId;
+  final String introductoryMessage;
+  final ChatRequestStatus status;
+  final String? conversationId;
+  final DateTime createdAt;
+  final DateTime? respondedAt;
+  final ChatParticipantUser? sender;
+  final ChatParticipantUser? recipient;
+
+  ChatRequestModel({
+    required this.id,
+    required this.senderId,
+    required this.recipientId,
+    required this.introductoryMessage,
+    required this.status,
+    this.conversationId,
+    required this.createdAt,
+    this.respondedAt,
+    this.sender,
+    this.recipient,
+  });
+
+  factory ChatRequestModel.fromJson(Map<String, dynamic> json) {
+    return ChatRequestModel(
+      id: json['id'] ?? '',
+      senderId: json['sender_id'] ?? json['senderId'] ?? '',
+      recipientId: json['recipient_id'] ?? json['recipientId'] ?? '',
+      introductoryMessage: json['introductory_message'] ?? json['introductoryMessage'] ?? '',
+      status: ChatRequestStatus.fromString(json['status'] as String?),
+      conversationId: json['conversation_id'] ?? json['conversationId'],
+      createdAt: json['created_at'] != null
+          ? DateTime.tryParse(json['created_at'].toString())?.toLocal() ?? DateTime.now()
+          : (json['createdAt'] != null
+              ? DateTime.tryParse(json['createdAt'].toString())?.toLocal() ?? DateTime.now()
+              : DateTime.now()),
+      respondedAt: json['responded_at'] != null
+          ? DateTime.tryParse(json['responded_at'].toString())?.toLocal()
+          : (json['respondedAt'] != null
+              ? DateTime.tryParse(json['respondedAt'].toString())?.toLocal()
+              : null),
+      sender: json['sender'] != null
+          ? ChatParticipantUser.fromJson(json['sender'] as Map<String, dynamic>)
+          : null,
+      recipient: json['recipient'] != null
+          ? ChatParticipantUser.fromJson(json['recipient'] as Map<String, dynamic>)
+          : null,
+    );
+  }
+}
+
+class BlockedUserModel {
+  final String id;
+  final String blockerId;
+  final String blockedId;
+  final DateTime createdAt;
+  final ChatParticipantUser? blockedUser;
+
+  BlockedUserModel({
+    required this.id,
+    required this.blockerId,
+    required this.blockedId,
+    required this.createdAt,
+    this.blockedUser,
+  });
+
+  factory BlockedUserModel.fromJson(Map<String, dynamic> json) {
+    return BlockedUserModel(
+      id: json['id'] ?? '',
+      blockerId: json['blocker_id'] ?? json['blockerId'] ?? '',
+      blockedId: json['blocked_id'] ?? json['blockedId'] ?? '',
+      createdAt: json['created_at'] != null
+          ? DateTime.tryParse(json['created_at'].toString())?.toLocal() ?? DateTime.now()
+          : DateTime.now(),
+      blockedUser: json['blocked'] != null
+          ? ChatParticipantUser.fromJson(json['blocked'] as Map<String, dynamic>)
+          : null,
+    );
+  }
+}
+

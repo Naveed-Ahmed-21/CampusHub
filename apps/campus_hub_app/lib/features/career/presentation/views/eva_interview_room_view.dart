@@ -5,6 +5,7 @@ import '../../data/career_repository.dart';
 import '../../domain/career_models.dart';
 import '../providers/career_provider.dart';
 import '../widgets/eva_ai_avatar.dart';
+import '../../../../core/widgets/campus_app_bar.dart';
 
 enum InterviewRoomState {
   connecting,
@@ -272,45 +273,12 @@ class _EvaInterviewRoomViewState extends ConsumerState<EvaInterviewRoomView>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF0A0F1D), // Dark interview room studio background
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF0F172A),
-        elevation: 0,
+      appBar: CampusAppBar(
+        title: '${widget.targetRole} Mock Interview',
+        subtitle: 'EVA AI Studio • Branching Evaluator',
         leading: IconButton(
-          icon: const Icon(Icons.close, color: Colors.white70),
+          icon: const Icon(Icons.close),
           onPressed: () => _confirmExit(context),
-        ),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              '${widget.targetRole} Mock Interview',
-              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            Row(
-              children: [
-                Container(
-                  width: 7,
-                  height: 7,
-                  decoration: const BoxDecoration(
-                    color: Colors.greenAccent,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 6),
-                const Flexible(
-                  child: Text(
-                    'EVA AI Studio • Branching Evaluator',
-                    style: TextStyle(fontSize: 11, color: Colors.white60),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-          ],
         ),
         actions: [
           // Mode Pill Switcher

@@ -57,14 +57,12 @@ export class FacultyService {
       this.repository.getScheduleSlots(facultyId, collegeId),
     ]);
 
+    if (!facultyInfo) {
+      throw new NotFoundError('Faculty member not found');
+    }
+
     return {
-      faculty: facultyInfo || {
-        id: facultyId,
-        name: 'Faculty Member',
-        email: 'faculty@campushub.edu',
-        designation: 'Associate Professor',
-        department: 'Academic Department',
-      },
+      faculty: facultyInfo,
       stats: {
         totalSubjects: subjects.length,
         totalMentees: mentees.length,

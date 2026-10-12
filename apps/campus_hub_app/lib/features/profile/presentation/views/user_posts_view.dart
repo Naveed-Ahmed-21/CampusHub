@@ -4,6 +4,8 @@ import '../../../feed/data/repositories/feed_repository_impl.dart';
 import '../../../feed/domain/models/post_item.dart';
 import '../../../feed/presentation/widgets/feed_post_card_widget.dart';
 import '../../../feed/presentation/widgets/comments_sheet.dart';
+import '../../../../core/widgets/campus_app_bar.dart';
+import '../../../../core/widgets/campus_back_button.dart';
 
 final myUserPostsProvider = FutureProvider.autoDispose<List<PostItem>>((ref) async {
   final repo = ref.watch(feedRepositoryProvider);
@@ -58,31 +60,67 @@ class _UserPostsViewState extends ConsumerState<UserPostsView> with SingleTicker
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Posts & Saved'),
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: theme.colorScheme.primary,
-          labelColor: theme.colorScheme.primary,
-          unselectedLabelColor: theme.colorScheme.outline,
-          tabs: const [
-            Tab(icon: Icon(Icons.article_outlined), text: 'My Posts'),
-            Tab(icon: Icon(Icons.bookmark_outline), text: 'Saved Posts'),
-          ],
-        ),
+      appBar: CampusAppBar(
+        leading: const CampusBackButton(),
+        title: 'Posts & Saved',
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
+            tooltip: 'Refresh',
             onPressed: () {
               ref.invalidate(myUserPostsProvider);
               ref.invalidate(mySavedPostsProvider);
             },
           ),
+          const SizedBox(width: 4),
         ],
       ),
-      body: TabBarView(
-        controller: _tabController,
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
+            child: Container(
+              height: 42,
+              padding: const EdgeInsets.all(3),
+              decoration: BoxDecoration(
+                color: isDark
+                    ? theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4)
+                    : const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: theme.colorScheme.outlineVariant.withValues(alpha: isDark ? 0.2 : 0.4),
+                ),
+              ),
+              child: TabBar(
+                controller: _tabController,
+                dividerColor: Colors.transparent,
+                indicatorSize: TabBarIndicatorSize.tab,
+                labelColor: Colors.white,
+                unselectedLabelColor: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
+                labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
+                indicator: BoxDecoration(
+                  borderRadius: BorderRadius.circular(11),
+                  gradient: LinearGradient(
+                    colors: [
+                      theme.colorScheme.primary,
+                      theme.colorScheme.primary.withValues(alpha: 0.85),
+                    ],
+                  ),
+                ),
+                tabs: const [
+                  Tab(icon: Icon(Icons.article_outlined, size: 16), text: 'My Posts'),
+                  Tab(icon: Icon(Icons.bookmark_outline, size: 16), text: 'Saved Posts'),
+                ],
+              ),
+            ),
+          ),
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
         children: [
           _PostsListTab(
             provider: myUserPostsProvider,
@@ -97,6 +135,9 @@ class _UserPostsViewState extends ConsumerState<UserPostsView> with SingleTicker
             emptyTitle: 'You have not saved any posts yet.',
             emptySubtitle: 'Tap the bookmark icon on any post across the campus feed to save it here.',
             onRefresh: () async => ref.invalidate(mySavedPostsProvider),
+          ),
+        ],
+            ),
           ),
         ],
       ),

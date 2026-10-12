@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../events/data/events_repository.dart';
 import '../../../events/domain/event_models.dart';
 import '../../../events/presentation/views/qr_ticket_dialog.dart';
+import '../../../../core/widgets/campus_app_bar.dart';
+import '../../../../core/widgets/campus_back_button.dart';
 
 final myRegisteredEventsProvider = FutureProvider.autoDispose<List<EventRegistrationModel>>((ref) async {
   final repo = ref.watch(eventsRepositoryProvider);
@@ -42,28 +44,67 @@ class _UserEventsViewState extends ConsumerState<UserEventsView> with SingleTick
     final myRegsAsync = ref.watch(myRegisteredEventsProvider);
     final allEventsAsync = ref.watch(allEventsListProvider);
 
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Your Events'),
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(text: 'Registered Events'),
-            Tab(text: 'All Campus Events'),
-          ],
-        ),
+      appBar: CampusAppBar(
+        leading: const CampusBackButton(),
+        title: 'Your Events',
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
+            tooltip: 'Refresh',
             onPressed: () {
               ref.invalidate(myRegisteredEventsProvider);
               ref.invalidate(allEventsListProvider);
             },
           ),
+          const SizedBox(width: 4),
         ],
       ),
-      body: TabBarView(
-        controller: _tabController,
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
+            child: Container(
+              height: 42,
+              padding: const EdgeInsets.all(3),
+              decoration: BoxDecoration(
+                color: isDark
+                    ? theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4)
+                    : const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: theme.colorScheme.outlineVariant.withValues(alpha: isDark ? 0.2 : 0.4),
+                ),
+              ),
+              child: TabBar(
+                controller: _tabController,
+                dividerColor: Colors.transparent,
+                indicatorSize: TabBarIndicatorSize.tab,
+                labelColor: Colors.white,
+                unselectedLabelColor: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
+                labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
+                indicator: BoxDecoration(
+                  borderRadius: BorderRadius.circular(11),
+                  gradient: LinearGradient(
+                    colors: [
+                      theme.colorScheme.primary,
+                      theme.colorScheme.primary.withValues(alpha: 0.85),
+                    ],
+                  ),
+                ),
+                tabs: const [
+                  Tab(text: 'Registered Events'),
+                  Tab(text: 'All Campus Events'),
+                ],
+              ),
+            ),
+          ),
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
         children: [
           // Tab 1: Registered Events
           myRegsAsync.when(
@@ -192,6 +233,9 @@ class _UserEventsViewState extends ConsumerState<UserEventsView> with SingleTick
             },
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (err, __) => Center(child: Text('Error loading events: $err')),
+          ),
+        ],
+            ),
           ),
         ],
       ),

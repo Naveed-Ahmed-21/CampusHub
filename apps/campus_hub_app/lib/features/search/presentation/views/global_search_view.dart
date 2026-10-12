@@ -1,14 +1,18 @@
 import 'dart:async';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/constants/api_endpoints.dart';
+import '../../../../core/widgets/campus_avatar.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
-import '../../../chat/data/chat_repository.dart';
-import '../../../chat/presentation/providers/chat_provider.dart';
-import '../../../feed/presentation/widgets/comments_sheet.dart';
+import '../../../chat/presentation/utils/chat_navigation_helper.dart';
 import '../../data/search_repository.dart';
 import '../providers/search_provider.dart';
+import '../../../../core/widgets/campus_bottom_nav.dart';
+import '../../../../core/widgets/campus_back_button.dart';
+import '../../../../core/widgets/atmospheric_background.dart';
+import '../../../../core/widgets/campus_chip.dart';
+import '../../../../core/theme/app_colors.dart';
 
 class GlobalSearchView extends ConsumerStatefulWidget {
   const GlobalSearchView({super.key});
@@ -39,128 +43,152 @@ class _GlobalSearchViewState extends ConsumerState<GlobalSearchView> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final searchState = ref.watch(searchNotifierProvider);
-    final canPop = context.canPop();
+    final canPop = CampusBackButton.canPop(context);
 
-    return Scaffold(
-      backgroundColor: theme.colorScheme.surface,
-      appBar: AppBar(
-        backgroundColor: theme.colorScheme.surface,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        titleSpacing: canPop ? 0 : 16,
-        leading: canPop
-            ? IconButton(
-                icon: Icon(Icons.arrow_back, color: theme.colorScheme.onSurface),
-                onPressed: () {
-                  if (context.canPop()) context.pop();
-                },
-              )
-            : null,
-        title: Container(
-          height: 44,
-          margin: const EdgeInsets.only(right: 16),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.6),
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(
-              color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4),
-              width: 1,
-            ),
-          ),
-          child: TextField(
-            controller: _searchController,
-            autofocus: false,
-            onChanged: _onSearchChanged,
-            style: TextStyle(
-              fontSize: 14.5,
-              color: theme.colorScheme.onSurface,
-            ),
-            decoration: InputDecoration(
-              hintText: 'Search people, clubs, posts...',
-              hintStyle: TextStyle(
-                fontSize: 14,
-                color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+    final isDark = theme.brightness == Brightness.dark;
+    final textColor = isDark ? AppColors.darkText : AppColors.primaryText;
+    final secondaryTextColor = isDark ? AppColors.darkSecondaryText : AppColors.secondaryText;
+    final searchBoxBg = isDark
+        ? AppColors.darkSurface.withValues(alpha: 0.7)
+        : Colors.white.withValues(alpha: 0.85);
+    final borderColor = isDark ? AppColors.darkBorder : AppColors.border;
+
+    return AtmosphericBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: PreferredSize(
+          preferredSize: const Size.fromHeight(60),
+          child: ClipRect(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0x990B1B30) : const Color(0xBFFAFBFD),
+                  border: Border(
+                    bottom: BorderSide(
+                      color: isDark ? AppColors.darkBorder : AppColors.border,
+                      width: 1,
+                    ),
+                  ),
+                ),
+                child: SafeArea(
+                  bottom: false,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    child: Row(
+                      children: [
+                        if (canPop) ...[
+                          CampusBackButton(color: textColor),
+                          const SizedBox(width: 8),
+                        ],
+                        Expanded(
+                          child: Container(
+                            height: 42,
+                            decoration: BoxDecoration(
+                              color: searchBoxBg,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: borderColor,
+                                width: 1,
+                              ),
+                            ),
+                            child: TextField(
+                              controller: _searchController,
+                              autofocus: false,
+                              onChanged: _onSearchChanged,
+                              style: TextStyle(
+                                fontSize: 14.5,
+                                color: textColor,
+                              ),
+                              decoration: InputDecoration(
+                                hintText: 'Search people, clubs, posts...',
+                                hintStyle: TextStyle(
+                                  fontSize: 14,
+                                  color: secondaryTextColor,
+                                ),
+                                prefixIcon: Icon(
+                                  Icons.search,
+                                  size: 20,
+                                  color: secondaryTextColor,
+                                ),
+                                suffixIcon: _searchController.text.isNotEmpty
+                                    ? IconButton(
+                                        icon: Icon(
+                                          Icons.cancel_rounded,
+                                          size: 18,
+                                          color: secondaryTextColor,
+                                        ),
+                                        onPressed: () {
+                                          _searchController.clear();
+                                          ref.read(searchNotifierProvider.notifier).performSearch('');
+                                        },
+                                      )
+                                    : null,
+                                border: InputBorder.none,
+                                contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
-              prefixIcon: Icon(
-                Icons.search,
-                size: 20,
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-              suffixIcon: _searchController.text.isNotEmpty
-                  ? IconButton(
-                      icon: Icon(
-                        Icons.cancel_rounded,
-                        size: 18,
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                      onPressed: () {
-                        _searchController.clear();
-                        ref.read(searchNotifierProvider.notifier).performSearch('');
-                      },
-                    )
-                  : null,
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(vertical: 11),
             ),
           ),
         ),
-      ),
-      body: Column(
-        children: [
-          // Filter Category Chips
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
-              children: [
-                _buildFilterChip('all', 'All', searchState.selectedType),
-                _buildFilterChip('students', 'Students', searchState.selectedType),
-                _buildFilterChip('faculty', 'Faculty', searchState.selectedType),
-                _buildFilterChip('clubs', 'Clubs', searchState.selectedType),
-                _buildFilterChip('posts', 'Posts', searchState.selectedType),
-                _buildFilterChip('events', 'Events', searchState.selectedType),
-                _buildFilterChip('career_resources', 'Resources', searchState.selectedType),
-              ],
+        body: Column(
+          children: [
+            // Filter Category Chips
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                children: [
+                  _buildFilterChip('all', 'All', searchState.selectedType),
+                  _buildFilterChip('students', 'Students', searchState.selectedType),
+                  _buildFilterChip('faculty', 'Faculty', searchState.selectedType),
+                  _buildFilterChip('clubs', 'Clubs', searchState.selectedType),
+                  _buildFilterChip('posts', 'Posts', searchState.selectedType),
+                  _buildFilterChip('events', 'Events', searchState.selectedType),
+                  _buildFilterChip('career_resources', 'Resources', searchState.selectedType),
+                ],
+              ),
             ),
-          ),
-          Divider(
-            height: 1,
-            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
-          ),
+            Divider(
+              height: 1,
+              color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
+            ),
 
-          // Main Search Body
-          Expanded(
-            child: _buildSearchBody(context, searchState),
-          ),
-        ],
+            // Main Search Body
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: () async {
+                  if (searchState.query.isEmpty) {
+                    await ref.read(searchNotifierProvider.notifier).loadDiscover();
+                  } else {
+                    await ref.read(searchNotifierProvider.notifier).performSearch(searchState.query);
+                  }
+                },
+                child: _buildSearchBody(context, searchState),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildFilterChip(String value, String label, String currentType) {
-    final theme = Theme.of(context);
     final isSelected = value == currentType;
 
     return Padding(
       padding: const EdgeInsets.only(right: 8.0),
-      child: FilterChip(
-        selected: isSelected,
-        label: Text(
-          label,
-          style: TextStyle(
-            fontSize: 12.5,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-            color: isSelected ? theme.colorScheme.onPrimary : theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
-        selectedColor: theme.colorScheme.primary,
-        backgroundColor: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-        checkmarkColor: theme.colorScheme.onPrimary,
-        side: BorderSide(
-          color: isSelected ? theme.colorScheme.primary : theme.colorScheme.outlineVariant.withValues(alpha: 0.4),
-        ),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        onSelected: (_) {
+      child: CampusChip(
+        label: label,
+        isSelected: isSelected,
+        onTap: () {
           ref.read(searchNotifierProvider.notifier).setType(value);
         },
       ),
@@ -212,6 +240,7 @@ class _GlobalSearchViewState extends ConsumerState<GlobalSearchView> {
       final recentSearches = state.recentSearches;
 
       return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(16),
         children: [
           // 1. Recent Searches (if available)
@@ -299,23 +328,31 @@ class _GlobalSearchViewState extends ConsumerState<GlobalSearchView> {
 
     final results = state.results;
     if (results == null || results.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.search_off, size: 64, color: theme.colorScheme.outline),
-            const SizedBox(height: 16),
-            Text(
-              'No results matching "${state.query}"',
-              style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(32),
+        children: [
+          const SizedBox(height: 60),
+          Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.search_off, size: 64, color: theme.colorScheme.outline),
+                const SizedBox(height: 16),
+                Text(
+                  'No results matching "${state.query}"',
+                  style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       );
     }
 
     return ListView(
-      padding: const EdgeInsets.all(16),
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + CampusBottomNav.getBottomClearance(context)),
       children: [
         if (results.users.isNotEmpty) ...[
           _buildCategoryHeader('People (${results.users.length})'),
@@ -355,7 +392,7 @@ class _GlobalSearchViewState extends ConsumerState<GlobalSearchView> {
                 onTap: () {
                   final postId = item['id']?.toString();
                   if (postId != null && postId.isNotEmpty) {
-                    PostCommentsSheet.show(context, postId);
+                    context.push('/posts/$postId');
                   }
                 },
               )),
@@ -389,22 +426,10 @@ class _GlobalSearchViewState extends ConsumerState<GlobalSearchView> {
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-        leading: CircleAvatar(
+        leading: CampusAvatar(
+          imageUrl: item.avatarUrl,
+          name: item.name,
           radius: 18,
-          backgroundColor: theme.colorScheme.primaryContainer,
-          backgroundImage: item.avatarUrl != null && item.avatarUrl!.isNotEmpty
-              ? NetworkImage(ApiEndpoints.resolveUrl(item.avatarUrl!))
-              : null,
-          child: item.avatarUrl == null || item.avatarUrl!.isEmpty
-              ? Text(
-                  item.name.isNotEmpty ? item.name[0].toUpperCase() : 'U',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: theme.colorScheme.onPrimaryContainer,
-                  ),
-                )
-              : null,
         ),
         title: Text(
           item.name,
@@ -467,53 +492,32 @@ class _GlobalSearchViewState extends ConsumerState<GlobalSearchView> {
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           child: Row(
             children: [
-              CircleAvatar(
+              CampusAvatar(
+                imageUrl: user.avatarUrl,
+                name: user.fullName,
                 radius: 24,
-                backgroundColor: theme.colorScheme.primaryContainer,
-                backgroundImage: user.avatarUrl != null && user.avatarUrl!.isNotEmpty
-                    ? NetworkImage(ApiEndpoints.resolveUrl(user.avatarUrl!))
-                    : null,
-                onBackgroundImageError: user.avatarUrl != null && user.avatarUrl!.isNotEmpty
-                    ? (_, __) {}
-                    : null,
-                child: user.avatarUrl == null || user.avatarUrl!.isEmpty
-                    ? Text(
-                        user.firstName.isNotEmpty ? user.firstName[0].toUpperCase() : 'U',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: theme.colorScheme.onPrimaryContainer,
-                        ),
-                      )
-                    : null,
               ),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        Flexible(
-                          child: Text(
-                            user.fullName,
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          user.displayUsername,
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: theme.colorScheme.primary,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
+                    Text(
+                      user.fullName,
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      user.displayUsername,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: theme.colorScheme.primary,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 2),
                     Text(
@@ -521,7 +525,7 @@ class _GlobalSearchViewState extends ConsumerState<GlobalSearchView> {
                           ? '${user.role} • ${user.departmentName}'
                           : (user.rollNumber != null ? '${user.role} • ${user.rollNumber}' : '${user.role} • ${user.email}'),
                       style: TextStyle(
-                        fontSize: 12.5,
+                        fontSize: 12,
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
                       maxLines: 1,
@@ -554,20 +558,13 @@ class _GlobalSearchViewState extends ConsumerState<GlobalSearchView> {
                     icon: const Icon(Icons.chat_bubble_outline, size: 16),
                     tooltip: 'Message ${user.firstName}',
                     onPressed: () async {
-                      try {
-                        final repo = ref.read(chatRepositoryProvider);
-                        final room = await repo.getOrCreateDirectChat(user.id);
-                        ref.invalidate(userChatRoomsProvider);
-                        if (context.mounted) {
-                          context.push('/chat/room/${room.id}');
-                        }
-                      } catch (e) {
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Cannot start conversation: $e')),
-                          );
-                        }
-                      }
+                      await ChatNavigationHelper.startOrOpenDirectChat(
+                        context,
+                        ref,
+                        targetUserId: user.id,
+                        targetUserName: user.fullName,
+                        targetUserAvatar: user.avatarUrl,
+                      );
                     },
                   ),
                   const SizedBox(width: 6),

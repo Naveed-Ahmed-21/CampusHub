@@ -1,4 +1,9 @@
 import 'package:flutter/material.dart';
+import '../../../../core/branding/gcee_logo.dart';
+import '../../../../core/branding/gcee_brand.dart';
+import '../../../../core/widgets/campus_back_button.dart';
+import '../../../../core/widgets/campus_app_bar.dart';
+import '../../../../core/widgets/atmospheric_background.dart';
 
 class AboutView extends StatelessWidget {
   const AboutView({super.key});
@@ -45,14 +50,13 @@ class AboutView extends StatelessWidget {
       'Civil Engineering (CIVIL)',
     ];
 
-    return Scaffold(
-      backgroundColor: theme.colorScheme.surface,
-      appBar: AppBar(
-        title: const Text('About CampusHub'),
-        backgroundColor: theme.colorScheme.surface,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-      ),
+    return AtmosphericBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: const CampusAppBar(
+          leading: CampusBackButton(),
+          title: 'About CampusHub',
+        ),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
@@ -60,34 +64,23 @@ class AboutView extends StatelessWidget {
           Center(
             child: Column(
               children: [
-                Container(
-                  width: 76,
-                  height: 76,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [theme.colorScheme.primary, theme.colorScheme.secondary],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(22),
-                    boxShadow: [
-                      BoxShadow(
-                        color: theme.colorScheme.primary.withValues(alpha: 0.3),
-                        blurRadius: 16,
-                        offset: const Offset(0, 6),
-                      ),
-                    ],
-                  ),
-                  child: const Center(
-                    child: Icon(Icons.school, size: 40, color: Colors.white),
-                  ),
-                ),
+                const GceeLogo(size: 80),
                 const SizedBox(height: 14),
-                const Text(
-                  'CampusHub',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24, letterSpacing: -0.5),
+                Text(
+                  GceeBrand.productName,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 26, letterSpacing: -0.5),
                 ),
                 const SizedBox(height: 4),
+                Text(
+                  GceeBrand.institutionName,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
                   decoration: BoxDecoration(
@@ -270,15 +263,17 @@ class AboutView extends StatelessWidget {
             onPressed: () {
               showLicensePage(
                 context: context,
-                applicationName: 'CampusHub',
+                applicationIcon: const GceeLogo(size: 48),
+                applicationName: '${GceeBrand.productName} (${GceeBrand.institutionShort})',
                 applicationVersion: '1.0.0 (Build 2026.08)',
-                applicationLegalese: 'Copyright © 2026 CampusHub Contributors. All rights reserved.',
+                applicationLegalese: 'Copyright © 2026 ${GceeBrand.institutionName}. All rights reserved.',
               );
             },
           ),
           const SizedBox(height: 32),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 }

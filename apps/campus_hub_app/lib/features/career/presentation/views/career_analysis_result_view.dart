@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/widgets/campus_back_button.dart';
+import '../../../../core/widgets/campus_app_bar.dart';
 import '../../data/career_repository.dart';
 import '../providers/career_provider.dart';
 import 'career_roadmap_view.dart';
@@ -85,14 +87,9 @@ class _CareerAnalysisResultViewState extends ConsumerState<CareerAnalysisResultV
 
     return Scaffold(
       backgroundColor: const Color(0xFF0F172A),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF0F172A),
-        elevation: 0,
-        leading: const BackButton(color: Colors.white),
-        title: const Text(
-          'Career Analysis Result',
-          style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: Colors.white),
-        ),
+      appBar: const CampusAppBar(
+        title: 'Career Analysis Result',
+        leading: CampusBackButton(),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20.0),

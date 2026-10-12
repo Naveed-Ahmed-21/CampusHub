@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
@@ -42,6 +43,36 @@ class SecureStorageService {
 
   Future<String?> getThemeMode() async =>
       await _storage.read(key: _themeModeKey);
+
+  static const String _serverBaseUrlKey = 'custom_server_base_url';
+
+  Future<void> saveServerBaseUrl(String url) async =>
+      await _storage.write(key: _serverBaseUrlKey, value: url);
+
+  Future<String?> getServerBaseUrl() async =>
+      await _storage.read(key: _serverBaseUrlKey);
+
+  static const String _seenPostIdsKey = 'seen_post_ids_v1';
+
+  Future<Set<String>> getSeenPostIds() async {
+    final raw = await _storage.read(key: _seenPostIdsKey);
+    if (raw == null || raw.isEmpty) return {};
+    try {
+      final list = jsonDecode(raw) as List;
+      return list.map((e) => e.toString()).toSet();
+    } catch (_) {
+      return {};
+    }
+  }
+
+  Future<void> markPostsAsSeen(List<String> postIds) async {
+    if (postIds.isEmpty) return;
+    final current = await getSeenPostIds();
+    current.addAll(postIds);
+    // Keep max 1500 to prevent unbounded growth
+    final trimmed = current.length > 1500 ? current.toList().sublist(current.length - 1500).toSet() : current;
+    await _storage.write(key: _seenPostIdsKey, value: jsonEncode(trimmed.toList()));
+  }
 
   Future<void> clearAll() async => await _storage.deleteAll();
 }

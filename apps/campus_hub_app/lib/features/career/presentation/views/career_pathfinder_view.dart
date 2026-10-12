@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/widgets/campus_back_button.dart';
+import '../../../../core/widgets/campus_app_bar.dart';
 import '../../data/career_repository.dart';
 import '../../domain/career_models.dart';
 import 'career_analysis_result_view.dart';
@@ -153,15 +155,13 @@ class _CareerPathfinderViewState extends ConsumerState<CareerPathfinderView> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return Scaffold(
-        backgroundColor: const Color(0xFF0F172A),
-        appBar: AppBar(
-          backgroundColor: const Color(0xFF0F172A),
-          elevation: 0,
-          leading: const BackButton(color: Colors.white),
-          title: const Text('AI Career Pathfinder', style: TextStyle(color: Colors.white)),
+      return const Scaffold(
+        backgroundColor: Color(0xFF0F172A),
+        appBar: CampusAppBar(
+          title: 'AI Career Pathfinder',
+          leading: CampusBackButton(),
         ),
-        body: const Center(
+        body: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -177,9 +177,9 @@ class _CareerPathfinderViewState extends ConsumerState<CareerPathfinderView> {
     if (_errorMessage != null && _session == null) {
       return Scaffold(
         backgroundColor: const Color(0xFF0F172A),
-        appBar: AppBar(
-          backgroundColor: const Color(0xFF0F172A),
-          leading: const BackButton(color: Colors.white),
+        appBar: const CampusAppBar(
+          title: 'AI Career Pathfinder',
+          leading: CampusBackButton(),
         ),
         body: Center(
           child: Padding(
@@ -210,37 +210,24 @@ class _CareerPathfinderViewState extends ConsumerState<CareerPathfinderView> {
 
     return Scaffold(
       backgroundColor: const Color(0xFF0F172A),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF0F172A),
-        elevation: 0,
-        leading: const BackButton(color: Colors.white),
-        title: const Text(
-          'AI Career Pathfinder',
-          style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: Colors.white),
-        ),
-        actions: [
-          Container(
-            alignment: Alignment.center,
-            padding: const EdgeInsets.only(right: 16),
-            child: Text(
-              'Step $step of $totalSteps ($percentInt%)',
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF38BDF8)),
-            ),
-          ),
-        ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(4),
-          child: LinearProgressIndicator(
+      appBar: CampusAppBar(
+        title: 'AI Career Pathfinder',
+        subtitle: 'Step $step of $totalSteps ($percentInt%)',
+        leading: const CampusBackButton(),
+      ),
+      body: Column(
+        children: [
+          LinearProgressIndicator(
             value: progress,
             backgroundColor: const Color(0xFF1E293B),
             valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF6366F1)),
+            minHeight: 3,
           ),
-        ),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Stage indicator
             Row(
@@ -429,7 +416,7 @@ class _CareerPathfinderViewState extends ConsumerState<CareerPathfinderView> {
                         child: const Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.arrow_back_rounded, size: 18),
+                            Icon(Icons.arrow_back_ios_new_rounded, size: 14),
                             SizedBox(width: 6),
                             Text('Previous', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
                           ],
@@ -475,6 +462,9 @@ class _CareerPathfinderViewState extends ConsumerState<CareerPathfinderView> {
           ],
         ),
       ),
+    ),
+  ],
+),
     );
   }
 }

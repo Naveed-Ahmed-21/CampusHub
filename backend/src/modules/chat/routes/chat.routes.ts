@@ -10,6 +10,9 @@ import {
   addReactionSchema,
   markReadSchema,
   queryRoomsSchema,
+  updateChatSettingsSchema,
+  createChatRequestSchema,
+  blockUserSchema,
 } from '../chat.validation';
 
 const chatRepository = new ChatRepository();
@@ -19,6 +22,26 @@ const chatController = new ChatController(chatService);
 export const chatRouter = Router();
 
 chatRouter.use(authenticate);
+
+// Student Chat Settings
+chatRouter.get('/settings', chatController.getChatSettings);
+chatRouter.patch('/settings', validateRequest(updateChatSettingsSchema), chatController.updateChatSettings);
+
+// Chat Permission Check
+chatRouter.get('/permission/:targetUserId', chatController.checkChatPermission);
+
+// Chat Requests
+chatRouter.post('/requests', validateRequest(createChatRequestSchema), chatController.createChatRequest);
+chatRouter.get('/requests/incoming', chatController.getIncomingRequests);
+chatRouter.get('/requests/sent', chatController.getSentRequests);
+chatRouter.post('/requests/:requestId/accept', chatController.acceptChatRequest);
+chatRouter.post('/requests/:requestId/decline', chatController.declineChatRequest);
+chatRouter.post('/requests/:requestId/cancel', chatController.cancelChatRequest);
+
+// Chat-Only Blocking
+chatRouter.post('/block', validateRequest(blockUserSchema), chatController.blockUser);
+chatRouter.post('/unblock', validateRequest(blockUserSchema), chatController.unblockUser);
+chatRouter.get('/blocks', chatController.getBlockedUsers);
 
 // Users Directory
 chatRouter.get('/users', chatController.searchUsers);

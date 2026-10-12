@@ -1,13 +1,16 @@
+import '../../../../core/widgets/campus_avatar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/constants/api_endpoints.dart';
-import '../../../../shared/responsive/responsive_layout.dart';
 import '../../../../shared/widgets/async_value_widget.dart';
 import '../controllers/faculty_controller.dart';
 import '../../domain/models/faculty_models.dart';
 import '../widgets/add_subject_dialog.dart';
+import '../widgets/add_edit_schedule_slot_dialog.dart';
 import '../widgets/faculty_drawer_widget.dart';
+import '../../../../core/widgets/campus_app_bar.dart';
+import '../../../../core/widgets/campus_segmented_control.dart';
+import '../../../../core/theme/app_colors.dart';
 
 class FacultyTeachingView extends ConsumerStatefulWidget {
   const FacultyTeachingView({super.key});
@@ -20,6 +23,7 @@ class FacultyTeachingView extends ConsumerStatefulWidget {
 class _FacultyTeachingViewState extends ConsumerState<FacultyTeachingView>
     with SingleTickerProviderStateMixin, AutomaticKeepAliveClientMixin {
   late TabController _tabController;
+  int _selectedTabIndex = 0;
 
   @override
   bool get wantKeepAlive => true;
@@ -28,6 +32,14 @@ class _FacultyTeachingViewState extends ConsumerState<FacultyTeachingView>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(() {
+      if (!_tabController.indexIsChanging &&
+          _selectedTabIndex != _tabController.index) {
+        setState(() {
+          _selectedTabIndex = _tabController.index;
+        });
+      }
+    });
   }
 
   @override
@@ -36,24 +48,50 @@ class _FacultyTeachingViewState extends ConsumerState<FacultyTeachingView>
     super.dispose();
   }
 
+  void _onPrimaryAction() {
+    if (_selectedTabIndex == 0) {
+      showDialog(
+        context: context,
+        builder: (ctx) => const AddSubjectDialog(),
+      );
+    } else {
+      showDialog(
+        context: context,
+        builder: (ctx) => const AddEditScheduleSlotDialog(),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
+
     return Scaffold(
       drawer: const FacultyDrawerWidget(),
-      appBar: AppBar(
-        title: const Text(
-          'Teaching Hub',
-          style: TextStyle(fontWeight: FontWeight.bold),
+      appBar: CampusAppBar(
+        title: 'Teaching Hub',
+        subtitle: _selectedTabIndex == 0
+            ? 'My Subjects'
+            : _selectedTabIndex == 1
+                ? 'Weekly Schedule'
+                : 'Student Mentoring',
+        leading: Builder(
+          builder: (ctx) => IconButton(
+            icon: const Icon(Icons.menu),
+            tooltip: 'Open Drawer',
+            onPressed: () => Scaffold.of(ctx).openDrawer(),
+          ),
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.add_box_outlined),
-            tooltip: 'Add Subject',
-            onPressed: () => showDialog(
-              context: context,
-              builder: (ctx) => const AddSubjectDialog(),
+            icon: Icon(
+              _selectedTabIndex == 0
+                  ? Icons.add_box_outlined
+                  : Icons.more_time_rounded,
             ),
+            tooltip:
+                _selectedTabIndex == 0 ? 'Add Subject' : 'Add Schedule',
+            onPressed: _onPrimaryAction,
           ),
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -65,49 +103,50 @@ class _FacultyTeachingViewState extends ConsumerState<FacultyTeachingView>
               ref.invalidate(facultyMenteesProvider);
             },
           ),
+          const SizedBox(width: 4),
         ],
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(icon: Icon(Icons.menu_book, size: 20), text: 'My Subjects'),
-            Tab(icon: Icon(Icons.schedule, size: 20), text: 'Schedule'),
-            Tab(
-                icon: Icon(Icons.people_alt_outlined, size: 20),
-                text: 'Mentoring'),
-          ],
-        ),
       ),
-      body: ResponsiveLayout(
-        mobile: TabBarView(
-          controller: _tabController,
-          children: [
-            _buildSubjectsTab(context, ref, isDesktop: false),
-            _buildScheduleTab(context, ref, isDesktop: false),
-            _buildMentoringTab(context, ref, isDesktop: false),
-          ],
-        ),
-        desktop: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1100),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
+            child: CampusSegmentedControl(
+              height: 38,
+              selectedIndex: _selectedTabIndex,
+              items: const [
+                CampusSegmentItem(label: 'Subjects'),
+                CampusSegmentItem(label: 'Schedule'),
+                CampusSegmentItem(label: 'Mentoring'),
+              ],
+              onValueChanged: (index) {
+                setState(() {
+                  _selectedTabIndex = index;
+                });
+                _tabController.animateTo(index);
+              },
+            ),
+          ),
+          Expanded(
             child: TabBarView(
               controller: _tabController,
               children: [
-                _buildSubjectsTab(context, ref, isDesktop: true),
-                _buildScheduleTab(context, ref, isDesktop: true),
-                _buildMentoringTab(context, ref, isDesktop: true),
+                _buildSubjectsTab(context, ref),
+                _buildScheduleTab(context, ref),
+                _buildMentoringTab(context, ref),
               ],
             ),
           ),
-        ),
+        ],
       ),
       floatingActionButton: FloatingActionButton.extended(
         heroTag: null,
-        onPressed: () => showDialog(
-          context: context,
-          builder: (ctx) => const AddSubjectDialog(),
+        onPressed: _onPrimaryAction,
+        icon: Icon(
+          _selectedTabIndex == 0 ? Icons.add : Icons.add_alarm_outlined,
         ),
-        icon: const Icon(Icons.add),
-        label: const Text('Add Subject'),
+        label: Text(
+          _selectedTabIndex == 0 ? 'Add Subject' : 'Add Schedule',
+        ),
       ),
     );
   }
@@ -118,10 +157,10 @@ class _FacultyTeachingViewState extends ConsumerState<FacultyTeachingView>
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
+        gradient: const LinearGradient(
           colors: [
-            Colors.teal.shade800,
-            Colors.teal.shade900,
+            AppColors.primaryNavy,
+            Color(0xFF1E3A5F),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -129,7 +168,7 @@ class _FacultyTeachingViewState extends ConsumerState<FacultyTeachingView>
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.teal.withValues(alpha: 0.2),
+            color: AppColors.primaryNavy.withValues(alpha: 0.25),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -153,7 +192,7 @@ class _FacultyTeachingViewState extends ConsumerState<FacultyTeachingView>
                     const Icon(Icons.school, size: 14, color: Colors.white),
                     const SizedBox(width: 6),
                     Text(
-                      '${contextData.academicYear} • ${contextData.termName}',
+                      contextData.academicYear,
                       style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
@@ -171,7 +210,7 @@ class _FacultyTeachingViewState extends ConsumerState<FacultyTeachingView>
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
-                  '${contextData.termType} SEMESTER',
+                  '${contextData.termType.toUpperCase()} SEMESTER',
                   style: const TextStyle(
                     color: Colors.white70,
                     fontSize: 11,
@@ -183,7 +222,7 @@ class _FacultyTeachingViewState extends ConsumerState<FacultyTeachingView>
           ),
           const SizedBox(height: 12),
           Text(
-            contextData.academicHeader,
+            '${contextData.academicYear} • ${contextData.termType.toUpperCase()} Semester | My Teaching',
             style: const TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.bold,
@@ -220,8 +259,7 @@ class _FacultyTeachingViewState extends ConsumerState<FacultyTeachingView>
     );
   }
 
-  Widget _buildSubjectsTab(BuildContext context, WidgetRef ref,
-      {required bool isDesktop}) {
+  Widget _buildSubjectsTab(BuildContext context, WidgetRef ref) {
     final academicContextAsync = ref.watch(facultyAcademicContextProvider);
     final subjectsAsync = ref.watch(facultySubjectsProvider);
 
@@ -230,186 +268,223 @@ class _FacultyTeachingViewState extends ConsumerState<FacultyTeachingView>
         ref.invalidate(facultySubjectsProvider);
         ref.invalidate(facultyAcademicContextProvider);
       },
-      child: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          // Dynamic Term-Driven Header
-          academicContextAsync.when(
-            data: (ctxData) => _buildTermAcademicHeader(context, ctxData),
-            loading: () => const SizedBox.shrink(),
-            error: (_, __) => const SizedBox.shrink(),
-          ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isDesktop = constraints.maxWidth >= 768;
+          return Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1100),
+              child: ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  // Dynamic Term-Driven Header
+                  academicContextAsync.when(
+                    data: (ctxData) => _buildTermAcademicHeader(context, ctxData),
+                    loading: () => const SizedBox.shrink(),
+                    error: (_, __) => const SizedBox.shrink(),
+                  ),
 
-          // Subjects Section
-          subjectsAsync.when(
-            loading: () => const Center(
-              child: Padding(
-                padding: EdgeInsets.all(32),
-                child: CircularProgressIndicator(),
-              ),
-            ),
-            error: (err, _) => Center(
-              child: Padding(
-                padding: const EdgeInsets.all(32),
-                child: Text('Error loading subjects: $err'),
-              ),
-            ),
-            data: (subjects) {
-              final displaySubjects = subjects.isNotEmpty
-                  ? subjects
-                  : (academicContextAsync.value?.assignedSubjects ?? []);
-
-              if (displaySubjects.isEmpty) {
-                return Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.school_outlined,
-                          size: 64, color: Colors.grey),
-                      const SizedBox(height: 16),
-                      const Text(
-                          'No assigned subjects for the current academic term'),
-                      const SizedBox(height: 12),
-                      FilledButton.icon(
-                        onPressed: () => showDialog(
-                          context: context,
-                          builder: (ctx) => const AddSubjectDialog(),
-                        ),
-                        icon: const Icon(Icons.add),
-                        label: const Text('Add Your First Subject'),
+                  // Subjects Section
+                  subjectsAsync.when(
+                    loading: () => const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(32),
+                        child: CircularProgressIndicator(),
                       ),
-                    ],
-                  ),
-                );
-              }
+                    ),
+                    error: (err, _) => Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(32),
+                        child: Text('Error loading subjects: $err'),
+                      ),
+                    ),
+                    data: (subjects) {
+                      final displaySubjects = subjects.isNotEmpty
+                          ? subjects
+                          : (academicContextAsync.value?.assignedSubjects ?? []);
 
-              if (isDesktop) {
-                return GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
-                    childAspectRatio: 1.4,
-                    crossAxisSpacing: 16,
-                    mainAxisSpacing: 16,
-                  ),
-                  itemCount: displaySubjects.length,
-                  itemBuilder: (context, index) {
-                    final subject = displaySubjects[index];
-                    return _SubjectCard(subject: subject);
-                  },
-                );
-              }
+                      if (displaySubjects.isEmpty) {
+                        return Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(32),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.school_outlined,
+                                    size: 64, color: Colors.grey),
+                                const SizedBox(height: 16),
+                                const Text(
+                                  'No assigned subjects for the current academic term',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                                ),
+                                const SizedBox(height: 16),
+                                FilledButton.icon(
+                                  onPressed: () => showDialog(
+                                    context: context,
+                                    builder: (ctx) => const AddSubjectDialog(),
+                                  ),
+                                  icon: const Icon(Icons.add),
+                                  label: const Text('Add Your First Subject'),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }
 
-              return ListView.separated(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: displaySubjects.length,
-                separatorBuilder: (context, index) =>
-                    const SizedBox(height: 12),
-                itemBuilder: (context, index) {
-                  final subject = displaySubjects[index];
-                  return _SubjectCard(subject: subject);
-                },
-              );
-            },
-          ),
-        ],
+                      if (isDesktop) {
+                        return GridView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                            maxCrossAxisExtent: 420,
+                            mainAxisExtent: 210,
+                            crossAxisSpacing: 16,
+                            mainAxisSpacing: 16,
+                          ),
+                          itemCount: displaySubjects.length,
+                          itemBuilder: (context, index) {
+                            final subject = displaySubjects[index];
+                            return _SubjectCard(subject: subject);
+                          },
+                        );
+                      }
+
+                      return ListView.separated(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: displaySubjects.length,
+                        separatorBuilder: (context, index) =>
+                            const SizedBox(height: 12),
+                        itemBuilder: (context, index) {
+                          final subject = displaySubjects[index];
+                          return _SubjectCard(subject: subject);
+                        },
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }
 
-  Widget _buildScheduleTab(BuildContext context, WidgetRef ref,
-      {required bool isDesktop}) {
+  Widget _buildScheduleTab(BuildContext context, WidgetRef ref) {
     final scheduleAsync = ref.watch(facultyScheduleProvider);
     final academicContextAsync = ref.watch(facultyAcademicContextProvider);
 
     final contextSlots = academicContextAsync.value?.todaySchedule ?? [];
 
-    return AsyncValueWidget(
-      value: scheduleAsync,
-      data: (slots) {
-        final displaySlots = slots.isNotEmpty ? slots : contextSlots;
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 1100),
+        child: AsyncValueWidget(
+          value: scheduleAsync,
+          data: (slots) {
+            final displaySlots = slots.isNotEmpty ? slots : contextSlots;
 
-        if (displaySlots.isEmpty) {
-          return const Center(
-              child: Text('No timetable slots scheduled for today'));
-        }
-
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: displaySlots.length,
-          itemBuilder: (context, index) {
-            final slot = displaySlots[index];
-            return Card(
-              margin: const EdgeInsets.only(bottom: 12),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14)),
-              child: ListTile(
-                leading: Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    slot.subjectCode,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold, color: Colors.blue),
+            if (displaySlots.isEmpty) {
+              return const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(32),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.event_busy_outlined, size: 64, color: Colors.grey),
+                      SizedBox(height: 16),
+                      Text('No timetable slots scheduled for today',
+                          style: TextStyle(color: Colors.grey, fontSize: 15)),
+                    ],
                   ),
                 ),
-                title: Text(slot.subjectName,
-                    style: const TextStyle(fontWeight: FontWeight.bold)),
-                subtitle: Text(
-                    '${slot.semester} • Section ${slot.section}\n📍 ${slot.roomOrVenue}'),
-                isThreeLine: true,
-                trailing: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      slot.startTime,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.bold, color: Colors.blue),
+              );
+            }
+
+            return ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: displaySlots.length,
+              itemBuilder: (context, index) {
+                final slot = displaySlots[index];
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                  child: ListTile(
+                    leading: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        slot.subjectCode,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, color: Colors.blue),
+                      ),
                     ),
-                    Text(slot.endTime,
-                        style:
-                            const TextStyle(fontSize: 12, color: Colors.grey)),
-                  ],
-                ),
-              ),
+                    title: Text(slot.subjectName,
+                        style: const TextStyle(fontWeight: FontWeight.bold)),
+                    subtitle: Text(
+                        '${slot.semester} • Section ${slot.section}\n📍 ${slot.roomOrVenue}'),
+                    isThreeLine: true,
+                    trailing: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          slot.startTime,
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold, color: Colors.blue),
+                        ),
+                        Text(slot.endTime,
+                            style:
+                                const TextStyle(fontSize: 12, color: Colors.grey)),
+                      ],
+                    ),
+                  ),
+                );
+              },
             );
           },
-        );
-      },
+        ),
+      ),
     );
   }
 
-  Widget _buildMentoringTab(BuildContext context, WidgetRef ref,
-      {required bool isDesktop}) {
+  Widget _buildMentoringTab(BuildContext context, WidgetRef ref) {
     final menteesAsync = ref.watch(facultyMenteesProvider);
     final theme = Theme.of(context);
 
-    return AsyncValueWidget(
-      value: menteesAsync,
-      data: (mentees) {
-        if (mentees.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.school_outlined,
-                    size: 64, color: Colors.grey.shade400),
-                const SizedBox(height: 16),
-                Text(
-                  'No student mentees assigned yet.',
-                  style:
-                      theme.textTheme.titleMedium?.copyWith(color: Colors.grey),
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 1100),
+        child: AsyncValueWidget(
+          value: menteesAsync,
+          data: (mentees) {
+            if (mentees.isEmpty) {
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.school_outlined,
+                          size: 64, color: Colors.grey.shade400),
+                      const SizedBox(height: 16),
+                      Text(
+                        'No student mentees assigned yet.',
+                        style:
+                            theme.textTheme.titleMedium?.copyWith(color: Colors.grey),
+                      ),
+                    ],
+                  ),
                 ),
-              ],
-            ),
-          );
-        }
+              );
+            }
 
         return ListView.builder(
           padding: const EdgeInsets.all(16),
@@ -430,30 +505,10 @@ class _FacultyTeachingViewState extends ConsumerState<FacultyTeachingView>
                 padding: const EdgeInsets.all(14.0),
                 child: Row(
                   children: [
-                    CircleAvatar(
+                    CampusAvatar(
+                      imageUrl: student.avatarUrl,
+                      name: student.name,
                       radius: 24,
-                      backgroundColor: theme.colorScheme.primaryContainer,
-                      backgroundImage: student.avatarUrl != null &&
-                              student.avatarUrl!.isNotEmpty
-                          ? NetworkImage(
-                              ApiEndpoints.resolveUrl(student.avatarUrl!))
-                          : null,
-                      onBackgroundImageError: student.avatarUrl != null &&
-                              student.avatarUrl!.isNotEmpty
-                          ? (_, __) {}
-                          : null,
-                      child: student.avatarUrl == null ||
-                              student.avatarUrl!.isEmpty
-                          ? Text(
-                              student.name.isNotEmpty
-                                  ? student.name[0].toUpperCase()
-                                  : 'S',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: theme.colorScheme.onPrimaryContainer,
-                              ),
-                            )
-                          : null,
                     ),
                     const SizedBox(width: 14),
                     Expanded(
@@ -476,7 +531,7 @@ class _FacultyTeachingViewState extends ConsumerState<FacultyTeachingView>
                     ),
                     IconButton(
                       icon:
-                          const Icon(Icons.person_outline, color: Colors.teal),
+                          const Icon(Icons.person_outline, color: AppColors.primaryBlue),
                       tooltip: 'View Profile',
                       onPressed: () => context.push('/profile/${student.id}'),
                     ),
@@ -489,12 +544,14 @@ class _FacultyTeachingViewState extends ConsumerState<FacultyTeachingView>
                   ],
                 ),
               ),
-            );
-          },
-        );
-      },
-    );
-  }
+              );
+            },
+          );
+        },
+      ),
+    ),
+  );
+}
 }
 
 class _SubjectCard extends ConsumerWidget {
@@ -555,7 +612,7 @@ class _SubjectCard extends ConsumerWidget {
         onTap: () => context.push('/teaching/subjects/${subject.id}'),
         borderRadius: BorderRadius.circular(16),
         child: Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -563,22 +620,27 @@ class _SubjectCard extends ConsumerWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      subject.code,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.blue,
-                        fontSize: 13,
+                  Flexible(
+                    child: Container(
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        subject.code,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue,
+                          fontSize: 13,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ),
+                  const SizedBox(width: 8),
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -617,7 +679,7 @@ class _SubjectCard extends ConsumerWidget {
                             child: Row(
                               children: [
                                 Icon(Icons.edit_outlined,
-                                    size: 18, color: Colors.teal),
+                                    size: 18, color: AppColors.primaryBlue),
                                 SizedBox(width: 8),
                                 Text('Edit Subject'),
                               ],
@@ -656,29 +718,45 @@ class _SubjectCard extends ConsumerWidget {
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.outline,
                 ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
               const Divider(height: 16),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.people_outline,
-                          size: 16, color: Colors.grey),
-                      const SizedBox(width: 4),
-                      Text('${subject.studentsCount} Students',
-                          style: const TextStyle(fontSize: 12)),
-                    ],
+                  Expanded(
+                    child: Row(
+                      children: [
+                        const Icon(Icons.people_outline,
+                            size: 16, color: Colors.grey),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            '${subject.studentsCount} Students',
+                            style: const TextStyle(fontSize: 12),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  Row(
-                    children: [
-                      const Icon(Icons.folder_copy_outlined,
-                          size: 16, color: Colors.teal),
-                      const SizedBox(width: 4),
-                      Text('${subject.resourcesCount} Notes',
-                          style: const TextStyle(
-                              fontSize: 12, color: Colors.teal)),
-                    ],
+                  Expanded(
+                    child: Row(
+                      children: [
+                        const Icon(Icons.folder_copy_outlined,
+                            size: 16, color: AppColors.primaryBlue),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            '${subject.resourcesCount} Notes',
+                            style: const TextStyle(
+                                fontSize: 12, color: AppColors.primaryBlue),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                   const Icon(Icons.arrow_forward_ios,
                       size: 14, color: Colors.grey),

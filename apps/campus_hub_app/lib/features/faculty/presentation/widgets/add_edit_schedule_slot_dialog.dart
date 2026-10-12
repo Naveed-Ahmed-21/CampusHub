@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../domain/models/faculty_models.dart';
 import '../controllers/faculty_controller.dart';
 
@@ -42,7 +43,17 @@ class _AddEditScheduleSlotDialogState
     _endTimeController = TextEditingController(text: s?.endTime ?? '10:00 AM');
     _semesterController =
         TextEditingController(text: s?.semester ?? 'Semester 5');
-    _sectionController = TextEditingController(text: s?.section ?? 'A');
+    final rawSec = s?.section ?? 'Year 1';
+    final mappedSec = rawSec == 'A'
+        ? 'Year 1'
+        : rawSec == 'B'
+            ? 'Year 2'
+            : rawSec == 'C'
+                ? 'Year 3'
+                : rawSec == 'D'
+                    ? 'Year 4'
+                    : rawSec;
+    _sectionController = TextEditingController(text: mappedSec);
   }
 
   @override
@@ -128,31 +139,36 @@ class _AddEditScheduleSlotDialogState
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Colors.blue.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(10),
+                    Expanded(
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(
+                              isEditing
+                                  ? Icons.edit_calendar_outlined
+                                  : Icons.add_alarm_rounded,
+                              color: Colors.blue,
+                              size: 22,
+                            ),
                           ),
-                          child: Icon(
-                            isEditing
-                                ? Icons.edit_calendar_outlined
-                                : Icons.add_alarm_rounded,
-                            color: Colors.blue,
-                            size: 22,
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              isEditing
+                                  ? 'Edit Class Slot'
+                                  : 'Add Class to Schedule',
+                              style: theme.textTheme.titleLarge
+                                  ?.copyWith(fontWeight: FontWeight.bold),
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        Text(
-                          isEditing
-                              ? 'Edit Class Slot'
-                              : 'Add Class to Schedule',
-                          style: theme.textTheme.titleLarge
-                              ?.copyWith(fontWeight: FontWeight.bold),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                     IconButton(
                       icon: const Icon(Icons.close, size: 20),
@@ -162,46 +178,175 @@ class _AddEditScheduleSlotDialogState
                 ),
                 const SizedBox(height: 20),
 
-                // Subject Code & Name
-                Row(
-                  children: [
-                    Expanded(
-                      flex: 2,
-                      child: TextFormField(
-                        controller: _codeController,
-                        decoration: InputDecoration(
-                          labelText: 'Subject Code',
-                          hintText: 'e.g. CS3381',
-                          border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12)),
-                          filled: true,
-                          fillColor: theme.colorScheme.surfaceContainerHighest
-                              .withValues(alpha: 0.3),
+                // Synchronized Subject Code & Name Dropdowns
+                Builder(
+                  builder: (context) {
+                    final subjects = ref.watch(facultySubjectsProvider).value ?? [];
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              flex: 2,
+                              child: DropdownButtonFormField<String>(
+                                initialValue: subjects.any((s) => s.code == _codeController.text)
+                                    ? _codeController.text
+                                    : null,
+                                isExpanded: true,
+                                decoration: InputDecoration(
+                                  labelText: 'Subject Code',
+                                  hintText: 'Select Code',
+                                  border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12)),
+                                  filled: true,
+                                  fillColor: theme.colorScheme.surfaceContainerHighest
+                                      .withValues(alpha: 0.3),
+                                ),
+                                items: [
+                                  ...subjects.map(
+                                    (s) => DropdownMenuItem(
+                                      value: s.code,
+                                      child: Text(s.code, overflow: TextOverflow.ellipsis),
+                                    ),
+                                  ),
+                                  const DropdownMenuItem(
+                                    value: '__ADD_SUBJECT__',
+                                    child: Row(
+                                      children: [
+                                        Icon(Icons.add_circle_outline, size: 16, color: Colors.blue),
+                                        SizedBox(width: 4),
+                                        Text(
+                                          '+ Add',
+                                          style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                                onChanged: (val) {
+                                  if (val == '__ADD_SUBJECT__') {
+                                    Navigator.pop(context);
+                                    context.push('/faculty/teaching');
+                                    return;
+                                  }
+                                  if (val != null) {
+                                    final match = subjects.firstWhere((s) => s.code == val);
+                                    setState(() {
+                                      _codeController.text = match.code;
+                                      _nameController.text = match.name;
+                                      if (match.semester.isNotEmpty) _semesterController.text = match.semester;
+                                      if (match.section.isNotEmpty) _sectionController.text = match.section;
+                                    });
+                                  }
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              flex: 3,
+                              child: DropdownButtonFormField<String>(
+                                initialValue: subjects.any((s) => s.name == _nameController.text)
+                                    ? _nameController.text
+                                    : null,
+                                isExpanded: true,
+                                decoration: InputDecoration(
+                                  labelText: 'Subject',
+                                  hintText: 'Select Subject',
+                                  border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12)),
+                                  filled: true,
+                                  fillColor: theme.colorScheme.surfaceContainerHighest
+                                      .withValues(alpha: 0.3),
+                                ),
+                                items: [
+                                  ...subjects.map(
+                                    (s) => DropdownMenuItem(
+                                      value: s.name,
+                                      child: Text(s.name, overflow: TextOverflow.ellipsis),
+                                    ),
+                                  ),
+                                  const DropdownMenuItem(
+                                    value: '__ADD_SUBJECT__',
+                                    child: Row(
+                                      children: [
+                                        Icon(Icons.add_circle_outline, size: 16, color: Colors.blue),
+                                        SizedBox(width: 4),
+                                        Text(
+                                          '+ Add Subject',
+                                          style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                                onChanged: (val) {
+                                  if (val == '__ADD_SUBJECT__') {
+                                    Navigator.pop(context);
+                                    context.push('/faculty/teaching');
+                                    return;
+                                  }
+                                  if (val != null) {
+                                    final match = subjects.firstWhere((s) => s.name == val);
+                                    setState(() {
+                                      _codeController.text = match.code;
+                                      _nameController.text = match.name;
+                                      if (match.semester.isNotEmpty) _semesterController.text = match.semester;
+                                      if (match.section.isNotEmpty) _sectionController.text = match.section;
+                                    });
+                                  }
+                                },
+                              ),
+                            ),
+                          ],
                         ),
-                        textCapitalization: TextCapitalization.characters,
-                        validator: (v) =>
-                            (v == null || v.trim().isEmpty) ? 'Required' : null,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      flex: 3,
-                      child: TextFormField(
-                        controller: _nameController,
-                        decoration: InputDecoration(
-                          labelText: 'Subject Name',
-                          hintText: 'e.g. Data Science',
-                          border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12)),
-                          filled: true,
-                          fillColor: theme.colorScheme.surfaceContainerHighest
-                              .withValues(alpha: 0.3),
-                        ),
-                        validator: (v) =>
-                            (v == null || v.trim().isEmpty) ? 'Required' : null,
-                      ),
-                    ),
-                  ],
+                        if (subjects.isEmpty) ...[
+                          const SizedBox(height: 10),
+                          Row(
+                            children: [
+                              Expanded(
+                                flex: 2,
+                                child: TextFormField(
+                                  controller: _codeController,
+                                  decoration: InputDecoration(
+                                    labelText: 'Custom Code',
+                                    hintText: 'e.g. CS3381',
+                                    border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12)),
+                                    filled: true,
+                                    fillColor: theme.colorScheme.surfaceContainerHighest
+                                        .withValues(alpha: 0.3),
+                                  ),
+                                  textCapitalization: TextCapitalization.characters,
+                                  validator: (v) =>
+                                      (v == null || v.trim().isEmpty) ? 'Required' : null,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                flex: 3,
+                                child: TextFormField(
+                                  controller: _nameController,
+                                  decoration: InputDecoration(
+                                    labelText: 'Custom Subject',
+                                    hintText: 'e.g. Data Science',
+                                    border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12)),
+                                    filled: true,
+                                    fillColor: theme.colorScheme.surfaceContainerHighest
+                                        .withValues(alpha: 0.3),
+                                  ),
+                                  validator: (v) =>
+                                      (v == null || v.trim().isEmpty) ? 'Required' : null,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ],
+                    );
+                  },
                 ),
                 const SizedBox(height: 14),
 
@@ -288,20 +433,28 @@ class _AddEditScheduleSlotDialogState
                     const SizedBox(width: 12),
                     Expanded(
                       flex: 2,
-                      child: TextFormField(
-                        controller: _sectionController,
+                      child: DropdownButtonFormField<String>(
+                        initialValue: ['Year 1', 'Year 2', 'Year 3', 'Year 4']
+                                .contains(_sectionController.text)
+                            ? _sectionController.text
+                            : 'Year 1',
                         decoration: InputDecoration(
-                          labelText: 'Section',
-                          hintText: 'A',
+                          labelText: 'Year',
                           border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12)),
                           filled: true,
                           fillColor: theme.colorScheme.surfaceContainerHighest
                               .withValues(alpha: 0.3),
                         ),
-                        textCapitalization: TextCapitalization.characters,
-                        validator: (v) =>
-                            (v == null || v.trim().isEmpty) ? 'Required' : null,
+                        items: ['Year 1', 'Year 2', 'Year 3', 'Year 4']
+                            .map((y) => DropdownMenuItem(
+                                  value: y,
+                                  child: Text(y),
+                                ))
+                            .toList(),
+                        onChanged: (v) {
+                          if (v != null) _sectionController.text = v;
+                        },
                       ),
                     ),
                   ],

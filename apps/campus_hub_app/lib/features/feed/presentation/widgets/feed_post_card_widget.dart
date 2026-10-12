@@ -2,12 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/constants/api_endpoints.dart';
+import '../../../../core/utils/app_date_formatter.dart';
+import '../../../../core/widgets/campus_glass_card.dart';
+import '../../../../core/widgets/campus_avatar.dart';
+import '../../../../core/theme/app_glass.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../domain/models/post_item.dart';
 import '../controllers/feed_controller.dart';
 import 'post_attachment_renderer.dart';
 import 'share_post_sheet.dart';
+import '../../../../core/theme/app_colors.dart';
 
 class FeedPostCardWidget extends ConsumerStatefulWidget {
   final PostItem post;
@@ -35,45 +39,28 @@ class _FeedPostCardWidgetState extends ConsumerState<FeedPostCardWidget> {
   }
 
   String _formatDate(String dateStr) {
-    final date = DateTime.tryParse(dateStr);
-    if (date == null) return dateStr;
-    final diff = DateTime.now().difference(date);
-    if (diff.inMinutes < 1) return 'Just now';
-    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-    if (diff.inHours < 24) return '${diff.inHours}h ago';
-    if (diff.inDays < 7) return '${diff.inDays}d ago';
-    return '${date.day}/${date.month}/${date.year}';
+    return AppDateFormatter.formatFeedDate(dateStr);
   }
 
-  Color _getRoleBadgeColor(String role) {
-    switch (role.toUpperCase()) {
-      case 'ADMIN':
-      case 'COLLEGE_ADMIN':
-      case 'SUPER_ADMIN':
-        return Colors.red.shade700;
-      case 'FACULTY':
-      case 'DEPT_ADMIN':
-        return Colors.purple.shade700;
-      case 'PLACEMENT_OFFICER':
-        return Colors.amber.shade800;
-      default:
-        return Colors.teal.shade700;
+  void _navigateToAuthorProfile(BuildContext context, String authorId) {
+    final cleanId = authorId.trim();
+    if (cleanId.isEmpty) return;
+    final currentUserId = ref.read(authControllerProvider).asData?.value?.id;
+    if (currentUserId != null && currentUserId == cleanId) {
+      context.push('/profile');
+    } else {
+      context.push('/profile/$cleanId');
     }
   }
 
-  Color _getPostTypeColor(String type) {
-    switch (type.toUpperCase()) {
-      case 'ANNOUNCEMENT':
-        return Colors.red.shade600;
-      case 'ACADEMIC':
-        return Colors.indigo.shade600;
-      case 'EVENT_PROMO':
-        return Colors.orange.shade700;
-      case 'PLACEMENT':
-        return Colors.green.shade700;
-      default:
-        return Colors.blue.shade600;
-    }
+  Color _getRoleBadgeColor(BuildContext context, String role) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return isDark ? Colors.white : AppColors.primaryText;
+  }
+
+  Color _getPostTypeColor(BuildContext context, String type) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return isDark ? AppColors.darkSecondaryText : AppColors.secondaryText;
   }
 
   void _showEditPostDialog(BuildContext context, PostItem post) {
@@ -253,12 +240,14 @@ class _FeedPostCardWidgetState extends ConsumerState<FeedPostCardWidget> {
                   child: Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.blue.withValues(alpha: 0.1),
+                      color: theme.brightness == Brightness.dark
+                          ? AppColors.darkElevatedSurface
+                          : AppColors.lightSecondarySurface,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Column(
                       children: [
-                        const Icon(Icons.chat_bubble, color: Colors.blue, size: 24),
+                        Icon(Icons.chat_bubble_outline, color: theme.colorScheme.onSurface, size: 24),
                         const SizedBox(height: 4),
                         Text('${post.commentsCount}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                         const Text('Comments', style: TextStyle(fontSize: 11, color: Colors.grey)),
@@ -271,12 +260,14 @@ class _FeedPostCardWidgetState extends ConsumerState<FeedPostCardWidget> {
                   child: Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.teal.withValues(alpha: 0.1),
+                      color: theme.brightness == Brightness.dark
+                          ? AppColors.darkElevatedSurface
+                          : AppColors.lightSecondarySurface,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Column(
                       children: [
-                        const Icon(Icons.attach_file, color: Colors.teal, size: 24),
+                        Icon(Icons.attach_file, color: theme.colorScheme.onSurface, size: 24),
                         const SizedBox(height: 4),
                         Text('${post.attachments.length}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                         const Text('Attachments', style: TextStyle(fontSize: 11, color: Colors.grey)),
@@ -289,19 +280,19 @@ class _FeedPostCardWidgetState extends ConsumerState<FeedPostCardWidget> {
             const SizedBox(height: 16),
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.category_outlined, color: Colors.indigo),
+              leading: Icon(Icons.category_outlined, color: theme.colorScheme.onSurface),
               title: const Text('Post Scope'),
               subtitle: Text(post.type),
             ),
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.schedule, color: Colors.orange),
+              leading: Icon(Icons.schedule, color: theme.colorScheme.onSurface),
               title: const Text('Published Date & Time'),
               subtitle: Text(post.createdAt),
             ),
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.person_outline, color: Colors.purple),
+              leading: Icon(Icons.person_outline, color: theme.colorScheme.onSurface),
               title: const Text('Author'),
               subtitle: Text('${post.author.name} (${post.author.role})'),
             ),
@@ -322,22 +313,10 @@ class _FeedPostCardWidgetState extends ConsumerState<FeedPostCardWidget> {
         contentPadding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
         title: Row(
           children: [
-            CircleAvatar(
+            CampusAvatar(
+              imageUrl: author.avatarUrl,
+              name: author.name,
               radius: 22,
-              backgroundColor: _getRoleBadgeColor(author.role).withValues(alpha: 0.15),
-              backgroundImage: author.avatarUrl != null && author.avatarUrl!.isNotEmpty
-                  ? NetworkImage(ApiEndpoints.resolveUrl(author.avatarUrl!))
-                  : null,
-              child: author.avatarUrl == null || author.avatarUrl!.isEmpty
-                  ? Text(
-                      author.name.isNotEmpty ? author.name[0].toUpperCase() : 'U',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        color: _getRoleBadgeColor(author.role),
-                      ),
-                    )
-                  : null,
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -354,15 +333,22 @@ class _FeedPostCardWidgetState extends ConsumerState<FeedPostCardWidget> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                     decoration: BoxDecoration(
-                      color: _getRoleBadgeColor(author.role).withValues(alpha: 0.12),
+                      color: theme.brightness == Brightness.dark
+                          ? AppColors.darkElevatedSurface
+                          : AppColors.lightSecondarySurface,
                       borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: theme.brightness == Brightness.dark
+                            ? AppColors.darkBorder
+                            : AppColors.border,
+                      ),
                     ),
                     child: Text(
                       author.role,
                       style: TextStyle(
                         fontSize: 10.5,
                         fontWeight: FontWeight.bold,
-                        color: _getRoleBadgeColor(author.role),
+                        color: _getRoleBadgeColor(context, author.role),
                       ),
                     ),
                   ),
@@ -439,7 +425,7 @@ class _FeedPostCardWidgetState extends ConsumerState<FeedPostCardWidget> {
                   onPressed: () {
                     Navigator.of(ctx).pop();
                     if (author.id.isNotEmpty) {
-                      context.push('/profile/${author.id}');
+                      _navigateToAuthorProfile(context, author.id);
                     }
                   },
                 ),
@@ -484,7 +470,7 @@ class _FeedPostCardWidgetState extends ConsumerState<FeedPostCardWidget> {
 
               // 1. Post Insights
               ListTile(
-                leading: const Icon(Icons.analytics_outlined, color: Colors.blue),
+                leading: const Icon(Icons.analytics_outlined, color: AppColors.primaryBlue),
                 title: const Text('Post Insights & Details'),
                 onTap: () {
                   Navigator.of(ctx).pop();
@@ -495,7 +481,7 @@ class _FeedPostCardWidgetState extends ConsumerState<FeedPostCardWidget> {
               // 2. Edit Post (Author/Admin only)
               if (isAuthor)
                 ListTile(
-                  leading: const Icon(Icons.edit_outlined, color: Colors.orange),
+                  leading: const Icon(Icons.edit_outlined, color: AppColors.primaryBlue),
                   title: const Text('Edit Post'),
                   onTap: () {
                     Navigator.of(ctx).pop();
@@ -506,8 +492,8 @@ class _FeedPostCardWidgetState extends ConsumerState<FeedPostCardWidget> {
               // 3. Delete Post (Author/Admin only)
               if (isAuthor)
                 ListTile(
-                  leading: const Icon(Icons.delete_outline, color: Colors.red),
-                  title: const Text('Delete Post', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                  leading: const Icon(Icons.delete_outline, color: AppColors.error),
+                  title: const Text('Delete Post', style: TextStyle(color: AppColors.error, fontWeight: FontWeight.bold)),
                   onTap: () {
                     Navigator.of(ctx).pop();
                     _showDeleteConfirmDialog(context, post);
@@ -516,7 +502,7 @@ class _FeedPostCardWidgetState extends ConsumerState<FeedPostCardWidget> {
 
               // 4. Bookmark/Save Post
               ListTile(
-                leading: Icon(post.isSaved ? Icons.bookmark : Icons.bookmark_border, color: Colors.purple),
+                leading: Icon(post.isSaved ? Icons.bookmark : Icons.bookmark_border, color: AppColors.primaryBlue),
                 title: Text(post.isSaved ? 'Remove from Saved' : 'Save Post'),
                 onTap: () {
                   Navigator.of(ctx).pop();
@@ -529,7 +515,7 @@ class _FeedPostCardWidgetState extends ConsumerState<FeedPostCardWidget> {
 
               // 5. Share Post
               ListTile(
-                leading: const Icon(Icons.share_outlined, color: Colors.teal),
+                leading: const Icon(Icons.share_outlined, color: AppColors.primaryBlue),
                 title: const Text('Share Post to Chats & Groups'),
                 onTap: () {
                   Navigator.of(ctx).pop();
@@ -546,28 +532,19 @@ class _FeedPostCardWidgetState extends ConsumerState<FeedPostCardWidget> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final post = widget.post;
     final hasAttachments = post.attachments.isNotEmpty;
     final isClubPost = post.clubId != null && post.clubId!.isNotEmpty;
     final displayName = isClubPost ? (post.clubName ?? 'Club') : post.author.name;
     final displayRole = isClubPost ? (post.clubCategory ?? 'CLUB') : post.author.role;
-    final badgeColor = isClubPost ? Colors.indigo.shade700 : _getRoleBadgeColor(post.author.role);
+    final badgeColor = isClubPost ? (isDark ? Colors.white : AppColors.primaryText) : _getRoleBadgeColor(context, post.author.role);
     final avatarUrl = isClubPost ? post.clubLogoUrl : post.author.avatarUrl;
 
-    return Container(
+    return CampusGlassCard(
+      intensity: GlassIntensity.subtle,
       margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
+      padding: EdgeInsets.zero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -581,29 +558,21 @@ class _FeedPostCardWidgetState extends ConsumerState<FeedPostCardWidget> {
                     if (isClubPost) {
                       context.push('/clubs/${post.clubId}');
                     } else if (post.author.id.isNotEmpty) {
-                      context.push('/profile/${post.author.id}');
+                      _navigateToAuthorProfile(context, post.author.id);
                     }
                   },
                   onLongPress: isClubPost ? null : () => _showAuthorDetails(context, post.author),
-                  child: CircleAvatar(
-                    radius: 20,
-                    backgroundColor: badgeColor.withValues(alpha: 0.15),
-                    backgroundImage: avatarUrl != null && avatarUrl.isNotEmpty
-                        ? NetworkImage(ApiEndpoints.resolveUrl(avatarUrl))
-                        : null,
-                    child: avatarUrl == null || avatarUrl.isEmpty
-                        ? (isClubPost
-                            ? Icon(Icons.groups_rounded, color: badgeColor, size: 22)
-                            : Text(
-                                displayName.isNotEmpty ? displayName[0].toUpperCase() : 'U',
-                                style: TextStyle(
-                                  color: badgeColor,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
-                              ))
-                        : null,
-                  ),
+                  child: (isClubPost && (avatarUrl == null || avatarUrl.isEmpty))
+                      ? CircleAvatar(
+                          radius: 20,
+                          backgroundColor: badgeColor.withValues(alpha: 0.15),
+                          child: Icon(Icons.groups_rounded, color: badgeColor, size: 22),
+                        )
+                      : CampusAvatar(
+                          imageUrl: avatarUrl,
+                          name: displayName,
+                          radius: 20,
+                        ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -618,7 +587,7 @@ class _FeedPostCardWidgetState extends ConsumerState<FeedPostCardWidget> {
                                 if (isClubPost) {
                                   context.push('/clubs/${post.clubId}');
                                 } else if (post.author.id.isNotEmpty) {
-                                  context.push('/profile/${post.author.id}');
+                                  _navigateToAuthorProfile(context, post.author.id);
                                 }
                               },
                               onLongPress: isClubPost ? null : () => _showAuthorDetails(context, post.author),
@@ -634,10 +603,10 @@ class _FeedPostCardWidgetState extends ConsumerState<FeedPostCardWidget> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
                             decoration: BoxDecoration(
-                              color: badgeColor.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(6),
+                              color: isDark ? AppColors.darkElevatedSurface : AppColors.lightSecondarySurface,
+                              borderRadius: BorderRadius.circular(4),
                               border: Border.all(
-                                color: badgeColor.withValues(alpha: 0.3),
+                                color: isDark ? AppColors.darkBorder : AppColors.border,
                                 width: 0.8,
                               ),
                             ),
@@ -672,13 +641,17 @@ class _FeedPostCardWidgetState extends ConsumerState<FeedPostCardWidget> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                             decoration: BoxDecoration(
-                              color: _getPostTypeColor(post.type).withValues(alpha: 0.1),
+                              color: isDark ? AppColors.darkElevatedSurface : AppColors.lightSecondarySurface,
                               borderRadius: BorderRadius.circular(4),
+                              border: Border.all(
+                                color: isDark ? AppColors.darkBorder : AppColors.border,
+                                width: 0.8,
+                              ),
                             ),
                             child: Text(
                               post.type,
                               style: TextStyle(
-                                color: _getPostTypeColor(post.type),
+                                color: _getPostTypeColor(context, post.type),
                                 fontSize: 10,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -841,7 +814,7 @@ class _FeedPostCardWidgetState extends ConsumerState<FeedPostCardWidget> {
                 ),
                 const SizedBox(width: 8),
                 IconButton(
-                  icon: const Icon(Icons.send_rounded, size: 20, color: Colors.blue),
+                  icon: const Icon(Icons.send_rounded, size: 20, color: AppColors.primaryBlue),
                   onPressed: () {
                     final text = _commentCtrl.text.trim();
                     if (text.isNotEmpty) {

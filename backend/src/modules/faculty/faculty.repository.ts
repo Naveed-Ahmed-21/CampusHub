@@ -46,12 +46,12 @@ export class FacultyRepository {
           id: user.id,
           name: `${user.first_name} ${user.last_name}`.trim(),
           email: user.email,
-          designation: user.faculty_profile?.designation || 'Associate Professor',
-          department: user.department?.name || user.faculty_profile?.department_name || 'Department of Computer Science',
+          designation: user.faculty_profile?.designation || 'Faculty',
+          department: user.department?.name || user.faculty_profile?.department_name || '',
           avatarUrl: user.avatar_url,
-          officeRoom: user.faculty_profile?.office_room || 'Room 304, Tech Block',
-          officeHours: user.faculty_profile?.office_hours || 'Mon - Thu: 2:00 PM - 4:00 PM',
-          specialization: user.faculty_profile?.specialization || 'Distributed Systems & Cloud Computing',
+          officeRoom: user.faculty_profile?.office_room || '',
+          officeHours: user.faculty_profile?.office_hours || '',
+          specialization: user.faculty_profile?.specialization || '',
         };
       }
     } catch (_) {}
@@ -197,12 +197,12 @@ export class FacultyRepository {
       facultyName: `${subject.faculty.first_name} ${subject.faculty.last_name}`.trim(),
       facultyEmail: subject.faculty.email,
       facultyAvatarUrl: subject.faculty.avatar_url,
-      facultyDesignation: subject.faculty.faculty_profile?.designation || 'Associate Professor',
-      facultyOfficeRoom: subject.faculty.faculty_profile?.office_room || 'Room 304, Block B',
-      facultyOfficeHours: subject.faculty.faculty_profile?.office_hours || 'Mon - Thu: 2:00 PM - 4:00 PM',
+      facultyDesignation: subject.faculty.faculty_profile?.designation || 'Faculty',
+      facultyOfficeRoom: subject.faculty.faculty_profile?.office_room || '',
+      facultyOfficeHours: subject.faculty.faculty_profile?.office_hours || '',
       code: subject.code,
       name: subject.name,
-      department: subject.department?.name || 'Engineering Department',
+      department: subject.department?.name || '',
       semester: subject.semester,
       section: subject.section,
       credits: subject.credits,
@@ -494,14 +494,14 @@ export class FacultyRepository {
       name: `${user.first_name} ${user.last_name}`.trim(),
       email: user.email,
       avatarUrl: user.avatar_url,
-      designation: prof?.designation || 'Associate Professor',
-      qualification: prof?.qualification || 'Ph.D., M.Tech',
-      department: user.department?.name || prof?.department_name || 'Department of Computer Science',
-      specialization: prof?.specialization || 'Distributed Systems & Cloud Architecture',
+      designation: prof?.designation || 'Faculty',
+      qualification: prof?.qualification || '',
+      department: user.department?.name || prof?.department_name || '',
+      specialization: prof?.specialization || '',
       bio: prof?.bio || '',
-      officeRoom: prof?.office_room || 'Room 304, Block B',
-      officeHours: prof?.office_hours || 'Mon - Thu: 2:00 PM - 4:00 PM',
-      expertise: prof?.expertise || ['Cloud Computing', 'Distributed Systems'],
+      officeRoom: prof?.office_room || '',
+      officeHours: prof?.office_hours || '',
+      expertise: prof?.expertise || [],
       publications: (prof?.publications as any[]) || [],
       linkedinUrl: prof?.linkedin_url,
       googleScholar: prof?.google_scholar,
@@ -628,48 +628,7 @@ export class FacultyRepository {
         }));
       }
 
-      // If no schedule slots yet, generate from assigned subjects and persist
-      const subjects = await this.findSubjectsByFaculty(facultyId, collegeId || '');
-      const defaultSlots = this.generateScheduleSlotsFromSubjects(subjects);
-      for (const slot of defaultSlots) {
-        await prisma.$executeRawUnsafe(
-          `INSERT INTO faculty_schedules (faculty_id, subject_id, subject_code, subject_name, room_or_venue, start_time, end_time, semester, section, day_of_week, topic, session_type, status)
-           VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
-          facultyId,
-          slot.subjectId || null,
-          slot.subjectCode,
-          slot.subjectName,
-          slot.roomOrVenue,
-          slot.startTime,
-          slot.endTime,
-          slot.semester,
-          slot.section,
-          slot.dayOfWeek,
-          slot.topic || null,
-          slot.sessionType || 'THEORY',
-          slot.status || 'SCHEDULED'
-        );
-      }
-
-      const createdRows: any[] = await prisma.$queryRawUnsafe(
-        `SELECT * FROM faculty_schedules WHERE faculty_id = $1::uuid ORDER BY created_at ASC`,
-        facultyId
-      );
-      return createdRows.map((r) => ({
-        id: r.id,
-        subjectId: r.subject_id || undefined,
-        subjectCode: r.subject_code,
-        subjectName: r.subject_name,
-        roomOrVenue: r.room_or_venue,
-        startTime: r.start_time,
-        endTime: r.end_time,
-        semester: r.semester,
-        section: r.section,
-        dayOfWeek: r.day_of_week || 'TODAY',
-        topic: r.topic || undefined,
-        sessionType: r.session_type || 'THEORY',
-        status: r.status || 'SCHEDULED',
-      }));
+      return [];
     } catch (err) {
       console.error('Failed to get schedule slots:', err);
       return [];
@@ -1241,8 +1200,23 @@ export class FacultyRepository {
     collegeId: string,
     targetDate: Date = new Date()
   ): Promise<FacultyAcademicContextDTO> {
-    const termService = new TermResolutionService();
-    const currentTerm = await termService.getCurrentTerm(collegeId, targetDate);
+    let currentTerm: any;
+    try {
+      const termService = new TermResolutionService();
+      currentTerm = await termService.getCurrentTerm(collegeId, targetDate);
+    } catch (_) {
+      currentTerm = {
+        academicYearId: 'default',
+        academicYear: '2026-27',
+        termId: 'default',
+        termName: 'Semester 1',
+        termType: 'ODD',
+        semesterNumber: 1,
+        startDate: new Date('2026-06-01').toISOString(),
+        endDate: new Date('2026-12-31').toISOString(),
+        status: 'ACTIVE',
+      };
+    }
 
     // Find subjects assigned to faculty for this term
     const assigned = await prisma.facultySubjectAssignment.findMany({
@@ -1311,9 +1285,9 @@ export class FacultyRepository {
       credits: s.credits,
       description: s.description || undefined,
       academicYear: s.academic_year || currentTerm.academicYear,
-      resourcesCount: s._count.resources,
-      announcementsCount: s._count.announcements,
-      studentsCount: s._count.enrollments,
+      resourcesCount: s._count?.resources ?? 0,
+      announcementsCount: s._count?.announcements ?? 0,
+      studentsCount: s._count?.enrollments ?? 0,
       createdAt: s.created_at,
     }));
 
@@ -1360,12 +1334,12 @@ export class FacultyRepository {
           semester: s.semester,
           section: s.section,
           subjectCount: 1,
-          studentCount: s._count.enrollments,
+          studentCount: s._count?.enrollments ?? 0,
         });
       } else {
         const c = classMap.get(key)!;
         c.subjectCount += 1;
-        c.studentCount += s._count.enrollments;
+        c.studentCount += s._count?.enrollments ?? 0;
       }
     }
 

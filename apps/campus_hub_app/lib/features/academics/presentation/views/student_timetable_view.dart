@@ -1,7 +1,16 @@
+import '../../../../core/widgets/campus_avatar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/constants/api_endpoints.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_glass.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/widgets/atmospheric_background.dart';
+import '../../../../core/widgets/campus_glass_card.dart';
+import '../../../../core/widgets/campus_empty_state.dart';
+import '../../../../core/widgets/campus_button.dart';
+import '../../../../core/widgets/campus_back_button.dart';
+import '../../../../core/widgets/campus_app_bar.dart';
 import '../../../../shared/responsive/responsive_layout.dart';
 import '../../../../shared/widgets/async_value_widget.dart';
 import '../../../chat/data/chat_repository.dart';
@@ -62,48 +71,96 @@ class _StudentTimetableViewState extends ConsumerState<StudentTimetableView>
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'College Academic Timetable',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            ),
-            Text(
-              'Lecture Schedules & Class Venues',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
-            ),
-          ],
-        ),
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(icon: Icon(Icons.today, size: 18), text: 'Today\'s Classes'),
-            Tab(icon: Icon(Icons.date_range, size: 18), text: 'Weekly Agenda'),
-          ],
-        ),
+      appBar: const CampusAppBar(
+        leading: CampusBackButton(),
+        title: 'Academic Timetable',
+        subtitle: 'Lecture Schedules & Class Venues',
       ),
-      body: ResponsiveLayout(
-        mobile: TabBarView(
-          controller: _tabController,
+      body: AtmosphericBackground(
+        child: Column(
           children: [
-            _buildTodayView(context),
-            _buildWeeklyView(context),
-          ],
-        ),
-        desktop: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 960),
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _buildTodayView(context),
-                _buildWeeklyView(context),
-              ],
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
+              child: Container(
+                height: 46,
+                padding: const EdgeInsets.all(3),
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4)
+                      : const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: theme.colorScheme.outlineVariant.withValues(alpha: isDark ? 0.2 : 0.4),
+                  ),
+                ),
+                child: TabBar(
+                  controller: _tabController,
+                  dividerColor: Colors.transparent,
+                  indicatorSize: TabBarIndicatorSize.tab,
+                  labelColor: isDark ? Colors.black : Colors.white,
+                  unselectedLabelColor: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
+                  labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                  unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
+                  indicator: BoxDecoration(
+                    borderRadius: BorderRadius.circular(11),
+                    color: isDark ? Colors.white : Colors.black,
+                  ),
+                  tabs: const [
+                    Tab(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.today_outlined, size: 16),
+                          SizedBox(width: 8),
+                          Text("Today's Classes"),
+                        ],
+                      ),
+                    ),
+                    Tab(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.date_range_outlined, size: 16),
+                          SizedBox(width: 8),
+                          Text('Weekly Agenda'),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
             ),
-          ),
+            Expanded(
+              child: ResponsiveLayout(
+                mobile: TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _buildTodayView(context),
+                    _buildWeeklyView(context),
+                  ],
+                ),
+                desktop: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 960),
+                    child: TabBarView(
+                      controller: _tabController,
+                      children: [
+                        _buildTodayView(context),
+                        _buildWeeklyView(context),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -118,30 +175,13 @@ class _StudentTimetableViewState extends ConsumerState<StudentTimetableView>
         if (slots.isEmpty) {
           return Center(
             child: Padding(
-              padding: const EdgeInsets.all(32),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.event_available,
-                      size: 60, color: Colors.teal.shade300),
-                  const SizedBox(height: 14),
-                  const Text(
-                    'No Classes Scheduled for Today',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Enjoy your break or explore course resources and assignments in Academics.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
-                  ),
-                  const SizedBox(height: 16),
-                  FilledButton.icon(
-                    onPressed: () => context.push('/academics'),
-                    icon: const Icon(Icons.menu_book, size: 18),
-                    label: const Text('Go to My Subjects'),
-                  ),
-                ],
+              padding: AppSpacing.p24,
+              child: CampusEmptyState(
+                icon: Icons.event_available_outlined,
+                title: 'No Classes Scheduled for Today',
+                description: 'Enjoy your break or explore course resources and assignments in Academics.',
+                actionLabel: 'Go to My Subjects',
+                onAction: () => context.push('/academics'),
               ),
             ),
           );
@@ -351,25 +391,10 @@ class _StudentTimetableViewState extends ConsumerState<StudentTimetableView>
                 ),
                 child: Row(
                   children: [
-                    CircleAvatar(
+                    CampusAvatar(
+                      imageUrl: slot.facultyAvatarUrl,
+                      name: slot.facultyName,
                       radius: 20,
-                      backgroundColor: Colors.teal.shade100,
-                      backgroundImage: slot.facultyAvatarUrl != null &&
-                              slot.facultyAvatarUrl!.isNotEmpty
-                          ? NetworkImage(
-                              ApiEndpoints.resolveUrl(slot.facultyAvatarUrl!))
-                          : null,
-                      child: slot.facultyAvatarUrl == null ||
-                              slot.facultyAvatarUrl!.isEmpty
-                          ? Text(
-                              slot.facultyName.isNotEmpty
-                                  ? slot.facultyName[0].toUpperCase()
-                                  : 'F',
-                              style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.teal.shade900),
-                            )
-                          : null,
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -430,195 +455,172 @@ class _StudentTimetableViewState extends ConsumerState<StudentTimetableView>
   }
 
   Widget _buildSlotCard(BuildContext context, StudentTimetableSlot slot) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final isLab = slot.sessionType.toUpperCase() == 'LAB';
     final isPlacement = slot.sessionType.toUpperCase() == 'PLACEMENT';
 
-    Color typeColor = Colors.teal;
+    Color typeColor = isDark ? AppColors.secondaryCyan : AppColors.primaryBlue;
     if (isLab) typeColor = Colors.purple;
-    if (isPlacement) typeColor = Colors.orange.shade800;
+    if (isPlacement) typeColor = AppColors.warning;
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 14),
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
-      ),
-      child: InkWell(
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: CampusGlassCard(
+        intensity: GlassIntensity.subtle,
+        padding: AppSpacing.p16,
         onTap: () => _openSessionDetails(context, slot),
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: Colors.teal.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.access_time,
-                            size: 14, color: Colors.teal),
-                        const SizedBox(width: 5),
-                        Text(
-                          '${slot.startTime} - ${slot.endTime}',
-                          style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13,
-                              color: Colors.teal),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Spacer(),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: typeColor.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      slot.sessionType,
-                      style: TextStyle(
-                        color: typeColor,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Text(
-                slot.subjectName,
-                style:
-                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                slot.subjectCode,
-                style: TextStyle(
-                    color: Colors.grey.shade600,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600),
-              ),
-              if (slot.topic != null && slot.topic!.isNotEmpty) ...[
-                const SizedBox(height: 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
                 Container(
-                  padding: const EdgeInsets.all(8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
-                    color: Colors.grey.withValues(alpha: 0.08),
+                    color: (isDark ? AppColors.secondaryCyan : AppColors.primaryBlue).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.lightbulb_outline,
-                          size: 14, color: Colors.amber),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          'Topic: ${slot.topic}',
-                          style: const TextStyle(
-                              fontSize: 12, fontWeight: FontWeight.w500),
-                        ),
+                      Icon(Icons.access_time,
+                          size: 14, color: isDark ? AppColors.secondaryCyan : AppColors.primaryBlue),
+                      const SizedBox(width: 5),
+                      Text(
+                        '${slot.startTime} - ${slot.endTime}',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                            color: isDark ? AppColors.secondaryCyan : AppColors.primaryBlue),
                       ),
                     ],
                   ),
                 ),
+                const Spacer(),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: typeColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    slot.sessionType,
+                    style: TextStyle(
+                      color: typeColor,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
               ],
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Icon(Icons.location_on_outlined,
-                      size: 15, color: Colors.grey.shade600),
-                  const SizedBox(width: 4),
-                  Flexible(
-                    child: Text(
-                      slot.roomOrVenue.isNotEmpty
-                          ? slot.roomOrVenue
-                          : 'Lecture Hall',
-                      style: TextStyle(
-                          color: Colors.grey.shade800,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Icon(Icons.calendar_today_outlined,
-                      size: 14, color: Colors.grey.shade600),
-                  const SizedBox(width: 4),
-                  Text(
-                    slot.dayOfWeek,
-                    style: TextStyle(color: Colors.grey.shade700, fontSize: 12),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              const Divider(height: 1),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  CircleAvatar(
-                    radius: 14,
-                    backgroundColor: Colors.teal.shade100,
-                    backgroundImage: slot.facultyAvatarUrl != null &&
-                            slot.facultyAvatarUrl!.isNotEmpty
-                        ? NetworkImage(
-                            ApiEndpoints.resolveUrl(slot.facultyAvatarUrl!))
-                        : null,
-                    child: slot.facultyAvatarUrl == null ||
-                            slot.facultyAvatarUrl!.isEmpty
-                        ? Text(
-                            slot.facultyName.isNotEmpty
-                                ? slot.facultyName[0].toUpperCase()
-                                : 'F',
-                            style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.teal.shade900),
-                          )
-                        : null,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      slot.facultyName,
-                      style: const TextStyle(
-                          fontSize: 13, fontWeight: FontWeight.w600),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  if (slot.facultyId != null)
-                    IconButton(
-                      icon: const Icon(Icons.chat_bubble_outline, size: 18),
-                      color: Colors.teal,
-                      visualDensity: VisualDensity.compact,
-                      tooltip: 'Message Faculty',
-                      onPressed: () => _messageFaculty(
-                          context, slot.facultyId!, slot.facultyName),
-                    ),
-                  if (slot.subjectId != null)
-                    FilledButton.tonal(
-                      style: FilledButton.styleFrom(
-                        visualDensity: VisualDensity.compact,
-                        padding: const EdgeInsets.symmetric(horizontal: 10),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              slot.subjectName,
+              style:
+                  const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              slot.subjectCode,
+              style: TextStyle(
+                  color: isDark ? AppColors.darkSecondaryText : AppColors.secondaryText,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600),
+            ),
+            if (slot.topic != null && slot.topic!.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.04),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.lightbulb_outline,
+                        size: 14, color: Colors.amber),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'Topic: ${slot.topic}',
+                        style: const TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w500),
                       ),
-                      child: const Text('Open', style: TextStyle(fontSize: 12)),
-                      onPressed: () =>
-                          context.push('/academics/subjects/${slot.subjectId}'),
                     ),
-                ],
+                  ],
+                ),
               ),
             ],
-          ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Icon(Icons.location_on_outlined,
+                    size: 15, color: isDark ? AppColors.darkSecondaryText : AppColors.secondaryText),
+                const SizedBox(width: 4),
+                Flexible(
+                  child: Text(
+                    slot.roomOrVenue.isNotEmpty
+                        ? slot.roomOrVenue
+                        : 'Lecture Hall',
+                    style: TextStyle(
+                        color: isDark ? AppColors.darkText : AppColors.primaryText,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Icon(Icons.calendar_today_outlined,
+                    size: 14, color: isDark ? AppColors.darkSecondaryText : AppColors.secondaryText),
+                const SizedBox(width: 4),
+                Text(
+                  slot.dayOfWeek,
+                  style: TextStyle(color: isDark ? AppColors.darkSecondaryText : AppColors.secondaryText, fontSize: 12),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            const Divider(height: 1),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                CampusAvatar(
+                  imageUrl: slot.facultyAvatarUrl,
+                  name: slot.facultyName,
+                  radius: 14,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    slot.facultyName,
+                    style: const TextStyle(
+                        fontSize: 13, fontWeight: FontWeight.w600),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (slot.facultyId != null)
+                  IconButton(
+                    icon: const Icon(Icons.chat_bubble_outline, size: 18),
+                    color: isDark ? AppColors.secondaryCyan : AppColors.primaryBlue,
+                    visualDensity: VisualDensity.compact,
+                    tooltip: 'Message Faculty',
+                    onPressed: () => _messageFaculty(
+                        context, slot.facultyId!, slot.facultyName),
+                  ),
+                if (slot.subjectId != null)
+                  CampusButton(
+                    height: 32,
+                    label: 'Open',
+                    type: CampusButtonType.secondary,
+                    onPressed: () =>
+                        context.push('/academics/subjects/${slot.subjectId}'),
+                  ),
+              ],
+            ),
+          ],
         ),
       ),
     );

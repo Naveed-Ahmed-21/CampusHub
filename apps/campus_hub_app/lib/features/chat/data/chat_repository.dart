@@ -170,6 +170,97 @@ class ChatRepository {
       },
     );
   }
+
+  // ==========================================
+  // Student Chat Settings
+  // ==========================================
+  Future<StudentChatSettingsModel> getChatSettings() async {
+    final response = await _dio.get('/api/v1/chat/settings');
+    return StudentChatSettingsModel.fromJson(response.data['data'] ?? {});
+  }
+
+  Future<StudentChatSettingsModel> updateChatSettings(bool requireApproval) async {
+    final response = await _dio.patch(
+      '/api/v1/chat/settings',
+      data: {'requireStudentConversationApproval': requireApproval},
+    );
+    return StudentChatSettingsModel.fromJson(response.data['data'] ?? {});
+  }
+
+  // ==========================================
+  // Chat Permission Check
+  // ==========================================
+  Future<ChatPermissionResult> checkChatPermission(String targetUserId) async {
+    final response = await _dio.get('/api/v1/chat/permission/$targetUserId');
+    return ChatPermissionResult.fromJson(response.data['data'] ?? {});
+  }
+
+  // ==========================================
+  // Chat Requests
+  // ==========================================
+  Future<ChatRequestModel> sendChatRequest({
+    required String recipientId,
+    required String introductoryMessage,
+  }) async {
+    final response = await _dio.post(
+      '/api/v1/chat/requests',
+      data: {
+        'recipientId': recipientId,
+        'introductoryMessage': introductoryMessage,
+      },
+    );
+    return ChatRequestModel.fromJson(response.data['data']);
+  }
+
+  Future<List<ChatRequestModel>> getIncomingChatRequests() async {
+    final response = await _dio.get('/api/v1/chat/requests/incoming');
+    final List list = response.data['data'] ?? [];
+    return list.map((json) => ChatRequestModel.fromJson(json)).toList();
+  }
+
+  Future<List<ChatRequestModel>> getSentChatRequests() async {
+    final response = await _dio.get('/api/v1/chat/requests/sent');
+    final List list = response.data['data'] ?? [];
+    return list.map((json) => ChatRequestModel.fromJson(json)).toList();
+  }
+
+  Future<Map<String, dynamic>> acceptChatRequest(String requestId) async {
+    final response = await _dio.post('/api/v1/chat/requests/$requestId/accept');
+    return response.data['data'] as Map<String, dynamic>;
+  }
+
+  Future<ChatRequestModel> declineChatRequest(String requestId) async {
+    final response = await _dio.post('/api/v1/chat/requests/$requestId/decline');
+    return ChatRequestModel.fromJson(response.data['data']);
+  }
+
+  Future<ChatRequestModel> cancelChatRequest(String requestId) async {
+    final response = await _dio.post('/api/v1/chat/requests/$requestId/cancel');
+    return ChatRequestModel.fromJson(response.data['data']);
+  }
+
+  // ==========================================
+  // Chat-Only Blocking
+  // ==========================================
+  Future<void> blockUser(String targetUserId) async {
+    await _dio.post(
+      '/api/v1/chat/block',
+      data: {'targetUserId': targetUserId},
+    );
+  }
+
+  Future<void> unblockUser(String targetUserId) async {
+    await _dio.post(
+      '/api/v1/chat/unblock',
+      data: {'targetUserId': targetUserId},
+    );
+  }
+
+  Future<List<BlockedUserModel>> getBlockedUsers() async {
+    final response = await _dio.get('/api/v1/chat/blocks');
+    final List list = response.data['data'] ?? [];
+    return list.map((json) => BlockedUserModel.fromJson(json)).toList();
+  }
 }
 
 final chatRepositoryProvider = Provider<ChatRepository>((ref) {

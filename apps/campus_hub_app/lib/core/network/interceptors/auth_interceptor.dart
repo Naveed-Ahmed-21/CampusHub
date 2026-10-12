@@ -16,12 +16,29 @@ class AuthInterceptor extends Interceptor {
     RequestInterceptorHandler handler,
   ) async {
     final path = options.path;
-    if (!path.contains('/auth/login') &&
-        !path.contains('/auth/register') &&
-        !path.contains('/auth/forgot-password')) {
+    final isPublicAuthEndpoint = path.contains('/auth/login') ||
+        path.contains('/auth/register') ||
+        path.contains('/auth/forgot-password') ||
+        path.contains('/auth/reset-password') ||
+        path.contains('/auth/refresh') ||
+        path.contains('/auth/send-first-login-otp') ||
+        path.contains('/auth/verify-first-login-otp') ||
+        path.contains('/auth/setup-password') ||
+        path.contains('/auth/check-status') ||
+        path.contains('/auth/colleges');
+
+    if (!isPublicAuthEndpoint) {
       final token = await _storage.getAccessToken();
       if (token != null && token.isNotEmpty) {
         options.headers['Authorization'] = 'Bearer $token';
+      } else {
+        return handler.reject(
+          DioException(
+            requestOptions: options,
+            type: DioExceptionType.cancel,
+            message: 'Unauthenticated request cancelled',
+          ),
+        );
       }
     }
     return handler.next(options);
@@ -63,7 +80,13 @@ class AuthInterceptor extends Interceptor {
 
       if (refreshToken != null && refreshToken.isNotEmpty) {
         try {
-          final response = await _dio.post(
+          final refreshDio = Dio(BaseOptions(
+            baseUrl: _dio.options.baseUrl.isNotEmpty ? _dio.options.baseUrl : ApiEndpoints.baseUrl,
+            connectTimeout: const Duration(seconds: 10),
+            receiveTimeout: const Duration(seconds: 10),
+          ));
+
+          final response = await refreshDio.post(
             ApiEndpoints.refreshToken,
             data: {'refreshToken': refreshToken, 'refresh_token': refreshToken},
           );
@@ -91,8 +114,10 @@ class AuthInterceptor extends Interceptor {
             _refreshCompleter = null;
             completer?.complete(null);
           }
-        } catch (_) {
-          await _storage.clearAll();
+        } catch (e) {
+          if (e is DioException && (e.response?.statusCode == 401 || e.response?.statusCode == 403)) {
+            await _storage.clearAll();
+          }
           final completer = _refreshCompleter;
           _refreshCompleter = null;
           completer?.complete(null);

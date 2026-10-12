@@ -6,16 +6,23 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/constants/api_endpoints.dart';
 import '../../../../core/services/media_storage_service.dart';
 import '../../../../core/services/file_open_service.dart';
+import '../../../../core/services/url_launcher_service.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../feed/presentation/widgets/feed_post_card_widget.dart';
 import '../../../feed/presentation/widgets/comments_sheet.dart';
-import '../../../chat/data/chat_repository.dart';
+import '../../../chat/presentation/utils/chat_navigation_helper.dart';
 import '../../domain/models/user_profile.dart';
 import '../../data/repositories/profile_repository_impl.dart';
 import '../controllers/profile_controller.dart';
 import 'user_follows_view.dart';
+import 'profile_view.dart';
 import '../../../clubs/presentation/views/club_detail_view.dart';
 import '../../../../shared/widgets/full_screen_image_viewer.dart';
+import '../../../../shared/responsive/role_navigation_config.dart';
+import '../../../../core/widgets/campus_back_button.dart';
+
+import '../widgets/profile_story_avatar.dart';
+import '../../../../core/widgets/campus_app_bar.dart';
 
 class UserProfileDetailView extends ConsumerStatefulWidget {
   final String userId;
@@ -82,27 +89,26 @@ class _UserProfileDetailViewState extends ConsumerState<UserProfileDetailView>
   }
 
   Future<void> _startDirectChat(UserProfile profile) async {
-    try {
-      final chatRepo = ref.read(chatRepositoryProvider);
-      final room = await chatRepo.getOrCreateDirectChat(profile.id);
-      if (mounted) {
-        context.push('/chat/room/${room.id}');
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not open chat: $e'), backgroundColor: Colors.red),
-        );
-      }
-    }
+    await ChatNavigationHelper.startOrOpenDirectChat(
+      context,
+      ref,
+      targetUserId: profile.id,
+      targetUserName: profile.fullName,
+      targetUserAvatar: profile.avatarUrl,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final profileAsync = ref.watch(userProfileProvider(widget.userId));
     final currentAuthUser = ref.watch(authControllerProvider).asData?.value;
-    final isSelf = currentAuthUser?.id == widget.userId;
+    final isSelf = currentAuthUser?.id != null && currentAuthUser!.id == widget.userId;
+
+    if (isSelf) {
+      return const ProfileView();
+    }
+
+    final profileAsync = ref.watch(userProfileProvider(widget.userId));
 
     return profileAsync.when(
       data: (profile) {
@@ -112,16 +118,9 @@ class _UserProfileDetailViewState extends ConsumerState<UserProfileDetailView>
         }
 
         return Scaffold(
-          backgroundColor: theme.scaffoldBackgroundColor,
-          appBar: AppBar(
-            elevation: 0,
-            backgroundColor: theme.scaffoldBackgroundColor,
-            surfaceTintColor: Colors.transparent,
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back),
-              onPressed: () => context.pop(),
-            ),
-            title: Text(profile.fullName, style: const TextStyle(fontWeight: FontWeight.bold)),
+          appBar: CampusAppBar(
+            leading: const CampusBackButton(),
+            title: profile.fullName,
             actions: [
               IconButton(
                 icon: const Icon(Icons.refresh),
@@ -188,23 +187,17 @@ class _UserProfileDetailViewState extends ConsumerState<UserProfileDetailView>
           ),
         );
       },
-      loading: () => Scaffold(
-        appBar: AppBar(
-          title: const Text('User Profile'),
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: () => context.pop(),
-          ),
+      loading: () => const Scaffold(
+        appBar: CampusAppBar(
+          title: 'User Profile',
+          leading: CampusBackButton(),
         ),
-        body: const Center(child: CircularProgressIndicator()),
+        body: Center(child: CircularProgressIndicator()),
       ),
       error: (err, _) => Scaffold(
-        appBar: AppBar(
-          title: const Text('User Profile'),
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: () => context.pop(),
-          ),
+        appBar: const CampusAppBar(
+          title: 'User Profile',
+          leading: CampusBackButton(),
         ),
         body: Center(
           child: Padding(
@@ -229,9 +222,25 @@ class _UserProfileDetailViewState extends ConsumerState<UserProfileDetailView>
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     OutlinedButton.icon(
-                      icon: const Icon(Icons.arrow_back),
+                      icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 16),
                       label: const Text('Go Back'),
-                      onPressed: () => context.pop(),
+                      onPressed: () {
+                        if (Navigator.of(context).canPop()) {
+                          Navigator.of(context).pop();
+                        } else {
+                          try {
+                            if (context.canPop()) {
+                              context.pop();
+                            } else {
+                              final user = ref.read(authControllerProvider).asData?.value;
+                              final fallback = RoleNavigationConfig.getHomeRouteForUser(user);
+                              context.go(fallback);
+                            }
+                          } catch (_) {
+                            Navigator.of(context).maybePop();
+                          }
+                        }
+                      },
                     ),
                     const SizedBox(width: 12),
                     FilledButton.icon(
@@ -272,48 +281,25 @@ class _UserProfileDetailViewState extends ConsumerState<UserProfileDetailView>
         children: [
           Row(
             children: [
-              Container(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: theme.colorScheme.primary.withValues(alpha: 0.3),
-                    width: 2.5,
-                  ),
-                ),
-                child: GestureDetector(
-                  onTap: () {
-                    if (profile.avatarUrl != null && profile.avatarUrl!.isNotEmpty) {
-                      FullScreenImageViewer.openSingle(
-                        context,
-                        imageUrl: profile.avatarUrl!,
-                        heroTag: 'user_detail_avatar_${profile.id}',
-                        title: profile.fullName,
-                        subtitle: profile.bio ?? profile.role,
-                      );
-                    }
-                  },
-                  child: Hero(
-                    tag: 'user_detail_avatar_${profile.id}',
-                    child: CircleAvatar(
-                      radius: 38,
-                      backgroundColor: theme.colorScheme.primaryContainer,
-                      backgroundImage: profile.avatarUrl != null && profile.avatarUrl!.isNotEmpty
-                          ? NetworkImage(ApiEndpoints.resolveUrl(profile.avatarUrl!))
-                          : null,
-                      child: profile.avatarUrl == null || profile.avatarUrl!.isEmpty
-                          ? Text(
-                              profile.firstName.isNotEmpty ? profile.firstName[0].toUpperCase() : 'U',
-                              style: TextStyle(
-                                fontSize: 26,
-                                fontWeight: FontWeight.bold,
-                                color: theme.colorScheme.onPrimaryContainer,
-                              ),
-                            )
-                          : null,
-                    ),
-                  ),
-                ),
+              ProfileStoryAvatar(
+                userId: profile.id,
+                avatarUrl: profile.avatarUrl,
+                name: profile.fullName,
+                radius: 38,
+                heroTag: 'user_detail_avatar_${profile.id}',
+                fallbackOnTap: () {
+                  if (profile.avatarUrl != null && profile.avatarUrl!.isNotEmpty) {
+                    FullScreenImageViewer.openSingle(
+                      context,
+                      imageUrl: ApiEndpoints.resolveUrl(profile.avatarUrl!.trim()),
+                      heroTag: 'user_detail_avatar_${profile.id}',
+                      title: profile.fullName,
+                      subtitle: profile.bio ?? profile.role,
+                    );
+                  }
+                },
               ),
+
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
@@ -767,23 +753,13 @@ class _UserAboutPortfolioTab extends ConsumerWidget {
                           ActionChip(
                             avatar: const Icon(Icons.code, size: 14),
                             label: const Text('Repository', style: TextStyle(fontSize: 11.5)),
-                            onPressed: () {
-                              Clipboard.setData(ClipboardData(text: proj.repoUrl!));
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Repository link copied!'), duration: Duration(seconds: 1)),
-                              );
-                            },
+                            onPressed: () => UrlLauncherService.openUrl(context, proj.repoUrl!),
                           ),
                         if (hasDemo)
                           ActionChip(
                             avatar: const Icon(Icons.open_in_new, size: 14),
                             label: const Text('Live Demo', style: TextStyle(fontSize: 11.5)),
-                            onPressed: () {
-                              Clipboard.setData(ClipboardData(text: proj.projectUrl!));
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Demo link copied!'), duration: Duration(seconds: 1)),
-                              );
-                            },
+                            onPressed: () => UrlLauncherService.openUrl(context, proj.projectUrl!),
                           ),
                       ],
                     ),
@@ -825,14 +801,26 @@ class _UserAboutPortfolioTab extends ConsumerWidget {
               leading: const Icon(Icons.code),
               title: const Text('GitHub', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
               subtitle: Text(profile.githubUrl!, style: const TextStyle(fontSize: 12)),
-              trailing: IconButton(
-                icon: const Icon(Icons.copy, size: 16),
-                onPressed: () {
-                  Clipboard.setData(ClipboardData(text: profile.githubUrl!));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('GitHub link copied!'), duration: Duration(seconds: 1)),
-                  );
-                },
+              onTap: () => UrlLauncherService.openUrl(context, profile.githubUrl!),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.open_in_new, size: 16),
+                    tooltip: 'Open GitHub',
+                    onPressed: () => UrlLauncherService.openUrl(context, profile.githubUrl!),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.copy, size: 16),
+                    tooltip: 'Copy Link',
+                    onPressed: () {
+                      Clipboard.setData(ClipboardData(text: profile.githubUrl!));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('GitHub link copied!'), duration: Duration(seconds: 1)),
+                      );
+                    },
+                  ),
+                ],
               ),
             ),
           const SizedBox(height: 6),
@@ -843,14 +831,26 @@ class _UserAboutPortfolioTab extends ConsumerWidget {
               leading: const Icon(Icons.work_outline),
               title: const Text('LinkedIn', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
               subtitle: Text(profile.linkedinUrl!, style: const TextStyle(fontSize: 12)),
-              trailing: IconButton(
-                icon: const Icon(Icons.copy, size: 16),
-                onPressed: () {
-                  Clipboard.setData(ClipboardData(text: profile.linkedinUrl!));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('LinkedIn link copied!'), duration: Duration(seconds: 1)),
-                  );
-                },
+              onTap: () => UrlLauncherService.openUrl(context, profile.linkedinUrl!),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.open_in_new, size: 16),
+                    tooltip: 'Open LinkedIn',
+                    onPressed: () => UrlLauncherService.openUrl(context, profile.linkedinUrl!),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.copy, size: 16),
+                    tooltip: 'Copy Link',
+                    onPressed: () {
+                      Clipboard.setData(ClipboardData(text: profile.linkedinUrl!));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('LinkedIn link copied!'), duration: Duration(seconds: 1)),
+                      );
+                    },
+                  ),
+                ],
               ),
             ),
           const SizedBox(height: 6),
@@ -861,14 +861,26 @@ class _UserAboutPortfolioTab extends ConsumerWidget {
               leading: const Icon(Icons.language),
               title: const Text('Website / Portfolio', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
               subtitle: Text(profile.websiteUrl!, style: const TextStyle(fontSize: 12)),
-              trailing: IconButton(
-                icon: const Icon(Icons.copy, size: 16),
-                onPressed: () {
-                  Clipboard.setData(ClipboardData(text: profile.websiteUrl!));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Website link copied!'), duration: Duration(seconds: 1)),
-                  );
-                },
+              onTap: () => UrlLauncherService.openUrl(context, profile.websiteUrl!),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.open_in_new, size: 16),
+                    tooltip: 'Open Website',
+                    onPressed: () => UrlLauncherService.openUrl(context, profile.websiteUrl!),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.copy, size: 16),
+                    tooltip: 'Copy Link',
+                    onPressed: () {
+                      Clipboard.setData(ClipboardData(text: profile.websiteUrl!));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Website link copied!'), duration: Duration(seconds: 1)),
+                      );
+                    },
+                  ),
+                ],
               ),
             ),
         ],
@@ -909,6 +921,6 @@ class _SliverTabBarDelegate extends SliverPersistentHeaderDelegate {
 
   @override
   bool shouldRebuild(_SliverTabBarDelegate oldDelegate) {
-    return false;
+    return true;
   }
 }

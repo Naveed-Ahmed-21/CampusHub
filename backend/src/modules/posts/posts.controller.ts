@@ -2,10 +2,18 @@ import { Request, Response } from 'express';
 import { PostsService } from './posts.service';
 import { asyncHandler } from '../../shared/utils/async-handler.util';
 import { FeedType } from './posts.types';
-import { ForbiddenError } from '../../shared/errors/AppError';
+import { ForbiddenError, NotFoundError } from '../../shared/errors/AppError';
 
 export class PostsController {
   constructor(private readonly postsService: PostsService) {}
+
+  getPostById = asyncHandler(async (req: Request, res: Response) => {
+    const post = await this.postsService.getPostById(req.params.postId, req.user?.userId);
+    if (!post) {
+      throw new NotFoundError('Post not found');
+    }
+    res.status(200).json({ success: true, data: post });
+  });
 
   getFeed = asyncHandler(async (req: Request, res: Response) => {
     const user = req.user!;

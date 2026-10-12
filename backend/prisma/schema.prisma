@@ -14,17 +14,17 @@ datasource db {
 // ==========================================
 
 enum Role {
-  STUDENT
-  FACULTY
-  PLACEMENT_OFFICER
   ADMIN
   DEPT_ADMIN
-  COLLEGE_ADMIN
-  CLUB_COORDINATOR
-  SUPER_ADMIN
+  FACULTY
+  PLACEMENT
+  STUDENT
 }
 
 enum UserStatus {
+  INVITED
+  PASSWORD_SETUP_REQUIRED
+  PROFILE_SETUP_REQUIRED
   PENDING
   ACTIVE
   SUSPENDED
@@ -122,6 +122,11 @@ model College {
   academic_programs AcademicProgram[]
   academic_classes  AcademicClass[]
   rooms             Room[]
+  audit_logs        AuditLog[]
+  batches           Batch[]
+  profile_change_requests ProfileChangeRequest[]
+  academic_transition_records AcademicTransitionRecord[]
+  placement_resources PlacementResource[]
 
   @@map("colleges")
 }
@@ -132,6 +137,7 @@ model Department {
   name        String   @db.VarChar(150)
   code        String   @db.VarChar(50)
   description String?  @db.Text
+  is_active   Boolean  @default(true)
   created_at  DateTime @default(now())
   updated_at  DateTime @updatedAt
 
@@ -143,6 +149,7 @@ model Department {
   subjects          Subject[]
   clubs             Club[]
   academic_programs AcademicProgram[]
+  batches           Batch[]
   academic_classes  AcademicClass[]
 
   @@unique([college_id, code])
@@ -163,15 +170,21 @@ model User {
   role          Role       @default(STUDENT)
   status        UserStatus @default(ACTIVE)
   avatar_url    String?    @db.Text
-  phone         String?    @db.VarChar(20)
-  is_online     Boolean    @default(false)
-  last_seen     DateTime?
-  created_at    DateTime   @default(now())
-  updated_at    DateTime   @updatedAt
-  deleted_at    DateTime?
+  phone                  String?                     @db.VarChar(20)
+  is_online              Boolean                     @default(false)
+  last_seen              DateTime?
+  is_password_configured Boolean                     @default(true)
+  is_profile_completed   Boolean                     @default(true)
+  first_login_completed  Boolean                     @default(true)
+  created_at             DateTime                    @default(now())
+  updated_at             DateTime                    @updatedAt
+  deleted_at             DateTime?
 
-  college                College                     @relation(fields: [college_id], references: [id], onDelete: Cascade)
-  department             Department?                 @relation(fields: [department_id], references: [id], onDelete: SetNull)
+  college                  College                     @relation(fields: [college_id], references: [id], onDelete: Cascade)
+  department               Department?                 @relation(fields: [department_id], references: [id], onDelete: SetNull)
+  student_profile          StudentProfile?
+  change_requests_sent     ProfileChangeRequest[]      @relation("StudentChangeRequests")
+  change_requests_reviewed ProfileChangeRequest[]      @relation("ReviewerChangeRequests")
   refresh_tokens         RefreshToken[]
   password_reset_tokens  PasswordResetToken[]
   posts                  Post[]
@@ -238,6 +251,13 @@ model User {
   marked_attendance_records StudentAttendanceRecord[]   @relation("MarkedAttendanceRecords")
   advised_classes           AcademicClass[]             @relation("ClassAdvisor")
   substitute_schedules      FacultySchedule[]           @relation("SubstituteFacultySchedule")
+  student_chat_settings     StudentChatSettings?
+  sent_chat_requests        ChatRequest[]               @relation("SentChatRequests")
+  received_chat_requests    ChatRequest[]               @relation("ReceivedChatRequests")
+  initiated_chat_blocks     ChatBlock[]                 @relation("ChatBlocksInitiated")
+  received_chat_blocks      ChatBlock[]                 @relation("ChatBlocksReceived")
+  audit_logs                AuditLog[]
+  placement_resources       PlacementResource[]
 
   @@index([college_id])
   @@index([department_id])
@@ -590,8 +610,10 @@ model ChatRoom {
   college      College           @relation(fields: [college_id], references: [id], onDelete: Cascade)
   club         Club?             @relation(fields: [club_id], references: [id], onDelete: Cascade)
   department   Department?       @relation(fields: [department_id], references: [id], onDelete: Cascade)
-  participants ChatParticipant[]
-  messages     ChatMessage[]
+  participants  ChatParticipant[]
+  messages      ChatMessage[]
+  chat_requests ChatRequest[]
+  placement_drive PlacementDrive? @relation("DriveChatRoom")
 
   @@index([college_id])
   @@index([type])
@@ -691,21 +713,83 @@ model ChatMessageDeletion {
   @@map("chat_message_deletions")
 }
 
+enum ChatRequestStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  CANCELLED
+}
+
+model StudentChatSettings {
+  id                                    String   @id @default(uuid()) @db.Uuid
+  student_id                            String   @unique @db.Uuid
+  require_student_conversation_approval Boolean  @default(false)
+  created_at                            DateTime @default(now())
+  updated_at                            DateTime @updatedAt
+
+  student User @relation(fields: [student_id], references: [id], onDelete: Cascade)
+
+  @@index([student_id])
+  @@map("student_chat_settings")
+}
+
+model ChatRequest {
+  id                   String            @id @default(uuid()) @db.Uuid
+  sender_id            String            @db.Uuid
+  recipient_id         String            @db.Uuid
+  introductory_message String            @db.VarChar(500)
+  status               ChatRequestStatus @default(PENDING)
+  conversation_id      String?           @db.Uuid
+  created_at           DateTime          @default(now())
+  responded_at         DateTime?
+  updated_at           DateTime          @updatedAt
+
+  sender       User      @relation("SentChatRequests", fields: [sender_id], references: [id], onDelete: Cascade)
+  recipient    User      @relation("ReceivedChatRequests", fields: [recipient_id], references: [id], onDelete: Cascade)
+  conversation ChatRoom? @relation(fields: [conversation_id], references: [id], onDelete: SetNull)
+
+  @@index([sender_id])
+  @@index([recipient_id])
+  @@index([status])
+  @@index([conversation_id])
+  @@map("chat_requests")
+}
+
+model ChatBlock {
+  id         String   @id @default(uuid()) @db.Uuid
+  blocker_id String   @db.Uuid
+  blocked_id String   @db.Uuid
+  created_at DateTime @default(now())
+
+  blocker User @relation("ChatBlocksInitiated", fields: [blocker_id], references: [id], onDelete: Cascade)
+  blocked User @relation("ChatBlocksReceived", fields: [blocked_id], references: [id], onDelete: Cascade)
+
+  @@unique([blocker_id, blocked_id])
+  @@index([blocker_id])
+  @@index([blocked_id])
+  @@map("chat_blocks")
+}
+
 // ==========================================
 // 6. CAREER HUB & PLACEMENT MODULE
 // ==========================================
 
 model Company {
-  id         String   @id @default(uuid()) @db.Uuid
-  college_id String   @db.Uuid
-  name       String   @db.VarChar(255)
-  website    String?  @db.VarChar(255)
-  logo_url   String?  @db.Text
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  id              String   @id @default(uuid()) @db.Uuid
+  college_id      String   @db.Uuid
+  name            String   @db.VarChar(255)
+  website         String?  @db.VarChar(255)
+  logo_url        String?  @db.Text
+  cover_image_url String?  @db.Text
+  industry        String?  @db.VarChar(100)
+  about           String?  @db.Text
+  linkedin_url    String?  @db.VarChar(255)
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
 
-  college College          @relation(fields: [college_id], references: [id], onDelete: Cascade)
+  college College             @relation(fields: [college_id], references: [id], onDelete: Cascade)
   drives  PlacementDrive[]
+  resources PlacementResource[]
 
   @@map("companies")
 }
@@ -725,12 +809,25 @@ model PlacementDrive {
   job_description     String?     @db.Text
   deadline            DateTime
   status              DriveStatus @default(UPCOMING)
+  target_year         Int?
+  target_batch        String?     @db.VarChar(50)
+  employment_type     String?     @default("FULL_TIME") @db.VarChar(50)
+  work_mode           String?     @default("ON_SITE") @db.VarChar(50)
+  required_skills     String[]    @default([])
+  drive_date          DateTime?
+  test_date           DateTime?
+  interview_date      DateTime?
+  venue_or_link       String?     @db.Text
+  banner_url          String?     @db.Text
+  chat_room_id        String?     @unique @db.Uuid
   created_at          DateTime    @default(now())
   updated_at          DateTime    @updatedAt
 
   college      College                @relation(fields: [college_id], references: [id], onDelete: Cascade)
   company      Company?               @relation(fields: [company_id], references: [id], onDelete: SetNull)
+  chat_room    ChatRoom?              @relation("DriveChatRoom", fields: [chat_room_id], references: [id], onDelete: SetNull)
   applications PlacementApplication[]
+  resources    PlacementResource[]
 
   @@index([college_id])
   @@index([status])
@@ -770,6 +867,41 @@ model PlacementInterview {
 
   @@index([application_id])
   @@map("placement_interviews")
+}
+
+model PlacementResource {
+  id                 String    @id @default(uuid()) @db.Uuid
+  college_id         String    @db.Uuid
+  creator_id         String    @db.Uuid
+  company_id         String?   @db.Uuid
+  drive_id           String?   @db.Uuid
+  title              String    @db.VarChar(255)
+  description        String?   @db.Text
+  category           String    @db.VarChar(100) // APTITUDE, TECHNICAL, HR, COMPANY_SPECIFIC
+  resource_type      String    @db.VarChar(50)  // PDF, VIDEO, YOUTUBE_PLAYLIST, EXTERNAL_LINK, MOCK_TEST, NOTES
+  file_url           String?   @db.Text
+  external_url       String?   @db.Text
+  thumbnail_url      String?   @db.Text
+  tags               String[]  @default([])
+  target_departments Json?     // array of department IDs or codes
+  target_year        Int?
+  target_batch       String?   @db.VarChar(50)
+  views_count        Int       @default(0)
+  likes_count        Int       @default(0)
+  created_at         DateTime  @default(now())
+  updated_at         DateTime  @updatedAt
+
+  college College         @relation(fields: [college_id], references: [id], onDelete: Cascade)
+  creator User            @relation(fields: [creator_id], references: [id], onDelete: Cascade)
+  company Company?        @relation(fields: [company_id], references: [id], onDelete: SetNull)
+  drive   PlacementDrive? @relation(fields: [drive_id], references: [id], onDelete: SetNull)
+
+  @@index([college_id])
+  @@index([category])
+  @@index([resource_type])
+  @@index([drive_id])
+  @@index([company_id])
+  @@map("placement_resources")
 }
 
 // ==========================================
@@ -1690,6 +1822,7 @@ model AcademicProgram {
   curriculum_subjects CurriculumSubject[]
   student_profiles    StudentAcademicProfile[]
   academic_classes    AcademicClass[]
+  batches             Batch[]
 
   @@unique([college_id, code])
   @@index([college_id])
@@ -1722,8 +1855,10 @@ model StudentAcademicProfile {
   id             String   @id @default(uuid()) @db.Uuid
   student_id     String   @unique @db.Uuid
   program_id     String?  @db.Uuid
+  batch_id       String?  @db.Uuid
   admission_year Int      @default(2023)
   batch_name     String?  @db.VarChar(50)
+  current_year   Int?
   current_status String   @default("ACTIVE") @db.VarChar(50)
   section        String   @default("A") @db.VarChar(20)
   batch_group    String?  @db.VarChar(50)
@@ -1732,9 +1867,11 @@ model StudentAcademicProfile {
 
   student User             @relation(fields: [student_id], references: [id], onDelete: Cascade)
   program AcademicProgram? @relation(fields: [program_id], references: [id], onDelete: SetNull)
+  batch   Batch?           @relation(fields: [batch_id], references: [id], onDelete: SetNull)
 
   @@index([student_id])
   @@index([program_id])
+  @@index([batch_id])
   @@map("student_academic_profiles")
 }
 
@@ -2032,5 +2169,153 @@ model AcademicClass {
   @@map("academic_classes")
 }
 
+// ==========================================
+// 12. AUDIT LOGS & BATCH MANAGEMENT
+// ==========================================
 
+model AuditLog {
+  id            String   @id @default(uuid()) @db.Uuid
+  college_id    String   @db.Uuid
+  actor_user_id String?  @db.Uuid
+  action        String   @db.VarChar(100)
+  entity_type   String   @db.VarChar(100)
+  entity_id     String?  @db.VarChar(100)
+  category      String   @default("GENERAL") @db.VarChar(50)
+  description   String   @db.Text
+  metadata      Json?    @default("{}")
+  ip_address    String?  @db.VarChar(45)
+  user_agent    String?  @db.Text
+  created_at    DateTime @default(now())
 
+  college College @relation(fields: [college_id], references: [id], onDelete: Cascade)
+  actor   User?   @relation(fields: [actor_user_id], references: [id], onDelete: SetNull)
+
+  @@index([college_id])
+  @@index([actor_user_id])
+  @@index([action])
+  @@index([entity_type])
+  @@index([created_at])
+  @@map("audit_logs")
+}
+
+model Batch {
+  id              String   @id @default(uuid()) @db.Uuid
+  college_id      String   @db.Uuid
+  department_id   String?  @db.Uuid
+  program_id      String?  @db.Uuid
+  name            String   @db.VarChar(100)
+  admission_year  Int
+  graduation_year Int
+  status          String   @default("ACTIVE") @db.VarChar(50)
+  created_at      DateTime @default(now())
+  updated_at      DateTime @default(now()) @updatedAt
+
+  college    College          @relation(fields: [college_id], references: [id], onDelete: Cascade)
+  department Department?      @relation(fields: [department_id], references: [id], onDelete: SetNull)
+  program    AcademicProgram? @relation(fields: [program_id], references: [id], onDelete: SetNull)
+  student_profiles StudentAcademicProfile[]
+
+  @@unique([college_id, program_id, name])
+  @@index([college_id])
+  @@index([program_id])
+  @@index([department_id])
+  @@map("batches")
+}
+
+model AcademicTransitionRecord {
+  id                String   @id @default(uuid()) @db.Uuid
+  college_id        String   @db.Uuid
+  academic_year_id  String   @db.Uuid
+  academic_year     String   @db.VarChar(50)
+  processed_at      DateTime @default(now())
+  processed_by      String?  @db.Uuid
+  students_affected Int      @default(0)
+  graduated_count   Int      @default(0)
+  notes             String?  @db.Text
+
+  college College @relation(fields: [college_id], references: [id], onDelete: Cascade)
+
+  @@unique([college_id, academic_year_id])
+  @@index([college_id])
+  @@map("academic_transition_records")
+}
+
+enum ChangeRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum ChangeRequestCategory {
+  PERSONAL_CHANGE
+  ACADEMIC_IDENTITY_CHANGE
+  CAREER_PROFILE_CHANGE
+}
+
+model StudentProfile {
+  id                        String    @id @default(uuid()) @db.Uuid
+  user_id                   String    @unique @db.Uuid
+  dob                       DateTime?
+  father_name               String?   @db.VarChar(150)
+  father_phone              String?   @db.VarChar(20)
+  mother_name               String?   @db.VarChar(150)
+  mother_phone              String?   @db.VarChar(20)
+  guardian_name             String?   @db.VarChar(150)
+  guardian_phone            String?   @db.VarChar(20)
+  blood_group               String?   @db.VarChar(10)
+  emergency_contact_name     String?   @db.VarChar(150)
+  emergency_contact_relation String?   @db.VarChar(50)
+  emergency_contact_phone    String?   @db.VarChar(20)
+
+  permanent_address         String?   @db.Text
+  permanent_city            String?   @db.VarChar(100)
+  permanent_state           String?   @db.VarChar(100)
+  permanent_country         String?   @db.VarChar(100)
+  permanent_pincode         String?   @db.VarChar(20)
+  current_address           String?   @db.Text
+  current_city              String?   @db.VarChar(100)
+  current_state             String?   @db.VarChar(100)
+  current_country           String?   @db.VarChar(100)
+  current_pincode           String?   @db.VarChar(20)
+
+  tenth_percentage          Float?
+  twelfth_percentage        Float?
+  registration_number       String?   @db.VarChar(50)
+
+  created_at                DateTime  @default(now())
+  updated_at                DateTime  @default(now()) @updatedAt
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("student_profiles")
+}
+
+model ProfileChangeRequest {
+  id                  String                @id @default(uuid()) @db.Uuid
+  college_id          String                @db.Uuid
+  student_id          String                @db.Uuid
+  field               String                @db.VarChar(100)
+  category            ChangeRequestCategory @default(PERSONAL_CHANGE)
+  current_value       String                @db.Text
+  requested_value     String                @db.Text
+  reason              String                @db.Text
+  supporting_document String?               @db.Text
+  status              ChangeRequestStatus   @default(PENDING)
+  submitted_at        DateTime              @default(now())
+  reviewed_at         DateTime?
+  reviewed_by         String?               @db.Uuid
+  review_comment      String?               @db.Text
+  created_at          DateTime              @default(now())
+  updated_at          DateTime              @default(now()) @updatedAt
+
+  college  College @relation(fields: [college_id], references: [id], onDelete: Cascade)
+  student  User    @relation("StudentChangeRequests", fields: [student_id], references: [id], onDelete: Cascade)
+  reviewer User?   @relation("ReviewerChangeRequests", fields: [reviewed_by], references: [id], onDelete: SetNull)
+
+  @@index([college_id])
+  @@index([student_id])
+  @@index([status])
+  @@index([field])
+  @@map("profile_change_requests")
+}
